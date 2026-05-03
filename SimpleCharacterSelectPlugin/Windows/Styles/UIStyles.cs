@@ -1,0 +1,819 @@
+using System;
+using System.Numerics;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Utility;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
+
+namespace SimpleCharacterSelectPlugin.Windows.Styles
+{
+    public class UIStyles
+    {
+        private Plugin plugin;
+        private int styleStackCount = 0;
+        private int colorStackCount = 0;
+        private bool pushedPreDrawWindowBg = false;
+
+        public UIStyles(Plugin plugin)
+        {
+            this.plugin = plugin;
+        }
+
+        /// <summary>
+        /// Called in PreDraw. Only pushes WindowBg for Custom theme to allow window frame customization.
+        /// Default/Seasonal themes are completely unaffected.
+        /// </summary>
+        public void PushCustomWindowBgIfNeeded()
+        {
+            pushedPreDrawWindowBg = false;
+
+            if (plugin.Configuration.SelectedTheme != ThemeSelection.Custom)
+                return;
+
+            var customTheme = plugin.Configuration.CustomTheme;
+            if (customTheme.ColorOverrides.TryGetValue("color.windowBg", out var packed) && packed.HasValue)
+            {
+                var color = CustomThemeDefinitions.UnpackColor(packed.Value);
+                ImGui.PushStyleColor(ImGuiCol.WindowBg, color);
+                pushedPreDrawWindowBg = true;
+            }
+        }
+
+        /// <summary>
+        /// Called in PostDraw. Pops WindowBg if it was pushed in PreDraw.
+        /// </summary>
+        public void PopCustomWindowBgIfNeeded()
+        {
+            if (pushedPreDrawWindowBg)
+            {
+                ImGui.PopStyleColor(1);
+                pushedPreDrawWindowBg = false;
+            }
+        }
+
+        public void PushMainWindowStyle()
+        {
+            float scale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
+
+            // Check for Custom theme first (takes priority)
+            if (plugin.Configuration.SelectedTheme == ThemeSelection.Custom)
+            {
+                PushCustomThemeColors();
+            }
+            // Check for seasonal themes
+            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration) &&
+                     SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) == SeasonalTheme.Halloween)
+            {
+                // Halloween themed styling with dark gradient background
+                ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.08f, 0.04f, 0.02f, 0.98f)); // Dark orange-brown
+                ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.05f, 0.08f, 0.95f)); // Dark purple-black
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.08f, 0.04f, 0.02f, 0.98f)); // Dark orange-brown
+                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.15f, 0.08f, 0.04f, 0.9f)); // Dark orange frames
+                ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.20f, 0.12f, 0.06f, 0.9f)); // Lighter orange hover
+                ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.25f, 0.15f, 0.08f, 0.9f)); // Active orange
+                ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.06f, 0.03f, 0.02f, 1.0f)); // Very dark orange
+                ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.08f, 0.04f, 0.02f, 1.0f)); // Dark orange active
+                ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.08f, 0.04f, 0.02f, 0.98f)); // Dark orange menu
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.06f, 0.03f, 0.02f, 0.8f)); // Dark scrollbar
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.3f, 0.15f, 0.08f, 0.8f)); // Orange scrollbar grab
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.4f, 0.20f, 0.10f, 0.9f)); // Hover orange
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(0.5f, 0.25f, 0.12f, 1.0f)); // Active orange
+                ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.35f, 0.18f, 0.09f, 0.6f)); // Orange separator
+                ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.45f, 0.23f, 0.11f, 0.8f)); // Hover separator
+                ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(0.55f, 0.28f, 0.14f, 1.0f)); // Active separator
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.87f, 0.70f, 1.0f)); // Warm white text
+                ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.6f, 0.45f, 0.35f, 0.8f)); // Warm gray disabled
+                
+                // Halloween button styling
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.20f, 0.10f, 0.05f, 0.9f)); // Dark orange buttons
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.30f, 0.15f, 0.08f, 0.9f)); // Hover orange
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.40f, 0.20f, 0.10f, 0.9f)); // Active orange
+            }
+            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration) &&
+                     SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) == SeasonalTheme.Winter)
+            {
+                // Winter themed styling with bright icy blue/white theme
+                ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.12f, 0.16f, 0.22f, 0.98f)); // Bright cool blue
+                ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.20f, 0.28f, 0.95f)); // Lighter cool blue
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.12f, 0.16f, 0.22f, 0.98f)); // Bright cool blue
+                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.20f, 0.25f, 0.35f, 0.9f)); // Bright blue frames
+                ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.25f, 0.32f, 0.45f, 0.9f)); // Lighter blue hover
+                ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.30f, 0.40f, 0.55f, 0.9f)); // Active bright blue
+                ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.08f, 0.12f, 0.18f, 1.0f)); // Medium blue
+                ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.12f, 0.16f, 0.22f, 1.0f)); // Bright blue active
+                ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.12f, 0.16f, 0.22f, 0.98f)); // Bright blue menu
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.08f, 0.12f, 0.18f, 0.8f)); // Medium scrollbar
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.30f, 0.40f, 0.55f, 0.8f)); // Bright blue scrollbar
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.40f, 0.50f, 0.70f, 0.9f)); // Hover bright blue
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(0.50f, 0.65f, 0.85f, 1.0f)); // Active very bright blue
+                ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.35f, 0.45f, 0.60f, 0.6f)); // Bright blue separator
+                ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.45f, 0.55f, 0.75f, 0.8f)); // Hover separator
+                ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(0.55f, 0.70f, 0.90f, 1.0f)); // Active separator
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.98f, 1.0f, 1.0f)); // Bright white text
+                ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.60f, 0.70f, 0.85f, 0.8f)); // Cool light gray disabled
+                
+                // Winter button styling
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.20f, 0.30f, 0.45f, 0.9f)); // Bright blue buttons
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.30f, 0.40f, 0.60f, 0.9f)); // Hover bright blue
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.40f, 0.55f, 0.75f, 0.9f)); // Active very bright blue
+            }
+            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration) &&
+                     SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) == SeasonalTheme.Christmas)
+            {
+                // Christmas themed styling with vibrant saturated red/green theme
+                ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.25f, 0.05f, 0.05f, 0.98f)); // Vibrant saturated red
+                ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.30f, 0.08f, 0.05f, 0.95f)); // Saturated red-brown
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.25f, 0.05f, 0.05f, 0.98f)); // Vibrant saturated red
+                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.40f, 0.12f, 0.08f, 0.9f)); // Vibrant red frames
+                ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.50f, 0.18f, 0.12f, 0.9f)); // Saturated red hover
+                ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.65f, 0.22f, 0.15f, 0.9f)); // Active saturated red
+                ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.18f, 0.03f, 0.03f, 1.0f)); // Deep saturated red
+                ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.25f, 0.05f, 0.05f, 1.0f)); // Saturated red active
+                ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.25f, 0.05f, 0.05f, 0.98f)); // Saturated red menu
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.18f, 0.03f, 0.03f, 0.8f)); // Deep scrollbar
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.60f, 0.20f, 0.15f, 0.8f)); // Saturated red scrollbar
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.75f, 0.25f, 0.18f, 0.9f)); // Hover saturated red
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(0.90f, 0.30f, 0.22f, 1.0f)); // Active very saturated red
+                ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.70f, 0.25f, 0.18f, 0.6f)); // Saturated red separator
+                ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.80f, 0.30f, 0.22f, 0.8f)); // Hover separator
+                ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(0.95f, 0.35f, 0.25f, 1.0f)); // Active separator
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.98f, 0.95f, 1.0f)); // Bright warm white text
+                ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.80f, 0.70f, 0.60f, 0.8f)); // Warm light gray disabled
+
+                // Christmas button styling
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.60f, 0.18f, 0.12f, 0.9f)); // Saturated red buttons
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.75f, 0.25f, 0.18f, 0.9f)); // Hover saturated red
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.90f, 0.32f, 0.22f, 0.9f)); // Active very saturated red
+            }
+            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration) &&
+                     SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) == SeasonalTheme.Valentines)
+            {
+                // Valentine's Day themed styling with vibrant pink/red theme
+                ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.38f, 0.10f, 0.25f, 0.98f)); // More pink
+                ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.42f, 0.12f, 0.28f, 0.95f)); // Deeper pink
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.38f, 0.10f, 0.25f, 0.98f)); // More pink
+                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.38f, 0.06f, 0.18f, 0.9f)); // Vibrant pink frames
+                ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.52f, 0.08f, 0.26f, 0.9f)); // Brighter pink hover
+                ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.65f, 0.10f, 0.32f, 0.9f)); // Active vivid pink
+                ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.18f, 0.02f, 0.09f, 1.0f)); // Deep rose
+                ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.28f, 0.03f, 0.14f, 1.0f)); // Rich rose active
+                ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.22f, 0.03f, 0.12f, 0.98f)); // Rich rose menu
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.18f, 0.02f, 0.09f, 0.8f)); // Deep scrollbar
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.70f, 0.10f, 0.35f, 0.85f)); // Vivid pink scrollbar
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.85f, 0.15f, 0.42f, 0.95f)); // Brighter pink hover
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(1.0f, 0.20f, 0.50f, 1.0f)); // Hot pink active
+                ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.80f, 0.12f, 0.40f, 0.7f)); // Vivid pink separator
+                ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.95f, 0.18f, 0.48f, 0.85f)); // Brighter separator
+                ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(1.0f, 0.25f, 0.55f, 1.0f)); // Hot pink separator
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.95f, 0.97f, 1.0f)); // Soft white-pink text
+                ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.75f, 0.50f, 0.58f, 0.8f)); // Muted pink disabled
+
+                // Valentine's button styling - more vibrant
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.60f, 0.08f, 0.30f, 0.9f)); // Vivid pink buttons
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.78f, 0.12f, 0.40f, 0.95f)); // Bright pink hover
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.95f, 0.18f, 0.48f, 1.0f)); // Hot pink active
+            }
+            else
+            {
+                // Default matte black styling
+                ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.06f, 0.06f, 0.06f, 0.98f));
+                ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.08f, 0.95f));
+                ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.06f, 0.06f, 0.06f, 0.98f));
+                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.12f, 0.12f, 0.12f, 0.9f));
+                ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.18f, 0.18f, 0.18f, 0.9f));
+                ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.22f, 0.22f, 0.22f, 0.9f));
+                ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.04f, 0.04f, 0.04f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.06f, 0.06f, 0.06f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.06f, 0.06f, 0.06f, 0.98f));
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.04f, 0.04f, 0.04f, 0.8f));
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.2f, 0.2f, 0.2f, 0.8f));
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.3f, 0.3f, 0.3f, 0.9f));
+                ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(0.4f, 0.4f, 0.4f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.25f, 0.25f, 0.25f, 0.6f));
+                ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.35f, 0.35f, 0.35f, 0.8f));
+                ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(0.45f, 0.45f, 0.45f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.92f, 0.92f, 0.92f, 1.0f));
+                ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.5f, 0.5f, 0.5f, 0.8f));
+                
+                // Default button styling
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.16f, 0.16f, 0.16f, 0.9f)); // Default gray buttons
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.22f, 0.22f, 0.22f, 0.9f)); // Hover gray
+                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.28f, 0.28f, 0.28f, 0.9f)); // Active gray
+            }
+
+            // Styling variables for polish
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(8 * scale, 4 * scale));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8 * scale, 6 * scale));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 10.0f * scale); // Scale window rounding
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 8.0f * scale);   // Scale child rounding
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6.0f * scale);   // Scale frame rounding
+            ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 8.0f * scale); // Scale scrollbar rounding
+            ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 6.0f * scale);    // Scale grab rounding
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f * scale); // Scale borders
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 0.5f * scale);
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 0.5f * scale);
+
+            colorStackCount += 21; // Updated count to include button colors
+            styleStackCount += 10;
+
+        }
+
+        public void PopMainWindowStyle()
+        {
+            ImGui.PopStyleVar(styleStackCount);
+            ImGui.PopStyleColor(colorStackCount);
+            styleStackCount = 0;
+            colorStackCount = 0;
+        }
+
+        /// <summary>
+        /// Pushes custom theme colors from CustomThemeDefinitions.
+        /// Uses user overrides where available, otherwise falls back to defaults.
+        /// </summary>
+        private void PushCustomThemeColors()
+        {
+            var customTheme = plugin.Configuration.CustomTheme;
+            int pushedColors = 0;
+
+            // Push all ImGui colors from CustomThemeDefinitions
+            foreach (var option in CustomThemeDefinitions.ColorOptions)
+            {
+                Vector4 color;
+                if (customTheme.ColorOverrides.TryGetValue(option.Key, out var packed) && packed.HasValue)
+                {
+                    color = CustomThemeDefinitions.UnpackColor(packed.Value);
+                }
+                else
+                {
+                    color = option.DefaultValue;
+                }
+
+                ImGui.PushStyleColor(option.Target, color);
+                pushedColors++;
+            }
+
+            // Push additional separator colors to match seasonal theme count (21 total)
+            // These use defaults since they're not in the customizable options
+            ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.35f, 0.35f, 0.35f, 0.8f));
+
+            // Note: colorStackCount is incremented in PushMainWindowStyle() after the if/else block
+            // to keep consistent handling across all theme types (line 156: colorStackCount += 21)
+        }
+
+        public void PushCharacterCardStyle(Vector3 glowColor, bool isHovered = false, float scale = 1.0f)
+        {
+            // Use GlobalScale combined with any additional scaling
+            float finalScale = ImGuiHelpers.GlobalScale * scale;
+            
+            // Dark card background with subtle transparency
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.15f, 0.15f, 0.9f));
+
+            // Rounded corners
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 12.0f * finalScale);
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, (isHovered ? 2.0f : 1.0f) * finalScale);
+
+            colorStackCount++;
+            styleStackCount += 2;
+        }
+
+        public void PopCharacterCardStyle()
+        {
+            ImGui.PopStyleVar(2);
+            ImGui.PopStyleColor(1);
+            styleStackCount -= 2;
+            colorStackCount--;
+        }
+
+        public void DrawGlowingBorder(Vector2 min, Vector2 max, Vector3 color, float intensity = 1.0f, bool isHovered = false, float scale = 1.0f)
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            float finalScale = ImGuiHelpers.GlobalScale * scale;
+
+            // Convert colour to ImGui format
+            var glowColor = new Vector4(color.X, color.Y, color.Z, intensity);
+            uint glowColorU32 = ImGui.GetColorU32(glowColor);
+
+            // Draw multiple borders for glow effect - scale thickness and radius
+            float thickness = (isHovered ? 2.0f : 1.5f) * finalScale;
+            float cornerRadius = 12.0f * finalScale;
+
+            // Outer glow
+            for (int i = 0; i < 5; i++)
+            {
+                float alpha = (0.4f - i * 0.08f) * intensity;
+                if (alpha <= 0) break;
+
+                uint outerColor = ImGui.GetColorU32(new Vector4(color.X, color.Y, color.Z, alpha));
+                float offset = (i + 1) * 1.5f * finalScale;
+
+                drawList.AddRect(
+                    min - new Vector2(offset, offset),
+                    max + new Vector2(offset, offset),
+                    outerColor,
+                    cornerRadius + offset,
+                    ImDrawFlags.RoundCornersAll,
+                    1.0f * finalScale
+                );
+            }
+
+            // Inner bright border
+            if (isHovered)
+            {
+                uint brightColor = ImGui.GetColorU32(new Vector4(color.X, color.Y, color.Z, intensity * 0.8f));
+                drawList.AddRect(
+                    min + new Vector2(1 * finalScale, 1 * finalScale),
+                    max - new Vector2(1 * finalScale, 1 * finalScale),
+                    brightColor,
+                    cornerRadius - (1 * finalScale),
+                    ImDrawFlags.RoundCornersAll,
+                    1.0f * finalScale
+                );
+            }
+
+            // Main border
+            drawList.AddRect(min, max, glowColorU32, cornerRadius, ImDrawFlags.RoundCornersAll, thickness);
+        }
+
+        public void PushDarkButtonStyle(float scale = 1.0f)
+        {
+            float finalScale = ImGuiHelpers.GlobalScale * scale;
+            
+            // Dark button styling
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.3f, 0.3f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.4f, 0.4f, 0.4f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
+
+            ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6.0f * finalScale); // Scale button rounding
+
+            colorStackCount += 4;
+            styleStackCount += 2;
+        }
+
+        public void PopDarkButtonStyle()
+        {
+            ImGui.PopStyleVar(2);
+            ImGui.PopStyleColor(4);
+            styleStackCount -= 2;
+            colorStackCount -= 4;
+        }
+
+        public bool IconButton(string icon, string tooltip, Vector2? size = null, float scale = 1.0f)
+        {
+            return IconButtonWithColor(icon, tooltip, size, scale, null);
+        }
+
+        public bool IconButtonWithColor(string icon, string tooltip, Vector2? size = null, float scale = 1.0f, Vector4? iconColor = null)
+        {
+            float finalScale = ImGuiHelpers.GlobalScale * scale;
+
+            // Calculate icon size
+            ImGui.PushFont(UiBuilder.IconFont);
+            var iconSize = ImGui.CalcTextSize(icon);
+            ImGui.PopFont();
+
+            // Determine button size
+            Vector2 buttonSize;
+            if (size.HasValue)
+            {
+                buttonSize = new Vector2(size.Value.X * finalScale, size.Value.Y * finalScale);
+            }
+            else
+            {
+                // Default: icon size + padding
+                var padding = ImGui.GetStyle().FramePadding;
+                buttonSize = new Vector2(iconSize.X + padding.X * 2, iconSize.Y + padding.Y * 2);
+            }
+
+            // Get button position before creating it
+            var buttonPos = ImGui.GetCursorScreenPos();
+
+            // Create invisible button for interaction
+            var buttonId = $"##iconbtn_{icon}_{buttonPos.X}_{buttonPos.Y}";
+            bool result = ImGui.InvisibleButton(buttonId, buttonSize);
+            bool isHovered = ImGui.IsItemHovered();
+            bool isActive = ImGui.IsItemActive();
+
+            // Draw button background
+            var drawList = ImGui.GetWindowDrawList();
+            var buttonEnd = buttonPos + buttonSize;
+
+            Vector4 bgColor;
+            if (isActive)
+                bgColor = ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive];
+            else if (isHovered)
+                bgColor = ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonHovered];
+            else
+                bgColor = ImGui.GetStyle().Colors[(int)ImGuiCol.Button];
+
+            drawList.AddRectFilled(buttonPos, buttonEnd, ImGui.ColorConvertFloat4ToU32(bgColor), ImGui.GetStyle().FrameRounding);
+
+            // Draw centered icon
+            var iconPos = buttonPos + (buttonSize - iconSize) * 0.5f;
+            var textColor = iconColor ?? ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
+
+            ImGui.PushFont(UiBuilder.IconFont);
+            drawList.AddText(iconPos, ImGui.ColorConvertFloat4ToU32(textColor), icon);
+            ImGui.PopFont();
+
+            if (isHovered && !string.IsNullOrEmpty(tooltip))
+            {
+                ImGui.SetTooltip(tooltip);
+            }
+
+            return result;
+        }
+
+        public void DrawGradientBackground(Vector2 min, Vector2 max, Vector4 topColor, Vector4 bottomColor)
+        {
+            var drawList = ImGui.GetWindowDrawList();
+
+            uint topColorU32 = ImGui.GetColorU32(topColor);
+            uint bottomColorU32 = ImGui.GetColorU32(bottomColor);
+
+            drawList.AddRectFilledMultiColor(
+                min, max,
+                topColorU32, topColorU32,
+                bottomColorU32, bottomColorU32
+            );
+        }
+
+        public void PushNameplateStyle(float scale = 1.0f)
+        {
+            // Nameplate styling with transparency
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0, 0, 0, 0.85f));
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 0.0f); // Nameplates typically don't have rounding
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 0.0f);
+
+            colorStackCount++;
+            styleStackCount += 2;
+        }
+
+        public void PopNameplateStyle()
+        {
+            ImGui.PopStyleVar(2);
+            ImGui.PopStyleColor(1);
+            styleStackCount -= 2;
+            colorStackCount--;
+        }
+
+        public void DrawPaginationDots(int currentPage, int totalPages, Vector2 position, float scale = 1.0f)
+        {
+            if (totalPages <= 1) return;
+
+            var drawList = ImGui.GetWindowDrawList();
+            float finalScale = ImGuiHelpers.GlobalScale * scale;
+            float dotSize = 8.0f * finalScale; 
+            float spacing = 16.0f * finalScale; 
+
+            for (int i = 0; i < totalPages; i++)
+            {
+                Vector2 dotPos = position + new Vector2(i * spacing, 0);
+                uint color = i == currentPage
+                    ? ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 1.0f, 1.0f))
+                    : ImGui.GetColorU32(new Vector4(0.5f, 0.5f, 0.5f, 0.7f));
+
+                drawList.AddCircleFilled(dotPos, dotSize / 2, color);
+
+                // Glow effect for active dot
+                if (i == currentPage)
+                {
+                    drawList.AddCircle(dotPos, dotSize / 2 + (2 * finalScale),
+                        ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 1.0f, 0.5f)), 0, 1.0f * finalScale);
+                }
+            }
+        }
+
+        public void PushFormStyle()
+        {
+            float scale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
+
+            // Form-specific styling
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.16f, 0.16f, 0.16f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.22f, 0.22f, 0.22f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.28f, 0.28f, 0.28f, 0.9f));
+
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale);
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6 * scale, 4 * scale));
+
+            colorStackCount += 3;
+            styleStackCount += 2;
+        }
+
+        public void PopFormStyle()
+        {
+            ImGui.PopStyleVar(2);
+            ImGui.PopStyleColor(3);
+            styleStackCount -= 2;
+            colorStackCount -= 3;
+        }
+    }
+
+    public static class SeStringExtensions
+    {
+        public static SeStringBuilder AddColored(this SeStringBuilder builder, string text, ushort colorId, bool bold = false)
+        {
+            builder.AddUiForeground(colorId);
+            if (bold) builder.Add(RawPayload.LinkTerminator);
+            builder.AddText(text);
+            if (bold) builder.Add(RawPayload.LinkTerminator);
+            builder.AddUiForegroundOff();
+            return builder;
+        }
+
+        public static SeStringBuilder AddRed(this SeStringBuilder builder, string text, bool bold = false)
+            => builder.AddColored(text, 14, bold); // Red color
+
+        public static SeStringBuilder AddBlue(this SeStringBuilder builder, string text, bool bold = false)
+            => builder.AddColored(text, 37, bold); // Blue color
+
+        public static SeStringBuilder AddYellow(this SeStringBuilder builder, string text, bool bold = false)
+            => builder.AddColored(text, 31, bold); // Yellow color
+
+        public static SeStringBuilder AddGreen(this SeStringBuilder builder, string text, bool bold = false)
+            => builder.AddColored(text, 43, bold); // Green color
+
+        public static SeStringBuilder AddPurple(this SeStringBuilder builder, string text, bool bold = false)
+            => builder.AddColored(text, 541, bold); // Purple color
+
+        public static SeStringBuilder AddOrange(this SeStringBuilder builder, string text, bool bold = false)
+            => builder.AddColored(text, 500, bold); // Orange color
+
+        public static SeStringBuilder AddWhite(this SeStringBuilder builder, string text, bool bold = false)
+            => builder.AddColored(text, 1, bold); // White color
+    }
+
+    /// <summary>
+    /// Static helper methods for applying theme colors to secondary windows.
+    /// These methods can be called without a UIStyles instance.
+    /// </summary>
+    public static class ThemeHelper
+    {
+        /// <summary>
+        /// Pushes theme colors for secondary windows (not the main window).
+        /// Does NOT push background image - only colors.
+        /// Call PopThemeColors with the returned count when done.
+        /// </summary>
+        /// <param name="config">Plugin configuration</param>
+        /// <returns>Number of colors pushed (use for PopStyleColor)</returns>
+        public static int PushThemeColors(Configuration config)
+        {
+            if (config.SelectedTheme == ThemeSelection.Custom)
+            {
+                return PushCustomThemeColorsStatic(config);
+            }
+            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(config) &&
+                     SeasonalThemeManager.GetEffectiveTheme(config) == SeasonalTheme.Halloween)
+            {
+                return PushHalloweenColors();
+            }
+            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(config) &&
+                     SeasonalThemeManager.GetEffectiveTheme(config) == SeasonalTheme.Winter)
+            {
+                return PushWinterColors();
+            }
+            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(config) &&
+                     SeasonalThemeManager.GetEffectiveTheme(config) == SeasonalTheme.Christmas)
+            {
+                return PushChristmasColors();
+            }
+            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(config) &&
+                     SeasonalThemeManager.GetEffectiveTheme(config) == SeasonalTheme.Valentines)
+            {
+                return PushValentinesColors();
+            }
+            else
+            {
+                return PushDefaultColors();
+            }
+        }
+
+        /// <summary>
+        /// Pops theme colors pushed by PushThemeColors.
+        /// </summary>
+        /// <param name="count">The count returned by PushThemeColors</param>
+        public static void PopThemeColors(int count)
+        {
+            if (count > 0)
+            {
+                ImGui.PopStyleColor(count);
+            }
+        }
+
+        /// <summary>
+        /// Pushes default theme colors, ignoring current theme selection.
+        /// Use for windows that should always have consistent appearance.
+        /// </summary>
+        /// <returns>Number of colors pushed (use for PopStyleColor)</returns>
+        public static int PushDefaultThemeColors()
+        {
+            return PushDefaultColors();
+        }
+
+        /// <summary>
+        /// Pushes standard style variables for secondary windows.
+        /// </summary>
+        /// <param name="scale">UI scale multiplier</param>
+        /// <returns>Number of style vars pushed (use for PopStyleVar)</returns>
+        public static int PushThemeStyleVars(float scale = 1.0f)
+        {
+            float finalScale = ImGuiHelpers.GlobalScale * scale;
+
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(8 * finalScale, 4 * finalScale));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8 * finalScale, 6 * finalScale));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 10.0f * finalScale);
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 8.0f * finalScale);
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6.0f * finalScale);
+            ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 8.0f * finalScale);
+            ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 6.0f * finalScale);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1.0f * finalScale);
+            ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 0.5f * finalScale);
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 0.5f * finalScale);
+
+            return 10;
+        }
+
+        /// <summary>
+        /// Pops style vars pushed by PushThemeStyleVars.
+        /// </summary>
+        /// <param name="count">The count returned by PushThemeStyleVars</param>
+        public static void PopThemeStyleVars(int count)
+        {
+            if (count > 0)
+            {
+                ImGui.PopStyleVar(count);
+            }
+        }
+
+        private static int PushCustomThemeColorsStatic(Configuration config)
+        {
+            var customTheme = config.CustomTheme;
+            int pushedColors = 0;
+
+            // Push all ImGui colors from CustomThemeDefinitions
+            foreach (var option in CustomThemeDefinitions.ColorOptions)
+            {
+                Vector4 color;
+                if (customTheme.ColorOverrides.TryGetValue(option.Key, out var packed) && packed.HasValue)
+                {
+                    color = CustomThemeDefinitions.UnpackColor(packed.Value);
+                }
+                else
+                {
+                    color = option.DefaultValue;
+                }
+
+                ImGui.PushStyleColor(option.Target, color);
+                pushedColors++;
+            }
+
+            // Push additional separator colors to match seasonal theme count (21 total)
+            ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.35f, 0.35f, 0.35f, 0.8f));
+            pushedColors++;
+
+            return pushedColors;
+        }
+
+        private static int PushHalloweenColors()
+        {
+            // Halloween themed styling with dark gradient background
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.08f, 0.04f, 0.02f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.05f, 0.08f, 0.95f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.08f, 0.04f, 0.02f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.15f, 0.08f, 0.04f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.20f, 0.12f, 0.06f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.25f, 0.15f, 0.08f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.06f, 0.03f, 0.02f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.08f, 0.04f, 0.02f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.08f, 0.04f, 0.02f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.06f, 0.03f, 0.02f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.3f, 0.15f, 0.08f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.4f, 0.20f, 0.10f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(0.5f, 0.25f, 0.12f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.35f, 0.18f, 0.09f, 0.6f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.45f, 0.23f, 0.11f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(0.55f, 0.28f, 0.14f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.87f, 0.70f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.6f, 0.45f, 0.35f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.20f, 0.10f, 0.05f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.30f, 0.15f, 0.08f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.40f, 0.20f, 0.10f, 0.9f));
+
+            return 21;
+        }
+
+        private static int PushWinterColors()
+        {
+            // Winter themed styling with bright icy blue/white theme
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.12f, 0.16f, 0.22f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.15f, 0.20f, 0.28f, 0.95f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.12f, 0.16f, 0.22f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.20f, 0.25f, 0.35f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.25f, 0.32f, 0.45f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.30f, 0.40f, 0.55f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.08f, 0.12f, 0.18f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.12f, 0.16f, 0.22f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.12f, 0.16f, 0.22f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.08f, 0.12f, 0.18f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.30f, 0.40f, 0.55f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.40f, 0.50f, 0.70f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(0.50f, 0.65f, 0.85f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.35f, 0.45f, 0.60f, 0.6f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.45f, 0.55f, 0.75f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(0.55f, 0.70f, 0.90f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.98f, 1.0f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.60f, 0.70f, 0.85f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.20f, 0.30f, 0.45f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.30f, 0.40f, 0.60f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.40f, 0.55f, 0.75f, 0.9f));
+
+            return 21;
+        }
+
+        private static int PushChristmasColors()
+        {
+            // Christmas themed styling with vibrant saturated red/green theme
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.25f, 0.05f, 0.05f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.30f, 0.08f, 0.05f, 0.95f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.25f, 0.05f, 0.05f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.40f, 0.12f, 0.08f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.50f, 0.18f, 0.12f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.65f, 0.22f, 0.15f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.18f, 0.03f, 0.03f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.25f, 0.05f, 0.05f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.25f, 0.05f, 0.05f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.18f, 0.03f, 0.03f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.60f, 0.20f, 0.15f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.75f, 0.25f, 0.18f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(0.90f, 0.30f, 0.22f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.70f, 0.25f, 0.18f, 0.6f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.80f, 0.30f, 0.22f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(0.95f, 0.35f, 0.25f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.98f, 0.95f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.80f, 0.70f, 0.60f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.60f, 0.18f, 0.12f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.75f, 0.25f, 0.18f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.90f, 0.32f, 0.22f, 0.9f));
+
+            return 21;
+        }
+
+        private static int PushValentinesColors()
+        {
+            // Valentine's Day themed styling with vibrant pink/red theme
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.38f, 0.10f, 0.25f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.42f, 0.12f, 0.28f, 0.95f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.38f, 0.10f, 0.25f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.38f, 0.06f, 0.18f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.52f, 0.08f, 0.26f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.65f, 0.10f, 0.32f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.18f, 0.02f, 0.09f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.28f, 0.03f, 0.14f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.22f, 0.03f, 0.12f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.18f, 0.02f, 0.09f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.70f, 0.10f, 0.35f, 0.85f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.85f, 0.15f, 0.42f, 0.95f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(1.0f, 0.20f, 0.50f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.80f, 0.12f, 0.40f, 0.7f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.95f, 0.18f, 0.48f, 0.85f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(1.0f, 0.25f, 0.55f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.95f, 0.97f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.75f, 0.50f, 0.58f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.60f, 0.08f, 0.30f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.78f, 0.12f, 0.40f, 0.95f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.95f, 0.18f, 0.48f, 1.0f));
+
+            return 21;
+        }
+
+        private static int PushDefaultColors()
+        {
+            // Default matte black styling
+            ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.06f, 0.06f, 0.06f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.08f, 0.95f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.06f, 0.06f, 0.06f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.12f, 0.12f, 0.12f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.18f, 0.18f, 0.18f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.22f, 0.22f, 0.22f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBg, new Vector4(0.04f, 0.04f, 0.04f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.06f, 0.06f, 0.06f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.MenuBarBg, new Vector4(0.06f, 0.06f, 0.06f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.04f, 0.04f, 0.04f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, new Vector4(0.2f, 0.2f, 0.2f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, new Vector4(0.3f, 0.3f, 0.3f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, new Vector4(0.4f, 0.4f, 0.4f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.25f, 0.25f, 0.25f, 0.6f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorHovered, new Vector4(0.35f, 0.35f, 0.35f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.SeparatorActive, new Vector4(0.45f, 0.45f, 0.45f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.92f, 0.92f, 0.92f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.TextDisabled, new Vector4(0.5f, 0.5f, 0.5f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.16f, 0.16f, 0.16f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.22f, 0.22f, 0.22f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.28f, 0.28f, 0.28f, 0.9f));
+
+            return 21;
+        }
+    }
+}

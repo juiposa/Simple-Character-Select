@@ -1,0 +1,17 @@
+{
+  "Author": "Juiposa",
+  "Name": "Simple Character Select",
+  "InternalName": "SimpleSelectPlugin",
+  "AssemblyVersion": "0.0.1",
+  "Description": "Character Select Simplified",
+  "ApplicableVersion": "any",
+  "Tags": ["character", "select", "ocs", "rp", "roleplay"],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "Punchline": "Swap between your OCs with a single click",
+  "AcceptsFeedback": true,
+  "IconUrl": ""
+}

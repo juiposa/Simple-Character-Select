@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+    <PropertyGroup>
+        <TargetFramework>net10.0-windows</TargetFramework>
+        <!-- Windows-specific target framework -->
+        <Version>0.0.1</Version>
+        <Description>Instant Character Switching Made Simple. Create and save character profiles, then switch between them instantly. Applies Penumbra Collections, Glamourer Designs, Customize+ Profiles, Honorifics, Moodles, and Idles. Perfect for roleplayers, gposers, and anyone who loves seamless character customization.</Description>
+        <PackageProjectUrl></PackageProjectUrl>
+        <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+        <IsPackable>false</IsPackable>
+        <UseWindowsForms>true</UseWindowsForms>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Include="System.Windows.Forms" />
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="SimpleCharacterSelectPlugin.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+
+        <Content Include="Assets\**\*.*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    <ItemGroup>
+      <PackageReference Update="DalamudPackager" Version="15.0.0" />
+      <PackageReference Update="DotNet.ReproducibleBuilds" Version="2.0.2" />
+    </ItemGroup>
+
+</Project>
