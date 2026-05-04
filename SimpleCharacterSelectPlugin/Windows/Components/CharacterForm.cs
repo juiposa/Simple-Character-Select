@@ -418,13 +418,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.Separator();
             }
 
-            // Mod Manager (Conflict Resolution)
-            if (isSecretMode)
-            {
-                DrawSecretModeModsField(labelWidth, inputWidth, inputOffset, scale);
-                ImGui.Separator();
-            }
-
             // Image Selection
             DrawImageSelection(scale);
             ImGui.Separator();
@@ -465,113 +458,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Optional content after tooltip
             afterTooltip?.Invoke();
-        }
-
-        private void DrawSecretModeModsField(float labelWidth, float inputWidth, float inputOffset, float scale)
-        {
-            DrawFormField("Mod Manager", labelWidth, inputWidth, inputOffset, () =>
-            {
-                var selectedCount = IsEditWindowOpen && plugin.Characters[selectedCharacterIndex].SecretModState != null
-                    ? plugin.Characters[selectedCharacterIndex].SecretModState.Count
-                    : (plugin.NewSecretModState?.Count ?? 0);
-                
-                var buttonText = selectedCount > 0 
-                    ? $"Configure Mods ({selectedCount} selected)###SecretMods"
-                    : "Configure Mods###SecretMods";
-                
-                // Validate that character name is filled before opening mod manager
-                string characterName = IsEditWindowOpen ? editedCharacterName : plugin.NewCharacterName;
-                bool hasValidName = !string.IsNullOrWhiteSpace(characterName);
-                
-                if (!hasValidName)
-                    ImGui.BeginDisabled();
-                
-                if (ImGui.Button(buttonText, new Vector2(inputWidth, 0)))
-                {
-                    if (hasValidName)
-                    {
-                        // Open the Secret Mode mod selection window
-                        if (plugin.SecretModeModWindow == null)
-                        {
-                            plugin.SecretModeModWindow = new SecretModeModWindow(plugin);
-                            plugin.WindowSystem.AddWindow(plugin.SecretModeModWindow);
-                        }
-                        
-                        Dictionary<string, bool>? currentSelection = null;
-                        HashSet<string>? currentPins = null;
-                        if (IsEditWindowOpen)
-                        {
-                            currentSelection = plugin.Characters[selectedCharacterIndex].SecretModState;
-                            currentPins = plugin.Characters[selectedCharacterIndex].SecretModPins != null ? new HashSet<string>(plugin.Characters[selectedCharacterIndex].SecretModPins) : null;
-                            Plugin.Log.Information($"[PIN DEBUG] Character form loading pins for character {selectedCharacterIndex}: {currentPins?.Count ?? 0} pins - {string.Join(", ", currentPins ?? new HashSet<string>())}");
-                        }
-                        else
-                        {
-                            currentSelection = plugin.NewSecretModState;
-                            currentPins = plugin.NewSecretModPins != null ? new HashSet<string>(plugin.NewSecretModPins) : null;
-                            Plugin.Log.Information($"[PIN DEBUG] Character form loading pins for new character: {currentPins?.Count ?? 0} pins - {string.Join(", ", currentPins ?? new HashSet<string>())}");
-                        }
-                        
-                        Plugin.Log.Information($"[PIN DEBUG] About to pass pins to mod manager: {currentPins?.Count ?? 0} pins - {string.Join(", ", currentPins ?? new HashSet<string>())}");
-                        plugin.SecretModeModWindow.Open(
-                            IsEditWindowOpen ? selectedCharacterIndex : null,
-                            currentSelection,
-                            currentPins,
-                            (selection) =>
-                            {
-                                if (IsEditWindowOpen)
-                                {
-                                    plugin.Characters[selectedCharacterIndex].SecretModState = selection;
-                                    plugin.SaveConfiguration();
-                                }
-                                else
-                                {
-                                    plugin.NewSecretModState = selection;
-                                }
-                            },
-                            (pins) =>
-                            {
-                                if (IsEditWindowOpen)
-                                {
-                                    Plugin.Log.Information($"[PIN DEBUG] Character save callback: saving {pins?.Count ?? 0} pins to character {selectedCharacterIndex}");
-                                    plugin.Characters[selectedCharacterIndex].SecretModPins = pins?.ToList();
-                                    plugin.SaveConfiguration();
-                                }
-                                else
-                                {
-                                    Plugin.Log.Information($"[PIN DEBUG] New character save callback: saving {pins?.Count ?? 0} pins to NewSecretModPins");
-                                    plugin.NewSecretModPins = pins?.ToList();
-                                }
-                            },
-                            null,  // No design context for character-level operations
-                            characterName,  // Pass the character name for context
-                            (inheritMods) =>
-                            {
-                                // Inherit callback - restore Penumbra inheritance for these mods
-                                if (inheritMods != null && inheritMods.Count > 0)
-                                {
-                                    _ = plugin.RestoreModInheritance(inheritMods);
-                                }
-                            }
-                        );
-                    }
-                }
-                
-                if (!hasValidName)
-                {
-                    ImGui.EndDisabled();
-                    
-                    // Show tooltip explaining why the button is disabled
-                    if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                    {
-                        ImGui.BeginTooltip();
-                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.7f, 1.0f));
-                        ImGui.Text("Please enter a Character Name before configuring mods.");
-                        ImGui.PopStyleColor();
-                        ImGui.EndTooltip();
-                    }
-                }
-            }, "Select which mods to enable and configure their options for this character.\nAllows different characters to use different mod combinations and settings.", scale);
         }
         
         private void DrawAutomationField(float labelWidth, float inputWidth, float inputOffset, float scale)
@@ -1075,7 +961,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetNextItemWidth(inputWidth);
 
             // Get available gearsets
-            var gearsets = plugin.GetPlayerGearsets();
+            //var gearsets = plugin.GetPlayerGearsets();
 
             // Get current value
             int? currentGearset = IsEditWindowOpen ? editedCharacterGearset : plugin.NewCharacterGearset;
@@ -1084,15 +970,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string currentDisplay = "None";
             if (currentGearset.HasValue)
             {
-                var matchingGearset = gearsets.FirstOrDefault(g => g.Number == currentGearset.Value);
-                if (matchingGearset.Number > 0)
-                {
-                    currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
-                }
-                else
-                {
-                    currentDisplay = $"Gearset {currentGearset.Value}";
-                }
+                // var matchingGearset = gearsets.FirstOrDefault(g => g.Number == currentGearset.Value);
+                // if (matchingGearset.Number > 0)
+                // {
+                //     //currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
+                // }
+                // else
+                // {
+                //     currentDisplay = $"Gearset {currentGearset.Value}";
+                // }
             }
 
             if (ImGui.BeginCombo("##AssignedGearset", currentDisplay))
@@ -1109,21 +995,21 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     ImGui.SetItemDefaultFocus();
 
                 // Gearset options
-                foreach (var gearset in gearsets)
-                {
-                    string displayName = plugin.GetGearsetDisplayName(gearset.Number, gearset.JobId, gearset.Name);
-                    bool isSelected = currentGearset.HasValue && currentGearset.Value == gearset.Number;
-
-                    if (ImGui.Selectable(displayName, isSelected))
-                    {
-                        if (IsEditWindowOpen)
-                            editedCharacterGearset = gearset.Number;
-                        else
-                            plugin.NewCharacterGearset = gearset.Number;
-                    }
-                    if (isSelected)
-                        ImGui.SetItemDefaultFocus();
-                }
+                // foreach (var gearset in gearsets)
+                // {
+                //     string displayName = plugin.GetGearsetDisplayName(gearset.Number, gearset.JobId, gearset.Name);
+                //     bool isSelected = currentGearset.HasValue && currentGearset.Value == gearset.Number;
+                //
+                //     if (ImGui.Selectable(displayName, isSelected))
+                //     {
+                //         if (IsEditWindowOpen)
+                //             editedCharacterGearset = gearset.Number;
+                //         else
+                //             plugin.NewCharacterGearset = gearset.Number;
+                //     }
+                //     if (isSelected)
+                //         ImGui.SetItemDefaultFocus();
+                // }
 
                 ImGui.EndCombo();
             }
@@ -2089,12 +1975,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             IsEditWindowOpen = false;
             plugin.CloseAddCharacterWindow();
             
-            // Close Mod Manager window if it's open
-            if (plugin.SecretModeModWindow?.IsOpen ?? false)
-            {
-                plugin.SecretModeModWindow.IsOpen = false;
-            }
-            
             isSecretMode = false;
             isAdvancedModeCharacter = false;
             ResetFields();
@@ -2220,37 +2100,37 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             try
             {
-                var result = await plugin.CheckNameChangeForWarning(newName);
-
-                if (result.HasWarning && !string.IsNullOrEmpty(result.Message))
-                {
-                    // Show feedback in chat
-                    Plugin.Framework.RunOnTick(() =>
-                    {
-                        if (result.Resolved)
-                        {
-                            // Green success message
-                            var msg = new DalamudSeStringBuilder()
-                                .AddText("[")
-                                .AddGreen("CS+", true)
-                                .AddText("] ")
-                                .AddGreen(result.Message, false)
-                                .Build();
-                            Plugin.ChatGui.Print(msg);
-                        }
-                        else if (result.PendingReview)
-                        {
-                            // Yellow pending message
-                            var msg = new DalamudSeStringBuilder()
-                                .AddText("[")
-                                .AddYellow("CS+", true)
-                                .AddText("] ")
-                                .AddYellow(result.Message, false)
-                                .Build();
-                            Plugin.ChatGui.Print(msg);
-                        }
-                    });
-                }
+                // var result = await plugin.CheckNameChangeForWarning(newName);
+                //
+                // if (result.HasWarning && !string.IsNullOrEmpty(result.Message))
+                // {
+                //     // Show feedback in chat
+                //     Plugin.Framework.RunOnTick(() =>
+                //     {
+                //         if (result.Resolved)
+                //         {
+                //             // Green success message
+                //             var msg = new DalamudSeStringBuilder()
+                //                 .AddText("[")
+                //                 .AddGreen("CS+", true)
+                //                 .AddText("] ")
+                //                 .AddGreen(result.Message, false)
+                //                 .Build();
+                //             Plugin.ChatGui.Print(msg);
+                //         }
+                //         else if (result.PendingReview)
+                //         {
+                //             // Yellow pending message
+                //             var msg = new DalamudSeStringBuilder()
+                //                 .AddText("[")
+                //                 .AddYellow("CS+", true)
+                //                 .AddText("] ")
+                //                 .AddYellow(result.Message, false)
+                //                 .Build();
+                //             Plugin.ChatGui.Print(msg);
+                //         }
+                //     });
+                // }
             }
             catch (Exception ex)
             {

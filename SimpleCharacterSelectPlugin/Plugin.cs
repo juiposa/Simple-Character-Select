@@ -89,20 +89,10 @@ namespace SimpleCharacterSelectPlugin
             "/penumbra redraw"
         };
 
-        private const string CommandName = "/select";
-
         public Configuration Configuration { get; init; }
         public readonly WindowSystem WindowSystem = new("SimpleCharacterSelectPlugin");
         public MainWindow MainWindow { get; init; }
         public QuickSwitchWindow QuickSwitchWindow { get; set; } // Quick Switch Window
-        public PatchNotesWindow PatchNotesWindow { get; private set; } = null!;
-        public RPProfileWindow RPProfileEditor { get; private set; }
-        public RPProfileEditWindow RPProfileEditWindow { get; private set; }
-        public RPProfileViewWindow RPProfileViewer { get; private set; }
-        public GalleryWindow GalleryWindow { get; private set; } = null!;
-        public TutorialManager TutorialManager { get; private set; } = null!;
-        public SecretModeModWindow? SecretModeModWindow { get; set; } = null;
-        public ReportUserWindow? ReportUserWindow { get; private set; } = null;
         public WarningModalWindow? WarningModalWindow { get; private set; } = null;
         public ImGuiFileBrowserWindow? FileBrowserWindow { get; private set; } = null;
         public FeaturesWindow? FeaturesWindow { get; private set; } = null;
@@ -111,7 +101,6 @@ namespace SimpleCharacterSelectPlugin
         // Track active name warning for the current user (to detect when they change their name)
         public NameWarning? ActiveNameWarning { get; set; } = null;
 
-        private List<RPProfileViewWindow> secondaryProfileWindows = new();
         private int secondaryWindowCounter = 0;
         private string? pendingLinkedProfileToOpen = null;
         public enum SortType { Manual, Favorites, Alphabetical, Recent, Oldest }
@@ -149,13 +138,9 @@ namespace SimpleCharacterSelectPlugin
         
         // Penumbra Integration
         public PenumbraIntegration PenumbraIntegration { get; private set; } = null!;
-        public UserOverrideManager UserOverrideManager { get; private set; } = null!;
 
         // Shared Name Manager for other CS+ users' names
         public SharedNameManager? SharedNameManager { get; private set; }
-
-        // RP Profile Lookup Manager for context menu
-        public RPProfileLookupManager? RPProfileLookupManager { get; private set; }
 
         // Integration List Provider for autocomplete dropdowns
         public Managers.IntegrationListProvider? IntegrationListProvider { get; private set; }
@@ -194,9 +179,7 @@ namespace SimpleCharacterSelectPlugin
         private ICallGateSubscriber<ushort, (int, Guid?)>? customizePlusGetActiveProfileIpc;
         private ICallGateSubscriber<Guid, int>? customizePlusDisableProfileIpc;
         private ICallGateSubscriber<int, int, object>? penumbraRedrawIpc;
-
-        private ICallGateSubscriber<string, RPProfile>? requestProfile;
-        private ICallGateProvider<string, RPProfile>? provideProfile;
+        
         private ContextMenuManager? contextMenuManager;
         private static readonly Dictionary<string, string> ActiveProfilesByPlayerName = new();
         public string NewCharacterTag { get; set; } = "";
@@ -243,10 +226,7 @@ namespace SimpleCharacterSelectPlugin
         // Persisted macro — kept alive so the game can finish processing /wait commands.
         // Cleaned up on next execution or plugin dispose.
         private unsafe RaptureMacroModule.Macro* persistedMacro = null;
-
-        // Conflict Resolution mod categorization cache
-        internal Dictionary<string, ModType>? modCategorizationCache = null;
-        private readonly string ModCacheFilePath;
+        
         public void RefreshTreeItems(Character character)
         {
 
@@ -314,7 +294,7 @@ namespace SimpleCharacterSelectPlugin
         public Vector2? QuickSwitchButtonSize { get; set; }
         public Vector2? GalleryButtonPos { get; set; }
         public Vector2? GalleryButtonSize { get; set; }
-        private NPCDialogueProcessor? dialogueProcessor;
+        //private NPCDialogueProcessor? dialogueProcessor;
         private PlayerNameProcessor? playerNameProcessor;
         public bool NewCharacterIsAdvancedMode { get; set; } = false;
 
@@ -322,10 +302,9 @@ namespace SimpleCharacterSelectPlugin
         {
             Instance = this;
             GameInteropProvider = gameInteropProvider;
-
-            // Initialize cache file path
-            ModCacheFilePath = Path.Combine(PluginInterface.GetPluginConfigDirectory(), "mod_categorization_cache.json");
-
+            Commands commands = new Commands(this, CommandManager, ChatGui);
+            commands.AddCommands();
+            
             // Run backup on background thread to prevent UI freeze
             var existingConfig = PluginInterface.GetPluginConfig() as Configuration;
             if (existingConfig != null)
@@ -409,22 +388,9 @@ namespace SimpleCharacterSelectPlugin
             
             // Initialize Penumbra integration services
             PenumbraIntegration = new PenumbraIntegration(PluginInterface, Log, ClientState);
-            UserOverrideManager = new UserOverrideManager(PluginInterface);
-
-            // Initialize shared name manager for other CS+ users' names
-            SharedNameManager = new SharedNameManager(this, Log);
-
-            // Initialize RP profile lookup manager for context menu
-            RPProfileLookupManager = new RPProfileLookupManager(this, Log);
 
             // Initialize integration list provider for autocomplete dropdowns
             IntegrationListProvider = new Managers.IntegrationListProvider(this);
-
-            // Initialize mod categorization cache on background thread to prevent UI freeze
-            if (Configuration.EnableConflictResolution)
-            {
-                Task.Run(() => InitializeModCategorizationCache());
-            }
 
             // Initialize the MainWindow and ConfigWindow
             MainWindow = new Windows.MainWindow(this);
@@ -432,47 +398,10 @@ namespace SimpleCharacterSelectPlugin
             QuickSwitchWindow = new QuickSwitchWindow(this); // Quick Switch Window
             QuickSwitchWindow.IsOpen = Configuration.IsQuickSwitchWindowOpen; // Restore last open state
 
-            RPProfileEditor = new RPProfileWindow(this);
-            WindowSystem.AddWindow(RPProfileEditor);
-
-            RPProfileEditWindow = new RPProfileEditWindow(this);
-            WindowSystem.AddWindow(RPProfileEditWindow);
-
-            RPProfileViewer = new RPProfileViewWindow(this);
-            WindowSystem.AddWindow(RPProfileViewer);
-
-            // Set up callbacks for opening linked profiles from Connections
-            ContentBoxRenderer.OnOpenLinkedProfile = OpenLinkedProfile;
-            ContentBoxRenderer.OnOpenLinkedProfileExternal = OpenLinkedProfileFromServer;
-
-            GalleryWindow = new GalleryWindow(this);
-            WindowSystem.AddWindow(GalleryWindow);
-            TutorialManager = new TutorialManager(this);
-            
-            // Initialize SecretModeModWindow (Mod Manager)
-            SecretModeModWindow = new SecretModeModWindow(this);
-            WindowSystem.AddWindow(SecretModeModWindow);
-
-            // Initialize ReportUserWindow
-            ReportUserWindow = new ReportUserWindow(this);
-            WindowSystem.AddWindow(ReportUserWindow);
-
-            // Initialize WarningModalWindow
-            WarningModalWindow = new WarningModalWindow(this);
-            WindowSystem.AddWindow(WarningModalWindow);
-
             // Initialize ImGui File Browser
             FileBrowserWindow = new ImGuiFileBrowserWindow();
             FileBrowserWindow.SetConfiguration(Configuration);
             WindowSystem.AddWindow(FileBrowserWindow);
-
-            // Initialize Features Window
-            FeaturesWindow = new FeaturesWindow(this);
-            WindowSystem.AddWindow(FeaturesWindow);
-
-            // Initialize Achievement Popup
-            AchievementPopupWindow = new AchievementPopupWindow(this);
-            WindowSystem.AddWindow(AchievementPopupWindow);
 
             // Guard against retroactive page 2 surprise for existing users
             if (!Configuration.HasSeenPage2Surprise && Configuration.Characters.Count >= 41)
@@ -485,13 +414,6 @@ namespace SimpleCharacterSelectPlugin
             ipcProvider = new IPCProvider(this, PluginInterface);
             
             MigrateBackgroundImageNames();
-
-            // This player registering their profile, if someone else requests it
-            provideProfile = PluginInterface.GetIpcProvider<string, RPProfile>("CharacterSelect.RPProfile.Provide");
-            provideProfile.RegisterFunc(HandleProfileRequest);
-
-            // This player sending a request to another
-            requestProfile = PluginInterface.GetIpcSubscriber<string, RPProfile>("CharacterSelect.RPProfile.Provide");
             
             // Initialize target application IPC subscribers with correct signatures
             penumbraGetCollectionsIpc = PluginInterface.GetIpcSubscriber<Dictionary<Guid, string>>("Penumbra.GetCollections.V5");
@@ -510,73 +432,20 @@ namespace SimpleCharacterSelectPlugin
             customizePlusDisableProfileIpc = PluginInterface.GetIpcSubscriber<Guid, int>("CustomizePlus.Profile.DisableByUniqueId");
             penumbraRedrawIpc = PluginInterface.GetIpcSubscriber<int, int, object>("Penumbra.RedrawObject.V5");
 
-            // Patch Notes
-            PatchNotesWindow = new PatchNotesWindow(this);
-            bool patchNotesWillShow = false;
-
-            // Check if plugin version changed (for chat notification)
-            bool isNewPluginVersion = Configuration.LastSeenVersion != CurrentPluginVersion;
-            if (isNewPluginVersion)
-            {
-                // Set flag to show chat notification on first login
-                pendingVersionUpdateNotification = true;
-                Configuration.LastSeenVersion = CurrentPluginVersion;
-            }
-
-            // Check if patch notes content changed (for patch notes window)
-            // This prevents showing the same patch notes for hotfix versions (2.1.0.1, 2.1.0.2, etc.)
-            bool isNewPatchNotes = Configuration.LastSeenPatchNotesVersion != PatchNotesVersion;
-            if (isNewPatchNotes && Configuration.ShowPatchNotesOnStartup)
-            {
-                PatchNotesWindow.OpenMainMenuOnClose = true;
-                PatchNotesWindow.IsOpen = true;
-                patchNotesWillShow = true;
-                Configuration.LastSeenPatchNotesVersion = PatchNotesVersion;
-            }
-
-            if (isNewPluginVersion || isNewPatchNotes)
-            {
-                Configuration.Save();
-            }
-
-            // Restore Main Window state if enabled and patch notes isn't showing
-            // (Patch Notes will open Main Window when closed via OpenMainMenuOnClose)
-            if (Configuration.RememberMainWindowState && Configuration.IsMainWindowOpen && !patchNotesWillShow)
+            // Restore Main Window state if enabled
+            if (Configuration.RememberMainWindowState && Configuration.IsMainWindowOpen)
             {
                 MainWindow.IsOpen = true;
             }
-
-            // Tutorial system - show on first launch
-
-            //if (!Configuration.HasSeenTutorial && Configuration.ShowTutorialOnStartup)
-            //{
-            //    TutorialManager.StartTutorial();
-            //}
-
+            
             WindowSystem.AddWindow(MainWindow);
             WindowSystem.AddWindow(QuickSwitchWindow); // Quick Switch Window
-            WindowSystem.AddWindow(PatchNotesWindow); // Patch Notes Window
-
-
-            CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
-            {
-                HelpMessage = "Opens the Simple Character Select UI"
-            });
-            CommandManager.AddHandler("/selectswitch", new CommandInfo(OnQuickSwitchCommand)
-            {
-                HelpMessage = "Opens the Quick Character Switcher UI."
-            });
-
-            CommandManager.AddHandler("/gallery", new CommandInfo(OnGalleryCommand)
-            {
-                HelpMessage = "Opens the Character Showcase Gallery"
-            });
-
 
             PluginInterface.UiBuilder.Draw += DrawUI;
-            PluginInterface.UiBuilder.OpenConfigUi += ToggleQuickSwitchUI;
-            PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
+            PluginInterface.UiBuilder.OpenConfigUi += QuickSwitchWindow.Toggle;
+            PluginInterface.UiBuilder.OpenMainUi += MainWindow.Toggle;
             
+            // TODO fonts
             // Initialize custom fonts for RP Profile View
             NameFont = PluginInterface.UiBuilder.FontAtlas.NewDelegateFontHandle(e =>
             {
@@ -593,7 +462,6 @@ namespace SimpleCharacterSelectPlugin
                     SizePx = 26  // Larger size for card headers
                 }));
             });
-            ClientState.Login += OnLogin;
             Framework.Update += FrameworkUpdate;
             string sessionFilePath = Path.Combine(PluginInterface.GetPluginConfigDirectory(), "boot_session.txt");
 
@@ -617,86 +485,6 @@ namespace SimpleCharacterSelectPlugin
             {
                 Plugin.Log.Debug("[Startup] No session_info.txt found.");
             }
-
-
-            CommandManager.AddHandler("/simpleselect", new CommandInfo(OnSelectCommand)
-            {
-                HelpMessage = "Use /select <Character Name> [Design Name] to apply a profile, /select random for random selection, /select jobchange on|off to toggle reapply on job change, /select idle to check current idle pose, /select mods to open Mod Manager, or /select save [CR] to save current look as design."
-            });
-            // Idles
-            CommandManager.AddHandler("/sidle", new CommandInfo((_, args) =>
-            {
-                if (byte.TryParse(args, out var poseIndex))
-                {
-                    PoseManager.ApplyPose(EmoteController.PoseType.Idle, poseIndex);
-                    ExecuteMacro("/penumbra redraw self");
-                }
-                else
-                {
-                    ChatGui.PrintError("[Simple Character Select] Usage: /sidle <0-6>");
-                }
-            })
-            {
-                HelpMessage = "Set your character's Idle pose to a specific index."
-            });
-            // Chair Sits
-            CommandManager.AddHandler("/ssit", new CommandInfo((_, args) =>
-            {
-                if (byte.TryParse(args, out var poseIndex))
-                {
-                    PoseManager.ApplyPose(EmoteController.PoseType.Sit, poseIndex);
-                    ExecuteMacro("/penumbra redraw self");
-                }
-                else
-                {
-                    ChatGui.PrintError("[Simple Character Select] Usage: /ssit <0–6>");
-                }
-            })
-            {
-                HelpMessage = "Set your character's Sitting pose to a specific index."
-            });
-            // Ground Sits
-            CommandManager.AddHandler("/sgroundsit", new CommandInfo((_, args) =>
-            {
-                if (byte.TryParse(args, out var poseIndex))
-                {
-                    PoseManager.ApplyPose(EmoteController.PoseType.GroundSit, poseIndex);
-                    ExecuteMacro("/penumbra redraw self");
-                }
-                else
-                {
-                    ChatGui.PrintError("[Simple Character Select] Usage: /sgroundsit <0–6>");
-                }
-            })
-            {
-                HelpMessage = "Set your character's Ground Sitting pose to a specific index."
-            });
-            // Doze Poses
-            CommandManager.AddHandler("/sdoze", new CommandInfo((_, args) =>
-            {
-                if (byte.TryParse(args, out var poseIndex))
-                {
-                    PoseManager.ApplyPose(EmoteController.PoseType.Doze, poseIndex);
-                    ExecuteMacro("/penumbra redraw self");
-                }
-                else
-                {
-                    ChatGui.PrintError("[Simple Character Select] Usage: /sdoze <0–6>");
-                }
-            })
-            {
-                HelpMessage = "Set your character's Dozing pose to a specific index."
-            });
-
-            CommandManager.AddHandler("/viewrp", new CommandInfo(OnViewRPCommand)
-            {
-                HelpMessage = "View the RP profile of a character (if shared). Usage: /viewrp self | t | First Last@World"
-            });
-
-            CommandManager.AddHandler("/selectrevert", new CommandInfo((_, _) => RevertAllChanges())
-            {
-                HelpMessage = "Reverts all CS+ changes (Glamourer, Honorific, Moodles, Customize+, Penumbra collection)"
-            });
 
             ClientState.Login += () =>
             {
@@ -730,22 +518,22 @@ namespace SimpleCharacterSelectPlugin
             // Only initialize dialogue processor if the feature is enabled (sig scanning can be slow)
             if (Configuration.EnableDialogueIntegration)
             {
-                try
-                {
-                    dialogueProcessor = new NPCDialogueProcessor(
-                        this,
-                        SigScanner,
-                        GameInteropProvider,
-                        ChatGui,
-                        ClientState,
-                        Log,
-                        Condition
-                    );
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Failed to initialize dialogue processor: {ex.Message}");
-                }
+                // try TODO
+                // {
+                //     dialogueProcessor = new NPCDialogueProcessor(
+                //         this,
+                //         SigScanner,
+                //         GameInteropProvider,
+                //         ChatGui,
+                //         ClientState,
+                //         Log,
+                //         Condition
+                //     );
+                // }
+                // catch (Exception ex)
+                // {
+                //     Log.Error($"Failed to initialize dialogue processor: {ex.Message}");
+                // }
             }
 
             // Only initialize player name processor if name replacement is enabled
@@ -771,34 +559,37 @@ namespace SimpleCharacterSelectPlugin
             }
 
         }
-
+        
+        // TODO dialogue
         /// <summary>
         /// Initializes the dialogue processor if not already initialized.
         /// Called when user enables Immersive Dialogue in settings.
         /// </summary>
         public void EnsureDialogueProcessorInitialized()
         {
-            if (dialogueProcessor != null) return;
-
-            try
-            {
-                dialogueProcessor = new NPCDialogueProcessor(
-                    this,
-                    SigScanner,
-                    GameInteropProvider,
-                    ChatGui,
-                    ClientState,
-                    Log,
-                    Condition
-                );
-                Log.Info("[Dialogue] Dialogue processor initialized on-demand.");
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to initialize dialogue processor: {ex.Message}");
-            }
+            // if (dialogueProcessor != null) return;
+            //
+            // try
+            // {
+            //     dialogueProcessor = new NPCDialogueProcessor(
+            //         this,
+            //         SigScanner,
+            //         GameInteropProvider,
+            //         ChatGui,
+            //         ClientState,
+            //         Log,
+            //         Condition
+            //     );
+            //     Log.Info("[Dialogue] Dialogue processor initialized on-demand.");
+            // }
+            // catch (Exception ex)
+            // {
+            //     Log.Error($"Failed to initialize dialogue processor: {ex.Message}");
+            // }
         }
-
+        
+        
+        // TODO player name
         /// <summary>
         /// Initializes the player name processor if not already initialized.
         /// Called when user enables Name Sync in settings.
@@ -826,299 +617,8 @@ namespace SimpleCharacterSelectPlugin
                 Log.Error($"Failed to initialize player name processor: {ex.Message}");
             }
         }
-
-        public static HttpClient CreateAuthenticatedHttpClient()
-        {
-            var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("X-Plugin-Auth", "cs-plus-gallery-client");
-            client.DefaultRequestHeaders.Add("User-Agent", "CharacterSelectPlus/1.2.0");
-            client.Timeout = TimeSpan.FromSeconds(15);
-            return client;
-        }
-
-        private void OnLogin()
-        {
-            if (ObjectTable.LocalPlayer == null || !ClientState.IsLoggedIn)
-            {
-                Plugin.Log.Debug("[OnLogin] Ignored – LocalPlayer is null or not logged in.");
-                return;
-            }
-
-            autoLoadAlreadyRanThisStartup = false; // Reset assignment flag for new login
-            loginTime = DateTime.Now;
-            shouldApplyPoses = true;
-            suppressIdleSaveForFrames = 60;
-            secondsSinceLogin = 0f;
-
-            var id = ObjectTable.LocalPlayer.ClassJob.RowId;
-            if (Configuration.LastKnownJobId == 0 && id != 0)
-            {
-                Configuration.LastKnownJobId = id;
-                Configuration.Save();
-                Plugin.Log.Debug($"[JobSwitch] Primed LastKnownJobId on login = {id}");
-            }
-
-            // Show version update notification in chat (Feature Discovery System)
-            if (pendingVersionUpdateNotification)
-            {
-                pendingVersionUpdateNotification = false;
-                ChatGui.Print($"[CS+] Updated to v{CurrentPluginVersion}! Type /select whatsnew to see new features.");
-                Plugin.Log.Info($"[VersionUpdate] Showed update notification for v{CurrentPluginVersion}");
-            }
-
-            // Check for moderation warnings after a short delay to ensure LocalPlayer is ready
-            Task.Run(async () =>
-            {
-                await Task.Delay(3000); // Wait 3 seconds for character to fully load
-                await CheckForModerationWarnings();
-            });
-        }
-
-        /// <summary>
-        /// Checks the server for any moderation warnings for the current player.
-        /// Shows warning modal if there are unacknowledged warnings.
-        /// </summary>
-        private async Task CheckForModerationWarnings()
-        {
-            try
-            {
-                if (ObjectTable.LocalPlayer == null) return;
-
-                var playerName = ObjectTable.LocalPlayer.Name.TextValue;
-                var world = ObjectTable.LocalPlayer.HomeWorld.Value.Name.ToString();
-                var physicalName = $"{playerName}@{world}";
-
-                var encodedName = Uri.EscapeDataString(physicalName);
-                var url = $"https://character-select-profile-server-production.up.railway.app/user/warnings/{encodedName}";
-
-                using var httpClient = new HttpClient();
-                httpClient.Timeout = TimeSpan.FromSeconds(10);
-
-                var response = await httpClient.GetAsync(url);
-                if (!response.IsSuccessStatusCode)
-                {
-                    Plugin.Log.Debug($"[WarningCheck] Server returned {response.StatusCode}");
-                    return;
-                }
-
-                var json = await response.Content.ReadAsStringAsync();
-                var warningsResponse = System.Text.Json.JsonSerializer.Deserialize<UserWarningsResponse>(json, new System.Text.Json.JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (warningsResponse == null) return;
-
-                // Store active warning for name change detection
-                if (warningsResponse.ActiveWarning != null)
-                {
-                    ActiveNameWarning = warningsResponse.ActiveWarning;
-                    Plugin.Log.Debug($"[WarningCheck] Active warning stored: {ActiveNameWarning.Id} (Strike {ActiveNameWarning.StrikeNumber})");
-                }
-                else
-                {
-                    ActiveNameWarning = null;
-                }
-
-                if (warningsResponse.HasUnacknowledgedWarning && warningsResponse.UnacknowledgedWarnings?.Length > 0)
-                {
-                    var warning = warningsResponse.UnacknowledgedWarnings[0];
-                    Plugin.Log.Info($"[WarningCheck] Found unacknowledged warning: {warning.Id} (Strike {warning.StrikeNumber})");
-
-                    // Also store as active warning
-                    ActiveNameWarning = warning;
-
-                    // Show the warning modal on the main thread
-                    Framework.RunOnTick(() =>
-                    {
-                        WarningModalWindow?.ShowWarning(warning);
-                    });
-                }
-                else
-                {
-                    Plugin.Log.Debug($"[WarningCheck] No unacknowledged warnings for {physicalName}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Debug($"[WarningCheck] Error checking for warnings: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Called when a user changes their CS+ character name.
-        /// Checks if they have an active warning and notifies the server of the name change.
-        /// </summary>
-        public async Task<NameChangeResult> CheckNameChangeForWarning(string newCSName)
-        {
-            // If no active warning, no need to check
-            if (ActiveNameWarning == null)
-            {
-                return new NameChangeResult { HasWarning = false };
-            }
-
-            try
-            {
-                if (ObjectTable.LocalPlayer == null)
-                {
-                    return new NameChangeResult { HasWarning = false };
-                }
-
-                var playerName = ObjectTable.LocalPlayer.Name.TextValue;
-                var world = ObjectTable.LocalPlayer.HomeWorld.Value.Name.ToString();
-                var physicalName = $"{playerName}@{world}";
-
-                var url = "https://character-select-profile-server-production.up.railway.app/user/check-name-change";
-
-                using var httpClient = new HttpClient();
-                httpClient.Timeout = TimeSpan.FromSeconds(10);
-
-                var requestBody = new
-                {
-                    physicalName = physicalName,
-                    newCSName = newCSName
-                };
-
-                var json = System.Text.Json.JsonSerializer.Serialize(requestBody);
-                var content = new System.Net.Http.StringContent(json, System.Text.Encoding.UTF8, "application/json");
-
-                var response = await httpClient.PostAsync(url, content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Plugin.Log.Error($"[NameChange] Server returned {response.StatusCode}");
-                    return new NameChangeResult { HasWarning = true, Error = "Server error" };
-                }
-
-                var responseJson = await response.Content.ReadAsStringAsync();
-                var result = System.Text.Json.JsonSerializer.Deserialize<NameChangeResponse>(responseJson, new System.Text.Json.JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (result == null)
-                {
-                    return new NameChangeResult { HasWarning = true, Error = "Invalid response" };
-                }
-
-                // Update local state based on result
-                if (result.Resolved)
-                {
-                    ActiveNameWarning = null;
-                    Plugin.Log.Info($"[NameChange] Warning resolved - name is now visible");
-                    return new NameChangeResult
-                    {
-                        HasWarning = true,
-                        Resolved = true,
-                        Message = "Your CS+ name is now visible to other players!"
-                    };
-                }
-                else if (result.NeedsReview)
-                {
-                    Plugin.Log.Info($"[NameChange] Name change submitted for review");
-                    return new NameChangeResult
-                    {
-                        HasWarning = true,
-                        PendingReview = true,
-                        Message = "Your new name has been submitted for review. It will become visible once approved."
-                    };
-                }
-
-                return new NameChangeResult { HasWarning = true };
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"[NameChange] Error: {ex.Message}");
-                return new NameChangeResult { HasWarning = true, Error = ex.Message };
-            }
-        }
-
-        private unsafe void ApplyStoredPoses()
-        {
-            if (ObjectTable.LocalPlayer?.Address is not nint address || address == IntPtr.Zero)
-                return;
-
-            // Check if current character is assigned "None" - skip pose application
-            if (ObjectTable.LocalPlayer != null && ObjectTable.LocalPlayer.HomeWorld.IsValid)
-            {
-                string world = ObjectTable.LocalPlayer.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{ObjectTable.LocalPlayer.Name.TextValue}@{world}";
-                
-                if (Configuration.CharacterAssignments.TryGetValue(fullKey, out var assignedCharacterName) && 
-                    assignedCharacterName == "None")
-                {
-                    Plugin.Log.Debug($"[ApplyStoredPoses] Character {fullKey} assigned 'None' - skipping pose application");
-                    return;
-                }
-            }
-
-            var character = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)ObjectTable.LocalPlayer.Address;
-            if (character == null)
-                return;
-
-            // Get current poses
-            byte currentIdle = PlayerState.Instance()->SelectedPoses[(int)EmoteController.PoseType.Idle];
-            byte currentSit = PlayerState.Instance()->SelectedPoses[(int)EmoteController.PoseType.Sit];
-            byte currentGroundSit = PlayerState.Instance()->SelectedPoses[(int)EmoteController.PoseType.GroundSit];
-            byte currentDoze = PlayerState.Instance()->SelectedPoses[(int)EmoteController.PoseType.Doze];
-
-            byte savedIdle = Configuration.DefaultPoses.Idle;
-            byte lastPluginIdle = Configuration.LastIdlePoseAppliedByPlugin;
-            Plugin.Log.Debug($"[ApplyStoredPoses] SavedIdle = {savedIdle}, LastPluginIdle = {lastPluginIdle}");
-            if (savedIdle < 7 && savedIdle == lastPluginIdle)
-            {
-                PlayerState.Instance()->SelectedPoses[(int)EmoteController.PoseType.Idle] = savedIdle;
-
-                if (TranslatePoseState(character->ModeParam) == EmoteController.PoseType.Idle)
-                    character->EmoteController.CPoseState = savedIdle;
-            }
-
-            byte savedSit = Configuration.DefaultPoses.Sit;
-            if (savedSit < 7)
-                PlayerState.Instance()->SelectedPoses[(int)EmoteController.PoseType.Sit] = savedSit;
-
-            byte savedGroundSit = Configuration.DefaultPoses.GroundSit;
-            if (savedGroundSit < 7)
-                PlayerState.Instance()->SelectedPoses[(int)EmoteController.PoseType.GroundSit] = savedGroundSit;
-
-            byte savedDoze = Configuration.DefaultPoses.Doze;
-            if (savedDoze < 7)
-                PlayerState.Instance()->SelectedPoses[(int)EmoteController.PoseType.Doze] = savedDoze;
-
-            // Set CPoseState if the current mode matches the type we're restoring
-            var currentType = TranslatePoseState(character->ModeParam);
-
-            byte currentSelected = PlayerState.Instance()->SelectedPoses[(int)currentType];
-            byte intended = currentType switch
-            {
-                EmoteController.PoseType.Idle => savedIdle,
-                EmoteController.PoseType.Sit => savedSit,
-                EmoteController.PoseType.GroundSit => savedGroundSit,
-                EmoteController.PoseType.Doze => savedDoze,
-                _ => 255
-            };
-
-            // Force CPoseState to match current selected pose
-            if (currentSelected < 7)
-                character->EmoteController.CPoseState = currentSelected;
-        }
-
-        private void OnQuickSwitchCommand(string command, string args)
-        {
-            QuickSwitchWindow.IsOpen = !QuickSwitchWindow.IsOpen; // Toggle Window On/Off
-        }
-        private void OnGalleryCommand(string command, string args)
-        {
-            // Emergency stop if costs are too high, I am broke!
-            if (args.Equals("stop", StringComparison.OrdinalIgnoreCase))
-            {
-                GalleryWindow.EmergencyStop();
-                ChatGui.Print("[Simple Character Select] Gallery emergency stop activated!");
-                return;
-            }
-
-            GalleryWindow.IsOpen = !GalleryWindow.IsOpen;
-        }
+        
+        // TODO apply profile
         public void ApplyProfile(Character character, int designIndex)
         {
             // Detect if this is a design switch on the SAME character (not a full character switch)
@@ -1167,59 +667,15 @@ namespace SimpleCharacterSelectPlugin
                 Configuration.LastUsedCharacterByPlayer[fullKey] = pluginCharacterKey;
                 Configuration.LastUsedCharacterKey = character.Name;
                 Configuration.Save();
-
+                
+                
+                //TODO dupe SetActive
                 Plugin.Log.Debug($"[ApplyProfile] Saved: {fullKey} → {pluginCharacterKey}");
                 Plugin.Log.Debug($"[SetActiveCharacter] Updated LastUsedCharacterKey = {fullKey}");
                 Plugin.Log.Debug($"[ApplyProfile] Set LastInGameName = {character.LastInGameName} for profile {character.Name}");
-
-                // Always upload to keep server in sync - server uses sharing/exclusion flags to decide visibility
-                var profileToSend = BuildProfileForUpload(character);
-                var effectiveSharing = GetEffectiveSharingForUpload(character, fullKey);
-
-                // If profile is private/unmade or excluded, tell server not to show the name
-                bool shouldHideName = character.ExcludeFromNameSync ||
-                                      character.RPProfile == null ||
-                                      character.RPProfile.Sharing == ProfileSharing.NeverShare;
-
-                _ = Plugin.UploadProfileAsync(profileToSend, character.LastInGameName ?? character.Name,
-                    sharingOverride: shouldHideName ? ProfileSharing.NeverShare : effectiveSharing,
-                    excludeFromNameSync: character.ExcludeFromNameSync);
-                Plugin.Log.Info($"[ApplyProfile] ✓ Uploaded profile for {character.Name} (sharing: {(shouldHideName ? "NeverShare (hidden)" : effectiveSharing.ToString())}, excluded: {character.ExcludeFromNameSync})");
             }
             SaveConfiguration();
             if (character == null) return;
-
-            // Capture original mod state if Conflict Resolution is enabled
-            if (Configuration.EnableConflictResolution && character.OriginalCollectionState == null)
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var (success, collectionId, collectionName) = PenumbraIntegration.GetCurrentCollection();
-                        if (success)
-                        {
-                            // Get all enabled mods in the collection
-                            var modSettings = await Task.Run(() => PenumbraIntegration.GetAllModSettingsRobust(collectionId));
-                            if (modSettings != null)
-                            {
-                                var enabledMods = modSettings
-                                    .Where(kvp => kvp.Value.Item1) // Only enabled mods
-                                    .Select(kvp => kvp.Key)
-                                    .ToList();
-                                
-                                // Capture the current options for all enabled mods
-                                character.OriginalCollectionState = PenumbraIntegration.CaptureCurrentModOptions(collectionId, enabledMods);
-                                Log.Info($"Captured original mod state for {character.Name}: {character.OriginalCollectionState?.Count ?? 0} mods with options");
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error($"Error capturing original mod state: {ex}");
-                    }
-                });
-            }
             
             // Switch Penumbra UI collection to match the character's collection
             if (!string.IsNullOrEmpty(character.PenumbraCollection))
@@ -1247,17 +703,6 @@ namespace SimpleCharacterSelectPlugin
             {
                 var design = character.Designs[designIndex];
                 
-                // Apply design-specific Secret Mode state using proper design-level conflict resolution
-                if (design.SecretModState != null && design.SecretModState.Any())
-                {
-                    _ = ApplyDesignModState(character, design);
-                }
-                else
-                {
-                    // Fallback to character-level Secret Mode state
-                    _ = ApplySecretModState(character);
-                }
-                
                 // Apply design-specific mod options if they exist
                 if (design.ModOptionSettings != null && design.ModOptionSettings.Any())
                 {
@@ -1265,21 +710,11 @@ namespace SimpleCharacterSelectPlugin
                     {
                         try
                         {
-                            // Get current collection
+                            // Get current collection TODO
                             var (success, collectionId, collectionName) = PenumbraIntegration.GetCurrentCollection();
                             if (success)
                             {
-                                // First, restore original state if available
-                                if (character.OriginalCollectionState != null && character.OriginalCollectionState.Any())
-                                {
-                                    Log.Info($"Restoring original mod options before applying design '{design.Name}'");
-                                    await PenumbraIntegration.ApplyModOptionsForDesign(collectionId, character.OriginalCollectionState);
-                                    await Task.Delay(100); // Small delay to ensure state is applied
-                                }
-                                
-                                // Then apply design-specific options
-                                Log.Info($"Applying mod options for design '{design.Name}' in collection '{collectionName}'");
-                                await PenumbraIntegration.ApplyModOptionsForDesign(collectionId, design.ModOptionSettings);
+
                             }
                             else
                             {
@@ -1330,15 +765,6 @@ namespace SimpleCharacterSelectPlugin
                 Configuration.LastUsedCharacterKey = character.Name;
                 Configuration.Save();
             }
-            else
-            {
-                // No design selected - just apply character-level Secret Mode state
-                // But skip if a random design has already applied its CR this session
-                if (!randomDesignCRAppliedThisSession)
-                {
-                    _ = ApplySecretModState(character);
-                }
-            }
 
             // Switch gearset AFTER Glamourer design is applied (via macros above)
             // This ensures Lightless sees the correct appearance when the gearset switch triggers a model refresh
@@ -1357,9 +783,9 @@ namespace SimpleCharacterSelectPlugin
 
                 if (effectiveGearset.HasValue)
                 {
-                    // Small delay to let Glamourer finish applying before gearset switch
-                    var gearsetToSwitch = effectiveGearset.Value;
-                    Framework.RunOnTick(() => SwitchToGearset(gearsetToSwitch), delayTicks: 5);
+                    // // Small delay to let Glamourer finish applying before gearset switch
+                    // var gearsetToSwitch = effectiveGearset.Value;
+                    // Framework.RunOnTick(() => SwitchToGearset(gearsetToSwitch), delayTicks: 5);
                 }
             }
 
@@ -1410,60 +836,9 @@ namespace SimpleCharacterSelectPlugin
 
             SaveConfiguration();
         }
-
-        private bool ShouldUploadToServer(Character character)
-        {
-            // No RPProfile configured = don't upload (user hasn't set up sharing)
-            if (character.RPProfile == null)
-            {
-                Plugin.Log.Debug($"[ShouldUpload] No RPProfile - not uploading {character.Name}");
-                return false;
-            }
-
-            var sharing = character.RPProfile.Sharing;
-
-            // NeverShare = never upload to server
-            if (sharing == ProfileSharing.NeverShare)
-            {
-                Plugin.Log.Debug($"[ShouldUpload] NeverShare - not uploading {character.Name}");
-                return false;
-            }
-
-            // AlwaysShare and ShowcasePublic both upload to server
-            // This allows /viewrp and name visibility to work for everyone
-            Plugin.Log.Debug($"[ShouldUpload] ✓ {sharing} - uploading {character.Name}");
-            return true;
-        }
-
-        /// <summary>
-        /// Determines the effective sharing mode to send to server.
-        /// ShowcasePublic only gets sent as ShowcasePublic (appears in Gallery) when on Main Character.
-        /// Otherwise it's sent as AlwaysShare (visible via /viewrp but not in Gallery listing).
-        /// </summary>
-        private ProfileSharing GetEffectiveSharingForUpload(Character character, string currentPhysicalCharacter)
-        {
-            var sharing = character.RPProfile?.Sharing ?? ProfileSharing.AlwaysShare;
-
-            // NeverShare and AlwaysShare are sent as-is
-            if (sharing != ProfileSharing.ShowcasePublic)
-                return sharing;
-
-            // ShowcasePublic: Only send as ShowcasePublic (gallery listing) if on Main Character
-            var userMain = Configuration.GalleryMainCharacter;
-            bool onMainCharacter = !string.IsNullOrEmpty(userMain) && currentPhysicalCharacter == userMain;
-
-            if (onMainCharacter)
-            {
-                Plugin.Log.Debug($"[SharingMode] ShowcasePublic on Main Character - will appear in Gallery");
-                return ProfileSharing.ShowcasePublic;
-            }
-            else
-            {
-                Plugin.Log.Debug($"[SharingMode] ShowcasePublic but not on Main Character - sending as AlwaysShare (visible via /viewrp, not in Gallery)");
-                return ProfileSharing.AlwaysShare;
-            }
-        }
-
+        // TODO apply end
+        
+        // TODO config
         private void EnsureConfigurationDefaults()
         {
             bool updated = false;
@@ -1521,7 +896,9 @@ namespace SimpleCharacterSelectPlugin
             }
             if (updated) Configuration.Save();
         }
-
+        
+        
+        // TODO file browser
         /// <summary>
         /// Opens a file picker dialog. Uses ImGui file browser if UseImGuiFilePicker is enabled,
         /// otherwise uses the Windows file dialog.
@@ -1580,17 +957,13 @@ namespace SimpleCharacterSelectPlugin
         {
             WindowSystem.RemoveAllWindows();
             MainWindow.Dispose();
-            CommandManager.RemoveHandler(CommandName);
-            CommandManager.RemoveHandler("/spose");
-            CommandManager.RemoveHandler("/gallery");
-            CommandManager.RemoveHandler("/selectrevert");
+            //commands.RemoveHandlers(); TODO
             contextMenuManager?.Dispose();
             Framework.Update -= FrameworkUpdate; // Fixed: should be -= not +=
             PoseManager?.Dispose();
-            dialogueProcessor?.Dispose();
+            //dialogueProcessor?.Dispose();
             playerNameProcessor?.Dispose();
             SharedNameManager?.Dispose();
-            RPProfileLookupManager?.Dispose();
             IntegrationListProvider?.Dispose();
 
             // Dispose Penumbra integration services
@@ -1617,258 +990,6 @@ namespace SimpleCharacterSelectPlugin
             }
             
             Instance = null;
-        }
-
-        private void OnCommand(string command, string args)
-        {
-            if (string.IsNullOrWhiteSpace(args))
-            {
-                ToggleMainUI();
-            }
-            else
-            {
-                OnSelectCommand(command, args);
-            }
-        }
-
-        private void OnSelectCommand(string command, string args)
-        {
-            if (string.IsNullOrWhiteSpace(args))
-            {
-                ChatGui.PrintError("[Simple Character Select] Usage: /select <Character Name> [Design], /select random [Name], /select jobchange on|off, /select idle|sit|groundsit|doze [0-6], /select mods, /select save [CR], or /select whatsnew");
-                return;
-            }
-
-            // Handle random selection
-            if (args.Trim().StartsWith("random", StringComparison.OrdinalIgnoreCase))
-            {
-                var randomArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (randomArgs.Length == 1)
-                {
-                    // /select random - random character and design
-                    SelectRandomCharacterAndDesign();
-                }
-                else if (randomArgs.Length >= 2)
-                {
-                    // Could be /select random GROUPNAME or /select random CHARACTER
-                    var targetName = string.Join(" ", randomArgs.Skip(1));
-
-                    // Check if it's a group name first
-                    var group = Configuration.RandomGroups.FirstOrDefault(g =>
-                        g.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase));
-
-                    if (group != null)
-                    {
-                        // /select random GROUPNAME - random from group
-                        SelectRandomFromGroup(group);
-                    }
-                    else
-                    {
-                        // /select random CHARACTER - random design only from specific character
-                        SelectRandomDesignOnly(targetName);
-                    }
-                }
-                return;
-            }
-
-            // Handle jobchange on/off subcommand
-            if (args.Trim().StartsWith("jobchange", StringComparison.OrdinalIgnoreCase))
-            {
-                var jobchangeArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (jobchangeArgs.Length == 2)
-                {
-                    string setting = jobchangeArgs[1].ToLower();
-                    if (setting == "on")
-                    {
-                        Configuration.ReapplyDesignOnJobChange = true;
-                        Configuration.Save();
-                        ChatGui.Print("[Simple Character Select] Reapply design on job change: Enabled");
-                        return;
-                    }
-                    else if (setting == "off")
-                    {
-                        Configuration.ReapplyDesignOnJobChange = false;
-                        Configuration.Save();
-                        ChatGui.Print("[Simple Character Select] Reapply design on job change: Disabled");
-                        return;
-                    }
-                }
-                ChatGui.PrintError("[Simple Character Select] Usage: /select jobchange on|off");
-                return;
-            }
-
-            // Handle idle subcommand - /select idle [0-6]
-            if (args.Trim().StartsWith("idle", StringComparison.OrdinalIgnoreCase))
-            {
-                var idleArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (idleArgs.Length == 1)
-                {
-                    // /select idle - check current pose
-                    if (ObjectTable.LocalPlayer != null)
-                    {
-                        unsafe
-                        {
-                            var charPtr = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)ObjectTable.LocalPlayer.Address;
-                            var currentIdle = charPtr->EmoteController.CPoseState;
-
-                            ChatGui.Print($"[CS+] Current idle pose: {currentIdle} (range: 0-6)");
-                        }
-                    }
-                    else
-                    {
-                        ChatGui.PrintError("[CS+] You must be logged in to check idle pose.");
-                    }
-                }
-                else if (idleArgs.Length >= 2 && byte.TryParse(idleArgs[1], out var poseIndex))
-                {
-                    // /select idle <0-6> - set pose
-                    PoseManager.ApplyPose(EmoteController.PoseType.Idle, poseIndex);
-                    ExecuteMacro("/penumbra redraw self");
-                }
-                else
-                {
-                    ChatGui.PrintError("[CS+] Usage: /select idle [0-6]");
-                }
-                return;
-            }
-
-            // Handle sit subcommand - /select sit <0-6>
-            if (args.Trim().StartsWith("sit", StringComparison.OrdinalIgnoreCase))
-            {
-                var sitArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (sitArgs.Length >= 2 && byte.TryParse(sitArgs[1], out var poseIndex))
-                {
-                    PoseManager.ApplyPose(EmoteController.PoseType.Sit, poseIndex);
-                    ExecuteMacro("/penumbra redraw self");
-                }
-                else
-                {
-                    ChatGui.PrintError("[CS+] Usage: /select sit <0-6>");
-                }
-                return;
-            }
-
-            // Handle groundsit subcommand - /select groundsit <0-6>
-            if (args.Trim().StartsWith("groundsit", StringComparison.OrdinalIgnoreCase))
-            {
-                var groundsitArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (groundsitArgs.Length >= 2 && byte.TryParse(groundsitArgs[1], out var poseIndex))
-                {
-                    PoseManager.ApplyPose(EmoteController.PoseType.GroundSit, poseIndex);
-                    ExecuteMacro("/penumbra redraw self");
-                }
-                else
-                {
-                    ChatGui.PrintError("[CS+] Usage: /select groundsit <0-6>");
-                }
-                return;
-            }
-
-            // Handle doze subcommand - /select doze <0-6>
-            if (args.Trim().StartsWith("doze", StringComparison.OrdinalIgnoreCase))
-            {
-                var dozeArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (dozeArgs.Length >= 2 && byte.TryParse(dozeArgs[1], out var poseIndex))
-                {
-                    PoseManager.ApplyPose(EmoteController.PoseType.Doze, poseIndex);
-                    ExecuteMacro("/penumbra redraw self");
-                }
-                else
-                {
-                    ChatGui.PrintError("[CS+] Usage: /select doze <0-6>");
-                }
-                return;
-            }
-
-            // Handle save subcommand
-            if (args.Trim().StartsWith("save", StringComparison.OrdinalIgnoreCase))
-            {
-                HandleSaveCommand(args);
-                return;
-            }
-
-            // Handle mods subcommand
-            if (args.Trim().Equals("mods", StringComparison.OrdinalIgnoreCase))
-            {
-                if (SecretModeModWindow != null)
-                {
-                    if (SecretModeModWindow.IsOpen)
-                    {
-                        SecretModeModWindow.IsOpen = false;
-                    }
-                    else
-                    {
-                        // Open the mod manager in standalone mode (no specific character/design context)
-                        SecretModeModWindow.Open(
-                            characterIndex: null,
-                            existingSelection: null,
-                            existingPins: null,
-                            saveCallback: null,
-                            savePinsCallback: null,
-                            design: null,
-                            characterName: "Standalone Browser"
-                        );
-                    }
-                }
-                else
-                {
-                    ChatGui.PrintError("[Simple Character Select] Mod Manager is not available");
-                }
-                return;
-            }
-
-            // Handle whatsnew subcommand (Feature Discovery System)
-            if (args.Trim().Equals("whatsnew", StringComparison.OrdinalIgnoreCase))
-            {
-                PatchNotesWindow.OpenMainMenuOnClose = false;
-                PatchNotesWindow.IsOpen = true;
-                ChatGui.Print("[CS+] Opening patch notes window...");
-                return;
-            }
-
-            // Rest of the existing method remains the same...
-            var matches = Regex.Matches(args, "\"([^\"]+)\"|\\S+")
-                .Cast<Match>()
-                .Select(m => m.Groups[1].Success ? m.Groups[1].Value : m.Value)
-                .ToArray();
-
-            if (matches.Length < 1)
-            {
-                ChatGui.PrintError("[Simple Character Select] Invalid usage. Use /select <Character Name> [Design], /select random [Name], /select idle|sit|groundsit|doze [0-6], /select mods, /select save [CR], or /select whatsnew");
-                return;
-            }
-
-            string characterName = matches[0];
-            string? designName = matches.Length > 1 ? string.Join(" ", matches.Skip(1)) : null;
-
-            var character = Characters.FirstOrDefault(c =>
-                c.Name.Equals(characterName, StringComparison.OrdinalIgnoreCase));
-
-            if (character == null)
-            {
-                ChatGui.PrintError($"[Simple Character Select] Character '{characterName}' not found.");
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(designName))
-            {
-                ApplyProfile(character, -1);
-            }
-            else
-            {
-                var design = character.Designs.FirstOrDefault(d => d.Name.Equals(designName, StringComparison.OrdinalIgnoreCase));
-
-                if (design != null)
-                {
-                    var designIndex = character.Designs.IndexOf(design);
-                    ChatGui.Print($"[Simple Character Select] Applied design '{designName}' to {character.Name}.");
-                    ApplyProfile(character, designIndex);
-                }
-                else
-                {
-                    ChatGui.PrintError($"[Simple Character Select] Design '{designName}' not found for {character.Name}.");
-                }
-            }
         }
 
         private void HandleSaveCommand(string args)
@@ -2200,12 +1321,7 @@ namespace SimpleCharacterSelectPlugin
 
         private void DrawUI()
         {
-            // Process any pending linked profile opens before drawing
-            ProcessPendingLinkedProfile();
-            ProcessPendingLinkedProfileFromServer();
-
             WindowSystem.Draw();
-            TutorialManager.DrawTutorialOverlay();
 
             // Track and persist Quick Switch window state
             bool currentState = QuickSwitchWindow.IsOpen;
@@ -2227,10 +1343,6 @@ namespace SimpleCharacterSelectPlugin
             }
         }
 
-
-        public void ToggleQuickSwitchUI() => QuickSwitchWindow.Toggle();
-        public void ToggleMainUI() => MainWindow.Toggle();
-
         /// <summary>
         /// Opens the main window to the Settings tab with a specific section expanded.
         /// Used by Feature Spotlight cards in patch notes.
@@ -2242,49 +1354,6 @@ namespace SimpleCharacterSelectPlugin
 
             // Switch to Settings tab and expand the requested section
             MainWindow.SwitchToSettingsSection(sectionName);
-        }
-
-        /// <summary>
-        /// Opens the RP Profile editor for the active character.
-        /// Used by Feature Spotlight cards in patch notes.
-        /// </summary>
-        public void OpenRPProfileEditor()
-        {
-            // Open main window first
-            MainWindow.IsOpen = true;
-
-            // Open RP profile editor for active character
-            if (activeCharacter != null)
-            {
-                RPProfileEditWindow.SetCharacter(activeCharacter);
-                RPProfileEditWindow.IsOpen = true;
-            }
-            else if (Configuration.Characters.Count > 0)
-            {
-                // Fall back to first character if no active character
-                RPProfileEditWindow.SetCharacter(Configuration.Characters[0]);
-                RPProfileEditWindow.IsOpen = true;
-            }
-        }
-
-        /// <summary>
-        /// Opens the RP Profile VIEWER for the active character.
-        /// Used by Feature Spotlight to show the expand button with NEW badge.
-        /// </summary>
-        public void OpenRPProfileForFeatureSpotlight()
-        {
-            Character? character = activeCharacter;
-
-            // Fall back to first character if no active character
-            if (character == null && Configuration.Characters.Count > 0)
-            {
-                character = Configuration.Characters[0];
-            }
-
-            if (character != null)
-            {
-                OpenRPProfileViewWindow(character);
-            }
         }
 
         public void OpenAddCharacterWindow()
@@ -2443,7 +1512,7 @@ namespace SimpleCharacterSelectPlugin
                     Log.Debug($"[ExecuteMacro] Checking for recent application...");
 
                     // Get the target gearset
-                    string targetGearset = GetTargetGearsetFromMacro(macroText);
+                    string targetGearset = null; // TODO GetTargetGearsetFromMacro(macroText);
 
                     if (!string.IsNullOrEmpty(targetGearset))
                     {
@@ -2501,20 +1570,6 @@ namespace SimpleCharacterSelectPlugin
                     Log.Error($"Failed to save configuration: {ex.Message}");
                 }
             }
-        }
-        private string GetTargetGearsetFromMacro(string macro)
-        {
-            var lines = macro.Split('\n');
-            foreach (var line in lines)
-            {
-                var cmd = line.Trim();
-                if (IsGearsetChangeCommand(cmd))
-                {
-                    var gearsetNumber = ExtractGearsetNumber(cmd);
-                    return gearsetNumber?.ToString() ?? "";
-                }
-            }
-            return "";
         }
 
         /// <summary>Processes commands in order, executing immediately until a /wait is hit,
@@ -2851,228 +1906,6 @@ namespace SimpleCharacterSelectPlugin
             return string.Join("\n", lines);
         }
 
-        private void InitializeModCategorizationCache()
-        {
-            if (modCategorizationCache != null || PenumbraIntegration?.IsPenumbraAvailable != true)
-                return;
-
-            try
-            {
-                Log.Info("Initializing mod categorization cache...");
-
-                // Try to load cache from disk first
-                ModCacheData? diskCache = null;
-                if (File.Exists(ModCacheFilePath))
-                {
-                    try
-                    {
-                        var json = File.ReadAllText(ModCacheFilePath);
-                        diskCache = JsonConvert.DeserializeObject<ModCacheData>(json);
-                        Log.Info($"Loaded mod cache from disk (version {diskCache?.Version}, {diskCache?.Mods.Count} mods)");
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Warning($"Failed to load mod cache from disk: {ex.Message}");
-                    }
-                }
-
-                // Get current mod list from Penumbra
-                var currentModList = PenumbraIntegration.GetModList() ?? new Dictionary<string, string>();
-                
-                if (!currentModList.Any())
-                {
-                    Log.Warning("No mods found in Penumbra, skipping cache initialization");
-                    modCategorizationCache = new Dictionary<string, ModType>();
-                    return;
-                }
-
-                modCategorizationCache = new Dictionary<string, ModType>();
-                var cacheData = new ModCacheData { LastUpdated = DateTime.UtcNow };
-                var needsSave = false;
-                var newModCount = 0;
-                var removedModCount = 0;
-
-                // Process current mods
-                foreach (var (modDir, modName) in currentModList)
-                {
-                    // Check if we have cached data
-                    if (diskCache?.Mods.ContainsKey(modDir) == true)
-                    {
-                        // Use cached categorization
-                        var cached = diskCache.Mods[modDir];
-                        modCategorizationCache[modDir] = cached.Type;
-                        cacheData.Mods[modDir] = new ModCacheEntry
-                        {
-                            Name = modName,
-                            Type = cached.Type,
-                            LastSeen = DateTime.UtcNow
-                        };
-                    }
-                    else
-                    {
-                        // New mod - categorize it
-                        var modType = SecretModeModWindow.DetermineModType(modDir, modName, this);
-                        modCategorizationCache[modDir] = modType;
-                        cacheData.Mods[modDir] = new ModCacheEntry
-                        {
-                            Name = modName,
-                            Type = modType,
-                            LastSeen = DateTime.UtcNow
-                        };
-                        newModCount++;
-                        needsSave = true;
-                    }
-                }
-
-                // Check for removed mods
-                if (diskCache != null)
-                {
-                    foreach (var modDir in diskCache.Mods.Keys)
-                    {
-                        if (!currentModList.ContainsKey(modDir))
-                        {
-                            removedModCount++;
-                            needsSave = true;
-                        }
-                    }
-                }
-
-                // Save cache if changed
-                if (needsSave || diskCache == null)
-                {
-                    SaveModCache(cacheData);
-                }
-
-                Log.Info($"Mod categorization cache initialized with {modCategorizationCache.Count} mods " +
-                         $"({newModCount} new, {removedModCount} removed)");
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to initialize mod categorization cache: {ex}");
-                modCategorizationCache = new Dictionary<string, ModType>();
-            }
-        }
-        
-        private void SaveModCache(ModCacheData cacheData)
-        {
-            try
-            {
-                var json = JsonConvert.SerializeObject(cacheData, Formatting.Indented);
-                File.WriteAllText(ModCacheFilePath, json);
-                Log.Info($"Saved mod cache to disk ({cacheData.Mods.Count} mods)");
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to save mod cache to disk: {ex}");
-            }
-        }
-        
-        // Methods for updating mod cache from Penumbra events
-        public void UpdateModCache(string modDir, string modName, ModType modType)
-        {
-            try
-            {
-                // Load current cache from disk
-                ModCacheData? diskCache = null;
-                if (File.Exists(ModCacheFilePath))
-                {
-                    var json = File.ReadAllText(ModCacheFilePath);
-                    diskCache = JsonConvert.DeserializeObject<ModCacheData>(json);
-                }
-                
-                if (diskCache == null)
-                    diskCache = new ModCacheData { LastUpdated = DateTime.UtcNow };
-                
-                // Add new mod entry
-                diskCache.Mods[modDir] = new ModCacheEntry
-                {
-                    Name = modName,
-                    Type = modType,
-                    LastSeen = DateTime.UtcNow
-                };
-                diskCache.LastUpdated = DateTime.UtcNow;
-                
-                // Save updated cache
-                SaveModCache(diskCache);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to update mod cache for new mod {modDir}: {ex}");
-            }
-        }
-        
-        public void RemoveFromModCache(string modDir)
-        {
-            try
-            {
-                // Load current cache from disk
-                if (!File.Exists(ModCacheFilePath))
-                    return;
-                
-                var json = File.ReadAllText(ModCacheFilePath);
-                var diskCache = JsonConvert.DeserializeObject<ModCacheData>(json);
-                
-                if (diskCache == null)
-                    return;
-                
-                // Remove mod entry
-                if (diskCache.Mods.Remove(modDir))
-                {
-                    diskCache.LastUpdated = DateTime.UtcNow;
-                    SaveModCache(diskCache);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to remove mod from cache {modDir}: {ex}");
-            }
-        }
-        
-        public void MoveInModCache(string oldModDir, string newModDir, string modName, ModType modType)
-        {
-            try
-            {
-                // Load current cache from disk
-                if (!File.Exists(ModCacheFilePath))
-                    return;
-                
-                var json = File.ReadAllText(ModCacheFilePath);
-                var diskCache = JsonConvert.DeserializeObject<ModCacheData>(json);
-                
-                if (diskCache == null)
-                    return;
-                
-                // Remove old entry and add new entry
-                diskCache.Mods.Remove(oldModDir);
-                diskCache.Mods[newModDir] = new ModCacheEntry
-                {
-                    Name = modName,
-                    Type = modType,
-                    LastSeen = DateTime.UtcNow
-                };
-                diskCache.LastUpdated = DateTime.UtcNow;
-                
-                SaveModCache(diskCache);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Failed to move mod in cache {oldModDir} -> {newModDir}: {ex}");
-            }
-        }
-
-        public static string ConvertMacroToConflictResolution(string macro)
-        {
-            if (string.IsNullOrWhiteSpace(macro))
-                return macro;
-                
-            var lines = macro.Split('\n').Select(l => l.Trim()).ToList();
-            
-            // Remove bulktag lines when explicitly converting to Conflict Resolution
-            lines.RemoveAll(l => l.StartsWith("/penumbra bulktag", StringComparison.OrdinalIgnoreCase));
-            
-            return string.Join("\n", lines);
-        }
-
         public static string SanitizeDesignMacro(string macro, CharacterDesign design, Character character, bool enableAutomations)
         {
             // For Advanced Mode designs - no automatic modifications, user has full control
@@ -3198,346 +2031,9 @@ namespace SimpleCharacterSelectPlugin
 
             return changed ? string.Join("\n", lines) : macro;
         }
-
-        public static string ConvertToSecretModeMacro(string macro, string? characterPenumbraCollection = null)
-        {
-            if (string.IsNullOrWhiteSpace(macro))
-                return macro;
-
-            // Check if Conflict Resolution is enabled - if so, don't generate bulktag commands
-            if (Plugin.Instance?.Configuration?.EnableConflictResolution == true)
-                return macro;
-
-            var lines = macro.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).ToList();
-            var result = new List<string>();
-            
-            // Extract values from existing commands
-            string? penumbraCollection = null;
-            string? glamourerDesign = null;
-            
-            foreach (var line in lines)
-            {
-                if (line.StartsWith("/penumbra collection individual", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = line.Split('|');
-                    if (parts.Length >= 2)
-                        penumbraCollection = parts[1].Trim();
-                }
-                else if (line.StartsWith("/glamour apply", StringComparison.OrdinalIgnoreCase) && !line.Contains("no clothes"))
-                {
-                    var parts = line.Split('|');
-                    if (parts.Length >= 1)
-                    {
-                        var designPart = parts[0].Substring("/glamour apply".Length).Trim();
-                        if (!string.IsNullOrWhiteSpace(designPart))
-                            glamourerDesign = designPart;
-                    }
-                }
-            }
-
-            // Use provided character collection if available, otherwise use extracted collection
-            string collectionToUse = !string.IsNullOrWhiteSpace(characterPenumbraCollection) 
-                ? characterPenumbraCollection 
-                : penumbraCollection;
-
-            // Add secret mode commands at the beginning (for designs)
-            if (!string.IsNullOrWhiteSpace(characterPenumbraCollection) && !string.IsNullOrWhiteSpace(glamourerDesign))
-            {
-                result.Add($"/penumbra bulktag disable {characterPenumbraCollection} | gear");
-                result.Add($"/penumbra bulktag disable {characterPenumbraCollection} | hair");
-                result.Add($"/penumbra bulktag enable {characterPenumbraCollection} | {glamourerDesign}");
-                result.Add("/glamour apply no clothes | self");
-            }
-            // Add secret mode commands for characters (with collection line)
-            else if (!string.IsNullOrWhiteSpace(collectionToUse) && !string.IsNullOrWhiteSpace(glamourerDesign))
-            {
-                result.Add($"/penumbra collection individual | {collectionToUse} | self");
-                result.Add($"/penumbra bulktag disable {collectionToUse} | gear");
-                result.Add($"/penumbra bulktag disable {collectionToUse} | hair");
-                result.Add($"/penumbra bulktag enable {collectionToUse} | {glamourerDesign}");
-                result.Add("/glamour apply no clothes | self");
-            }
-
-            // Add all other lines, replacing the original penumbra collection and glamour apply commands
-            foreach (var line in lines)
-            {
-                if (line.StartsWith("/penumbra collection individual", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Skip - already added above
-                    continue;
-                }
-                else if (line.StartsWith("/glamour apply", StringComparison.OrdinalIgnoreCase) && !line.Contains("no clothes"))
-                {
-                    // Replace with our version
-                    if (!string.IsNullOrWhiteSpace(glamourerDesign))
-                        result.Add($"/glamour apply {glamourerDesign} | self");
-                }
-                else
-                {
-                    // Keep all other lines (including custom commands, honorific, moodle, etc.)
-                    result.Add(line);
-                }
-            }
-
-            return string.Join("\n", result);
-        }
-
-        public void OpenRPProfileWindow(Character character)
-        {
-            RPProfileViewer.IsOpen = false;
-            RPProfileViewer.SetCharacter(character);
-            RPProfileViewer.IsOpen = true;
-        }
-
-        public void OpenRPProfileViewWindow(Character character)
-        {
-            RPProfileViewer.SetCharacter(character);
-            RPProfileViewer.IsOpen = true;
-            IsRPProfileViewerOpen = true;
-        }
-
-        public void OpenLinkedProfile(string characterName)
-        {
-            // Defer the window opening to the next frame to avoid issues with opening during Draw
-            pendingLinkedProfileToOpen = characterName;
-        }
-
-        private string? pendingLinkedProfileFromServerToOpen = null;
-
-        public void OpenLinkedProfileFromServer(string inGameName)
-        {
-            // Defer the server fetch to the next frame to avoid issues with opening during Draw
-            pendingLinkedProfileFromServerToOpen = inGameName;
-        }
-
-        private async void ProcessPendingLinkedProfileFromServer()
-        {
-            if (pendingLinkedProfileFromServerToOpen == null) return;
-
-            var inGameName = pendingLinkedProfileFromServerToOpen;
-            pendingLinkedProfileFromServerToOpen = null;
-
-            try
-            {
-                // Fetch the profile from the server
-                var profile = await DownloadProfileAsync(inGameName);
-                if (profile == null || profile.IsEmpty())
-                {
-                    ChatGui.Print($"[Simple Character Select] Could not find profile for {inGameName}.");
-                    return;
-                }
-
-                // Create a new window with unique name
-                secondaryWindowCounter++;
-                var windowName = $"RPProfileWindow_{secondaryWindowCounter}";
-                var newWindow = new RPProfileViewWindow(this, windowName);
-
-                // Register with window system
-                WindowSystem.AddWindow(newWindow);
-                secondaryProfileWindows.Add(newWindow);
-
-                // Set the external profile and open
-                newWindow.SetExternalProfile(profile);
-                newWindow.IsOpen = true;
-
-                // Position the window to the right of the main viewer window
-                if (RPProfileViewWindowPos.HasValue && RPProfileViewWindowSize.HasValue)
-                {
-                    var mainRight = RPProfileViewWindowPos.Value.X + RPProfileViewWindowSize.Value.X;
-                    var newX = mainRight + 20 + (40 * (secondaryWindowCounter - 1));
-                    var newY = RPProfileViewWindowPos.Value.Y + (30 * (secondaryWindowCounter - 1));
-                    newWindow.SetAbsolutePosition(newX, newY);
-                }
-                else
-                {
-                    newWindow.OffsetPosition(250 * secondaryWindowCounter, 50 * secondaryWindowCounter);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[OpenLinkedProfileFromServer] Error fetching profile: {ex.Message}");
-                ChatGui.PrintError($"[Simple Character Select] Failed to fetch profile for {inGameName}.");
-            }
-        }
-
-        private void ProcessPendingLinkedProfile()
-        {
-            if (pendingLinkedProfileToOpen == null) return;
-
-            var characterName = pendingLinkedProfileToOpen;
-            pendingLinkedProfileToOpen = null;
-
-            // Find the character by name
-            var character = Characters.FirstOrDefault(c => c.Name.Equals(characterName, StringComparison.OrdinalIgnoreCase));
-            if (character == null)
-            {
-                return;
-            }
-
-            // Create a new window with unique name
-            secondaryWindowCounter++;
-            var windowName = $"RPProfileWindow_{secondaryWindowCounter}";
-            var newWindow = new RPProfileViewWindow(this, windowName);
-
-            // Register with window system
-            WindowSystem.AddWindow(newWindow);
-            secondaryProfileWindows.Add(newWindow);
-
-            // Set the character and open
-            newWindow.SetCharacter(character);
-            newWindow.IsOpen = true;
-
-            // Position the window to the right of the main viewer window
-            if (RPProfileViewWindowPos.HasValue && RPProfileViewWindowSize.HasValue)
-            {
-                var mainRight = RPProfileViewWindowPos.Value.X + RPProfileViewWindowSize.Value.X;
-                var newX = mainRight + 20 + (40 * (secondaryWindowCounter - 1));
-                var newY = RPProfileViewWindowPos.Value.Y + (30 * (secondaryWindowCounter - 1));
-                newWindow.SetAbsolutePosition(newX, newY);
-            }
-            else
-            {
-                newWindow.OffsetPosition(250 * secondaryWindowCounter, 50 * secondaryWindowCounter);
-            }
-        }
-
-        private RPProfile HandleProfileRequest(string requestedName)
-        {
-            // If the sender includes "@World", use it as-is
-            string lookupKey = requestedName;
-
-            // Otherwise, assume it's FullName and append your own world
-            if (!requestedName.Contains('@') && ObjectTable.LocalPlayer?.HomeWorld.IsValid == true)
-            {
-                string world = ObjectTable.LocalPlayer.HomeWorld.Value.Name.ToString();
-                lookupKey = $"{requestedName}@{world}";
-            }
-
-            if (ActiveProfilesByPlayerName.TryGetValue(lookupKey, out var overrideName))
-            {
-                lookupKey = overrideName;
-            }
-
-            // Find the matching character with LastInGameName
-            var character = Characters.FirstOrDefault(c =>
-                string.Equals(c.LastInGameName, lookupKey, StringComparison.OrdinalIgnoreCase));
-
-            return character?.RPProfile ?? new RPProfile();
-        }
-
-
-        private async void OnViewRPCommand(string command, string args)
-        {
-            if (string.IsNullOrWhiteSpace(args))
-            {
-                ChatGui.PrintError("[Simple Character Select] Usage: /viewrp <Character Name>");
-                return;
-            }
-
-            string targetName = args.Trim();
-
-            if (targetName.Equals("self", StringComparison.OrdinalIgnoreCase))
-            {
-                var me = Plugin.ObjectTable.LocalPlayer;
-                if (me != null && me.HomeWorld.IsValid)
-                {
-                    var localNameStr = me.Name.TextValue;
-                    var worldNameStr = me.HomeWorld.Value.Name.ToString();
-                    targetName = $"{localNameStr}@{worldNameStr}";
-                }
-            }
-            if (targetName.Equals("<t>", StringComparison.OrdinalIgnoreCase) || targetName.Equals("t", StringComparison.OrdinalIgnoreCase))
-            {
-                var rawTarget = TargetManager.Target;
-
-                if (rawTarget == null)
-                {
-                    ChatGui.PrintError("[Simple Character Select] You are not targeting anything.");
-                    return;
-                }
-
-                ChatGui.Print($"[DEBUG] Target kind: {rawTarget.ObjectKind}, Name: {rawTarget.Name}");
-
-                if (rawTarget.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc)
-                {
-                    ChatGui.PrintError("[Simple Character Select] You must target a player.");
-                    return;
-                }
-
-                string name = rawTarget.Name.ToString();
-                string world = ObjectTable.LocalPlayer?.HomeWorld.Value.Name.ToString() ?? "Unknown";
-
-                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(world))
-                {
-                    ChatGui.PrintError("[Simple Character Select] Could not resolve target's full name.");
-                    return;
-                }
-
-                targetName = $"{name}@{world}";
-            }
-
-
-            ChatGui.Print($"[Simple Character Select] Looking for {targetName}'s profile");
-
-            // Try to get local name first
-            string? localName = ObjectTable.LocalPlayer?.Name.TextValue;
-
-            // If player is trying to view their own profile
-            if (ActiveProfilesByPlayerName.TryGetValue(targetName, out var overrideName))
-            {
-                var character = Characters.FirstOrDefault(c =>
-    string.Equals(c.Name, overrideName, StringComparison.OrdinalIgnoreCase));
-
-
-                if (character?.RPProfile == null || character.RPProfile.IsEmpty())
-                {
-                    ChatGui.PrintError($"[Simple Character Select] No RP profile set for {targetName}.");
-                    return;
-                }
-
-                RPProfileViewer.SetCharacter(character);
-                RPProfileViewer.IsOpen = true;
-                return;
-
-            }
-            else if (!string.IsNullOrEmpty(ObjectTable.LocalPlayer?.Name.TextValue) &&
-                     ObjectTable.LocalPlayer?.Name.TextValue.Equals(targetName, StringComparison.OrdinalIgnoreCase) == true)
-            {
-
-                var match = Characters.FirstOrDefault(c => c.LastInGameName != null &&
-                                                           c.LastInGameName.Equals(localName, StringComparison.OrdinalIgnoreCase));
-                if (match == null || match.RPProfile == null || match.RPProfile.IsEmpty())
-                {
-                    ChatGui.PrintError("[DEBUG] No matching Simple Character Select profile or RPProfile found.");
-                    return;
-                }
-
-                RPProfileViewer.SetCharacter(match);
-                RPProfileViewer.IsOpen = true;
-                return;
-            }
-
-            // Only hits this if not matched above
-            try
-            {
-                var profile = await DownloadProfileAsync(targetName);
-
-                if (profile != null && !profile.IsEmpty())
-                {
-                    RPProfileViewer.SetExternalProfile(profile);
-                    RPProfileViewer.IsOpen = true;
-                    ChatGui.Print($"[Simple Character Select] Received RP profile from {targetName}.");
-                }
-                else
-                {
-                    ChatGui.Print($"[Simple Character Select] {targetName} is currently not sharing their RP Profile or has not yet created one.");
-                }
-            }
-            catch (Exception ex)
-            {
-                ChatGui.PrintError($"[Simple Character Select] IPC request failed: {ex.Message}");
-            }
-        }
+        
+        
+        // TODO dupe SetActive
         public void SetActiveCharacter(Character character)
         {
             Plugin.Log.Debug("[SetActiveCharacter] CALLED");
@@ -3577,384 +2073,15 @@ namespace SimpleCharacterSelectPlugin
                 {
                     Plugin.Log.Error($"[SetActiveCharacter] Failed to save configuration: {ex.Message}");
                 }
-
+                
+                
+                // TODO dupe SetActive
                 Plugin.Log.Debug($"[SetActiveCharacter] Saved: {fullKey} → {pluginCharacterKey}");
                 Plugin.Log.Debug($"[SetActiveCharacter] Set LastInGameName = {fullKey} for profile {character.Name}");
-
-                // Always upload to keep server in sync - server uses sharing/exclusion flags to decide visibility
-                var profileToSend = BuildProfileForUpload(character);
-                var effectiveSharing = GetEffectiveSharingForUpload(character, fullKey);
-
-                // If profile is private/unmade or excluded, tell server not to show the name
-                bool shouldHideName = character.ExcludeFromNameSync ||
-                                      character.RPProfile == null ||
-                                      character.RPProfile.Sharing == ProfileSharing.NeverShare;
-
-                _ = Plugin.UploadProfileAsync(profileToSend, character.LastInGameName ?? character.Name,
-                    sharingOverride: shouldHideName ? ProfileSharing.NeverShare : effectiveSharing,
-                    excludeFromNameSync: character.ExcludeFromNameSync);
-                Plugin.Log.Info($"[SetActiveCharacter] ✓ Uploaded profile for {character.Name} (sharing: {(shouldHideName ? "NeverShare (hidden)" : effectiveSharing.ToString())}, excluded: {character.ExcludeFromNameSync})");
             }
         }
-        public async Task TryRequestRPProfile(string targetName)
-        {
-            var profile = await DownloadProfileAsync(targetName);
-
-            if (profile != null && !profile.IsEmpty())
-            {
-                RPProfileViewer.SetExternalProfile(profile);
-                RPProfileViewer.IsOpen = true;
-                ChatGui.Print($"[Simple Character Select] Received RP profile for {targetName}.");
-            }
-            else
-            {
-                ChatGui.Print($"[Simple Character Select] No shared RP profile found for {targetName}.");
-            }
-        }
-
-        /// <summary>
-        /// Opens the report window for reporting a CS+ user.
-        /// </summary>
-        public void OpenReportWindow(string physicalName, string csName)
-        {
-            ReportUserWindow?.Open(physicalName, csName);
-        }
-
-        /// <summary>
-        /// Builds a complete RPProfile for upload from a Character, ensuring all fields are included.
-        /// This is the single source of truth for profile upload construction.
-        /// </summary>
-        public RPProfile BuildProfileForUpload(Character character)
-        {
-            var rp = character.RPProfile;
-
-            return new RPProfile
-            {
-                // Basic fields
-                Pronouns = rp?.Pronouns,
-                Gender = rp?.Gender,
-                Age = rp?.Age,
-                Race = rp?.Race,
-                Orientation = rp?.Orientation,
-                Relationship = rp?.Relationship,
-                Occupation = rp?.Occupation,
-                Abilities = rp?.Abilities,
-                Bio = rp?.Bio,
-                Tags = rp?.Tags,
-                RPHooks = rp?.RPHooks,
-                AdditionalDetailsCustom = rp?.AdditionalDetailsCustom,
-                Links = rp?.Links,
-                GalleryStatus = rp?.GalleryStatus ?? character.GalleryStatus,
-
-                // Title and Status
-                Title = rp?.Title,
-                TitleIcon = rp?.TitleIcon ?? 0,
-                Status = rp?.Status,
-                StatusIcon = rp?.StatusIcon ?? 0,
-
-                // Image fields
-                CustomImagePath = !string.IsNullOrEmpty(rp?.CustomImagePath)
-                    ? rp.CustomImagePath
-                    : character.ImagePath,
-                ImageZoom = rp?.ImageZoom ?? 1.0f,
-                ImageOffset = rp?.ImageOffset ?? Vector2.Zero,
-                ProfileImageUrl = rp?.ProfileImageUrl,
-
-                // Banner fields (EXPANDED)
-                BannerImagePath = rp?.BannerImagePath,
-                BannerImageUrl = rp?.BannerImageUrl,
-                BannerZoom = rp?.BannerZoom ?? 1.0f,
-                BannerOffset = rp?.BannerOffset ?? Vector2.Zero,
-
-                // Content boxes (EXPANDED)
-                LeftContentBoxes = rp?.LeftContentBoxes ?? new List<ContentBox>(),
-                RightContentBoxes = rp?.RightContentBoxes ?? new List<ContentBox>(),
-
-                // Gallery images (EXPANDED)
-                GalleryImages = rp?.GalleryImages ?? new List<GalleryImage>(),
-                UseGalleryPreview = rp?.UseGalleryPreview ?? false,
-                SelectedGalleryPreviewIndex = rp?.SelectedGalleryPreviewIndex ?? -1,
-
-                // Sharing and metadata
-                Sharing = rp?.Sharing ?? ProfileSharing.AlwaysShare,
-                // Use Alias if set, otherwise fall back to Name
-                CharacterName = !string.IsNullOrWhiteSpace(character.Alias) ? character.Alias : character.Name,
-                NameplateColor = rp?.ProfileColor ?? character.NameplateColor,
-                IsNSFW = rp?.IsNSFW ?? false,
-
-                // Visual effects
-                BackgroundImage = rp?.BackgroundImage ?? character.BackgroundImage,
-
-                // URL-based background for Expanded RP Profile
-                BackgroundImageUrl = rp?.BackgroundImageUrl,
-                BackgroundImageOpacity = rp?.BackgroundImageOpacity ?? 1.0f,
-                BackgroundImageZoom = rp?.BackgroundImageZoom ?? 1.0f,
-                BackgroundImageOffsetX = rp?.BackgroundImageOffsetX ?? 0f,
-                BackgroundImageOffsetY = rp?.BackgroundImageOffsetY ?? 0f,
-
-                // URL-based background for compact RP Profile
-                RPBackgroundImageUrl = rp?.RPBackgroundImageUrl,
-                RPBackgroundImageOpacity = rp?.RPBackgroundImageOpacity ?? 0.5f,
-                RPBackgroundImageZoom = rp?.RPBackgroundImageZoom ?? 1.0f,
-                RPBackgroundImageOffsetX = rp?.RPBackgroundImageOffsetX ?? 0f,
-                RPBackgroundImageOffsetY = rp?.RPBackgroundImageOffsetY ?? 0f,
-
-                Effects = rp?.Effects ?? character.Effects ?? new ProfileEffects(),
-                ProfileColor = rp?.ProfileColor,
-
-                // Activity tracking
-                LastActiveTime = Configuration.ShowRecentlyActiveStatus ? DateTime.UtcNow : null,
-            };
-        }
-
-        public static async Task UploadProfileAsync(RPProfile profile, string characterName, bool isCharacterApplication = true, ProfileSharing? sharingOverride = null, bool? excludeFromNameSync = null)
-        {
-            Stream? imageStream = null;
-            StreamContent? imageContent = null;
-
-            // Apply sharing override for this upload (doesn't modify the original profile permanently)
-            var originalSharing = profile.Sharing;
-            if (sharingOverride.HasValue)
-            {
-                profile.Sharing = sharingOverride.Value;
-                Plugin.Log.Debug($"[UploadProfile] Using sharing override: {sharingOverride.Value} (original: {originalSharing})");
-            }
-
-            try
-            {
-                using var http = new HttpClient();
-                using var form = new MultipartFormDataContent();
-
-                // Get character match from config (for fallback data like nameplate colour)
-                var config = PluginInterface.GetPluginConfig() as Configuration;
-                Character? match = config?.Characters.FirstOrDefault(c => c.LastInGameName == characterName);
-
-                if (match != null)
-                {
-                    // Only set character name if it's not already set
-                    // Use Alias if set, otherwise fall back to Name
-                    profile.CharacterName ??= !string.IsNullOrWhiteSpace(match.Alias) ? match.Alias : match.Name;
-
-                    // Sync the shared name visibility setting - use passed value if available, otherwise fall back to match
-                    bool globalSetting = config?.AllowOthersToSeeMyCSName ?? true;
-                    bool isExcluded = excludeFromNameSync ?? match.ExcludeFromNameSync;
-                    profile.AllowOthersToSeeMyCSName = isExcluded ? false : globalSetting;
-
-                    // Only set nameplate colour if it's not set (all zeros)
-                    if (profile.NameplateColor.X <= 0f
-                     && profile.NameplateColor.Y <= 0f
-                     && profile.NameplateColor.Z <= 0f)
-                    {
-                        profile.NameplateColor = match.NameplateColor;
-                    }
-
-                    // Ensure background and effects are included in upload
-                    if (profile.Effects == null && match.Effects != null)
-                    {
-                        profile.Effects = new ProfileEffects
-                        {
-                            CircuitBoard = match.Effects.CircuitBoard,
-                            Fireflies = match.Effects.Fireflies,
-                            FallingLeaves = match.Effects.FallingLeaves,
-                            Butterflies = match.Effects.Butterflies,
-                            Bats = match.Effects.Bats,
-                            Fire = match.Effects.Fire,
-                            Smoke = match.Effects.Smoke,
-                            ColorScheme = match.Effects.ColorScheme,
-                            CustomParticleColor = match.Effects.CustomParticleColor
-                        };
-                    }
-                }
-
-                // Determine correct image to upload
-                string? imagePathToUpload = null;
-                if (!string.IsNullOrEmpty(profile.CustomImagePath) && File.Exists(profile.CustomImagePath))
-                {
-                    imagePathToUpload = profile.CustomImagePath;
-                }
-                else if (!string.IsNullOrEmpty(match?.ImagePath) && File.Exists(match.ImagePath))
-                {
-                    imagePathToUpload = match.ImagePath;
-                }
-
-                // Attach image if found
-                if (!string.IsNullOrEmpty(imagePathToUpload))
-                {
-                    imageStream = File.OpenRead(imagePathToUpload);
-                    imageContent = new StreamContent(imageStream);
-                    imageContent.Headers.ContentType =
-                        new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
-                    form.Add(imageContent, "image", $"{Guid.NewGuid()}.png");
-                }
-
-                // Only preserve server NSFW for character applications, not profile editor saves
-                if (isCharacterApplication)
-                {
-                    try 
-                    {
-                        using var checkHttp = CreateAuthenticatedHttpClient();
-                        var galleryResponse = await checkHttp.GetAsync("https://character-select-profile-server-production.up.railway.app/gallery?nsfw=true");
-                        
-                        if (galleryResponse.IsSuccessStatusCode)
-                        {
-                            var galleryJson = await galleryResponse.Content.ReadAsStringAsync();
-                            var galleryProfiles = JsonConvert.DeserializeObject<List<GalleryProfile>>(galleryJson);
-                            
-                            // Find this character's profile in gallery
-                            var existingGalleryProfile = galleryProfiles?.FirstOrDefault(p => 
-                                p.CharacterName == (profile.CharacterName ?? characterName) ||
-                                p.CharacterId.Contains(characterName));
-                            
-                            if (existingGalleryProfile != null && existingGalleryProfile.IsNSFW)
-                            {
-                                // Server has NSFW=true, preserve it for character applications
-                                profile.IsNSFW = true;
-                                Plugin.Log.Debug($"[UploadProfile] Preserving server NSFW=true for character application: {characterName}");
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Plugin.Log.Debug($"[UploadProfile] Could not check server NSFW status: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    Plugin.Log.Debug($"[UploadProfile] Profile editor save - respecting user's NSFW choice: {profile.IsNSFW} for {characterName}");
-                }
-
-                // Upload JSON - The profile parameter already has the correct data!
-                string json = JsonConvert.SerializeObject(profile);
-                form.Add(new StringContent(json, Encoding.UTF8, "application/json"), "profile");
-
-                // Add a flag to indicate this is an update, not a new profile
-                form.Add(new StringContent("true", Encoding.UTF8, "text/plain"), "isUpdate");
-
-                // Send both CS+ character name and physical character name
-                form.Add(new StringContent(profile.CharacterName ?? "Unknown", Encoding.UTF8, "text/plain"), "csCharacterName");
-
-                string urlSafeName = Uri.EscapeDataString(characterName);
-
-                // Use PUT for updates instead of POST to preserve likes
-                var request = new HttpRequestMessage(HttpMethod.Put, $"https://character-select-profile-server-production.up.railway.app/upload/{urlSafeName}")
-                {
-                    Content = form
-                };
-
-                Plugin.Log.Info($"[UploadProfile] Updating profile for CS+ character '{profile.CharacterName}' as physical character '{characterName}'");
-
-                var response = await http.SendAsync(request);
-
-                imageContent?.Dispose();
-                imageStream?.Dispose();
-
-                // Process response
-                var responseJson = await response.Content.ReadAsStringAsync();
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var updated = JsonConvert.DeserializeObject<RPProfile>(responseJson);
-
-                    if (updated?.ProfileImageUrl is { Length: > 0 })
-                    {
-                        profile.ProfileImageUrl = updated.ProfileImageUrl;
-
-                        // Update the stored profile with the new image URL
-                        if (match?.RPProfile != null)
-                        {
-                            match.RPProfile.ProfileImageUrl = updated.ProfileImageUrl;
-                            Plugin.Log.Debug($"[UploadProfile] Updated ProfileImageUrl for {characterName} = {updated.ProfileImageUrl}");
-                            config?.Save();
-                        }
-                    }
-
-                    Plugin.Log.Info($"[UploadProfile] Successfully updated profile for CS+ character {profile.CharacterName} as {characterName}");
-                }
-                else
-                {
-                    Plugin.Log.Warning($"[UploadProfile] Failed to upload profile for {characterName}: {response.StatusCode}");
-                    Plugin.Log.Warning($"[UploadProfile] Server response: {responseJson}");
-                }
-            }
-            catch (NullReferenceException nre)
-            {
-                Plugin.Log.Debug($"[UploadProfile] NullReference for {characterName}: {nre.Message}");
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"[UploadProfile] Exception: {ex}");
-            }
-            finally
-            {
-                // Restore original sharing mode if we overrode it
-                if (sharingOverride.HasValue)
-                {
-                    profile.Sharing = originalSharing;
-                }
-            }
-        }
-
-
-
-        public static async Task<RPProfile?> FetchProfileAsync(string characterName)
-        {
-            try
-            {
-                using var http = new HttpClient();
-                string urlSafeName = Uri.EscapeDataString(characterName);
-                var response = await http.GetAsync($"https://character-select-profile-server-production.up.railway.app/profiles/{urlSafeName}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    return RPProfileJson.Deserialize(json);
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"[FetchProfile] Error fetching profile for {characterName}: {ex.Message}");
-            }
-
-            return null;
-        }
-        public static async Task<RPProfile?> DownloadProfileAsync(string characterName)
-        {
-            try
-            {
-                using var http = new HttpClient();
-                string urlSafeName = Uri.EscapeDataString(characterName);
-
-                var response = await http.GetAsync($"https://character-select-profile-server-production.up.railway.app/view/{urlSafeName}");
-                if (!response.IsSuccessStatusCode)
-                {
-                    Plugin.Log.Warning($"[DownloadProfile] Profile not found for {characterName}");
-                    return null;
-                }
-
-                string json = await response.Content.ReadAsStringAsync();
-                var profile = RPProfileJson.Deserialize(json);
-
-                // Ensure we got all the background and effects data
-                if (profile != null)
-                {
-                    Plugin.Log.Debug($"[DownloadProfile] Downloaded profile");
-                    Plugin.Log.Debug($"[DownloadProfile] Profile belongs to CS+ character: {profile.CharacterName}");
-                    Plugin.Log.Debug($"[DownloadProfile] BackgroundImage: {profile.BackgroundImage ?? "null"}");
-                    Plugin.Log.Debug($"[DownloadProfile] Effects: {(profile.Effects != null ? "present" : "null")}");
-                    if (profile.Effects != null)
-                    {
-                        Plugin.Log.Debug($"[DownloadProfile] Effects - Fireflies: {profile.Effects.Fireflies}, Leaves: {profile.Effects.FallingLeaves}, etc.");
-                    }
-                }
-
-                return profile;
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"[DownloadProfile] Exception: {ex.Message}");
-                return null;
-            }
-        }
+        
+        //TODO Generating macros
         public static string GenerateTargetMacro(string original)
         {
             var lines = original.Split('\n');
@@ -4003,39 +2130,14 @@ namespace SimpleCharacterSelectPlugin
 
             return string.Join("\n", result);
         }
+        
+        // TODO why??? just delete them as soon as they're replaced I don't get it
         public void CleanupUnusedProfileImages()
         {
-            try
-            {
-                var dir = PluginInterface.GetPluginConfigDirectory();
-                if (!Directory.Exists(dir))
-                    return;
 
-                var allFiles = Directory.GetFiles(dir, "RPImage_*.png");
-                var usedPaths = this.Characters
-                    .Select(c => c.RPProfile?.ProfileImageUrl)
-                    .Where(url => !string.IsNullOrEmpty(url))
-                    .Select(url =>
-                    {
-                        var hash = Convert.ToBase64String(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(url!)))
-                            .Replace("/", "_").Replace("+", "-");
-                        return Path.Combine(dir, $"RPImage_{hash}.png");
-                    }).ToHashSet();
-
-                foreach (var file in allFiles)
-                {
-                    if (!usedPaths.Contains(file))
-                    {
-                        File.Delete(file);
-                        Log.Debug($"[Cleanup] Deleted orphaned image: {file}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[Cleanup] Failed to clean up profile images: {ex.Message}");
-            }
         }
+        
+        // TODO ????
         private void FrameworkUpdate(IFramework framework)
         {
             if (Configuration.EnableSafeMode)
@@ -4054,12 +2156,6 @@ namespace SimpleCharacterSelectPlugin
 
             // Request periodic nameplate redraws for smooth wave animation on other players' names
             playerNameProcessor?.RequestRedrawIfNeeded();
-
-            // Process pending RP profile lookups for context menu (has internal rate limiting)
-            if (Configuration.ShowViewRPContextMenu && RPProfileLookupManager != null)
-            {
-                _ = RPProfileLookupManager.ProcessPendingLookups();
-            }
 
             if (Configuration.EnableLoginDelay)
             {
@@ -4143,25 +2239,6 @@ namespace SimpleCharacterSelectPlugin
                             reapplied = true;
                         }
                     }
-                }
-            }
-
-            // Safe login timer
-            if (!ClientState.IsLoggedIn)
-            {
-                secondsSinceLogin = 0;
-                isLoginComplete = false;
-                randomDesignCRAppliedThisSession = false; // Reset for new session
-                assignmentAppliedForCharacter = null; // Reset assignment tracking
-            }
-            else if (!isLoginComplete)
-            {
-                secondsSinceLogin += (float)Framework.UpdateDelta.TotalSeconds;
-
-                if (secondsSinceLogin >= 5)
-                {
-                    isLoginComplete = true;
-                    TryRestorePosesAfterLogin();
                 }
             }
 
@@ -4348,30 +2425,13 @@ namespace SimpleCharacterSelectPlugin
 
                 _pendingSessionCharacterName = null; // Run only once
             }
-
-            // Restore poses on Login
-            if (!shouldApplyPoses)
-                return;
-
-            framesSinceLogin++;
-            if (framesSinceLogin >= 5)
-            {
-                if (Configuration.ApplyIdleOnLogin)
-                {
-                    ApplyStoredPoses();
-                }
-                else
-                {
-                    Log.Debug("[Login] Skipping ApplyStoredPoses because ApplyIdleOnLogin is false.");
-                }
-
-                shouldApplyPoses = false;
-                framesSinceLogin = 0;
-            }
         }
+        
+        // TODO this should be like 5 lines applying a saved profile what the fuck is this doing
         private void ApplyLastUsedCharacter(string fullKey)
         {
             // Prevent AutoLoad-LastUsed from running multiple times during startup
+            // TODO ^ ...what?
             if (autoLoadAlreadyRanThisStartup)
             {
                 return;
@@ -4421,7 +2481,7 @@ namespace SimpleCharacterSelectPlugin
                     ApplyProfile(assignedCharacter, designIndex);
                     lastAppliedCharacter = fullKey;
                     assignmentAppliedForCharacter = fullKey;
-                    characterAlreadyAppliedOnStartup = true; // Mark as handled
+                    characterAlreadyAppliedOnStartup = true; // Mark as handled // TODO are you twelve?
                     return;
                 }
                 else
@@ -4496,6 +2556,7 @@ namespace SimpleCharacterSelectPlugin
         private int GetLastUsedDesignIndex(Character character)
         {
             // Return -1 (no design) if design auto-reapplication is disabled
+            // TODO if it's disabled just don't run the method lmao
             if (!Configuration.EnableLastUsedDesignAutoload)
             {
                 Plugin.Log.Debug($"[AutoLoad-Design] Design auto-reapplication is disabled");
@@ -4527,9 +2588,8 @@ namespace SimpleCharacterSelectPlugin
             
             return -1; // No design or not found
         }
-
-        #region Job Assignment Helpers
-
+        
+        // TODO util
         /// <summary>Get the role category for a job ID.</summary>
         public static string GetRoleForJob(uint jobId)
         {
@@ -4553,7 +2613,9 @@ namespace SimpleCharacterSelectPlugin
                 _ => "Other"
             };
         }
-
+        
+        
+        // TODO util
         /// <summary>Get job name from Lumina data.</summary>
         public string? GetJobName(uint jobId)
         {
@@ -4575,7 +2637,9 @@ namespace SimpleCharacterSelectPlugin
             }
             return null;
         }
-
+        
+        
+        // TODO ???
         /// <summary>Parse a job assignment value into character and optional design name.</summary>
         public (string? CharacterName, string? DesignName) ParseJobAssignment(string assignmentValue)
         {
@@ -4604,7 +2668,9 @@ namespace SimpleCharacterSelectPlugin
             // Legacy format - just character name
             return (assignmentValue, null);
         }
-
+        
+        
+        // TODO use a class?????
         /// <summary>Parse a character assignment value into character and optional design name.</summary>
         /// <remarks>Supports formats: "CharName" (legacy), "Character:CharName", "Design:CharName:DesignName"</remarks>
         public (string? CharacterName, string? DesignName) ParseCharacterAssignment(string assignmentValue)
@@ -4635,6 +2701,7 @@ namespace SimpleCharacterSelectPlugin
             return (assignmentValue, null);
         }
 
+        // TODO ??? util
         /// <summary>Try to apply a job assignment for the given job ID.</summary>
         /// <returns>True if an assignment was found and applied.</returns>
         private bool TryApplyJobAssignment(uint jobId)
@@ -4703,108 +2770,6 @@ namespace SimpleCharacterSelectPlugin
             return true;
         }
 
-        #endregion
-
-        #region Gearset Helpers
-
-        /// <summary>
-        /// Get all available gearsets for the current player.
-        /// Returns a list of (GearsetNumber, JobId, GearsetName) tuples.
-        /// </summary>
-        public unsafe List<(int Number, byte JobId, string Name)> GetPlayerGearsets()
-        {
-            var gearsets = new List<(int Number, byte JobId, string Name)>();
-
-            try
-            {
-                var gearsetModule = RaptureGearsetModule.Instance();
-                if (gearsetModule == null)
-                    return gearsets;
-
-                // FFXIV has 100 gearset slots (1-100), stored at indices 0-99
-                for (int i = 0; i < 100; i++)
-                {
-                    var entry = gearsetModule->GetGearset(i);
-                    if (entry == null)
-                        continue;
-
-                    // Check if gearset is valid/exists (has a job assigned)
-                    if (entry->ClassJob == 0)
-                        continue;
-
-                    // Check if gearset is flagged as existing
-                    if ((entry->Flags & RaptureGearsetModule.GearsetFlag.Exists) == 0)
-                        continue;
-
-                    var name = entry->NameString;
-                    gearsets.Add((i + 1, entry->ClassJob, name)); // Gearset numbers are 1-indexed for users
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[Gearset] Failed to get player gearsets: {ex.Message}");
-            }
-
-            return gearsets;
-        }
-
-        /// <summary>
-        /// Switch to a specific gearset by number (1-100).
-        /// </summary>
-        public unsafe void SwitchToGearset(int gearsetNumber)
-        {
-            if (gearsetNumber < 1 || gearsetNumber > 100)
-                return;
-
-            try
-            {
-                var gearsetModule = RaptureGearsetModule.Instance();
-                if (gearsetModule == null)
-                    return;
-
-                // Gearset indices are 0-based internally, but 1-based for users
-                int targetIndex = gearsetNumber - 1;
-
-                // Skip if already on target gearset — re-equipping the same gearset
-                // triggers a base equipment reload that overrides Glamourer's design
-                if (gearsetModule->CurrentGearsetIndex == targetIndex)
-                {
-                    Log.Debug($"[Gearset] Already on gearset {gearsetNumber}, skipping switch");
-                    return;
-                }
-
-                gearsetModule->EquipGearset(targetIndex);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[Gearset] Failed to switch to gearset {gearsetNumber}: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Get a friendly display name for a gearset (e.g., "Paladin" or "My Tank Set").
-        /// Returns the job name if the gearset name matches default, otherwise returns the gearset name.
-        /// </summary>
-        public string GetGearsetDisplayName(int gearsetNumber, byte jobId, string gearsetName)
-        {
-            // If gearset has a custom name, use it
-            if (!string.IsNullOrWhiteSpace(gearsetName))
-            {
-                var jobName = GetJobName(jobId);
-                // If gearset name is different from job name, show both
-                if (jobName != null && !gearsetName.Equals(jobName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return $"{gearsetName} ({jobName})";
-                }
-                return gearsetName;
-            }
-
-            // Fall back to job name
-            return GetJobName(jobId) ?? $"Gearset {gearsetNumber}";
-        }
-
-        #endregion
-
         public string FilterJobChangeCommands(string macro)
         {
             if (string.IsNullOrWhiteSpace(macro))
@@ -4820,7 +2785,8 @@ namespace SimpleCharacterSelectPlugin
                     var trimmedLine = line.Trim();
 
                     // Simply skip ALL gearset change commands during reapplication
-                    if (IsGearsetChangeCommand(trimmedLine))
+                    //if (IsGearsetChangeCommand(trimmedLine))
+                    if(false) //TODO
                     {
                         Log.Debug($"[JobFilter] Skipping gearset command during reapplication: {trimmedLine}");
                         continue; // Skip this line entirely
@@ -4839,7 +2805,9 @@ namespace SimpleCharacterSelectPlugin
                 return macro; // Return original on error
             }
         }
-
+        
+        
+        // TODO what fuckign problem is this trying to solve??
         /// <summary>
         /// Filters a macro to only include known integration commands (Penumbra, Glamourer, Customize+, Honorific, Moodles, poses).
         /// Used when switching designs on the SAME character to avoid re-running custom toggle commands.
@@ -4891,160 +2859,8 @@ namespace SimpleCharacterSelectPlugin
                 return macro; // Return original on error
             }
         }
-
-        private bool IsGearsetChangeCommand(string command)
-        {
-            var trimmed = command.Trim();
-            return trimmed.StartsWith("/gearset change", StringComparison.OrdinalIgnoreCase) ||
-                   trimmed.StartsWith("/gs change", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private uint? ExtractGearsetNumber(string command)
-        {
-            try
-            {
-                // Extract gearset number from command
-                var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-                if (parts.Length < 3)
-                    return null;
-
-                var target = parts[2]; // Usually the third part contains the gearset number
-
-                // If it's a number, return it
-                if (uint.TryParse(target, out uint gearsetNumber))
-                {
-                    return gearsetNumber;
-                }
-
-                return null;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Reverts all CS+ changes - Glamourer, Honorific, Moodles, Penumbra collection, and clears active character.
-        /// </summary>
-        public void RevertAllChanges()
-        {
-            try
-            {
-                var local = ObjectTable.LocalPlayer;
-                if (local == null)
-                {
-                    Log.Warning("[RevertAllChanges] No local player - cannot revert");
-                    return;
-                }
-
-                int objectIndex = (int)local.ObjectIndex;
-                nint playerAddress = local.Address;
-
-                // 1. Revert Glamourer to game state via IPC
-                // RevertState(objectIndex, key, flags) - key=0, flags=6 (Equipment | Customization)
-                try
-                {
-                    const ulong RevertFlags = 0x02 | 0x04; // Equipment | Customization
-                    var result = glamourerRevertStateIpc?.InvokeFunc(objectIndex, 0, RevertFlags);
-                    Log.Debug($"[RevertAllChanges] Glamourer RevertState result: {result}");
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[RevertAllChanges] Glamourer revert failed: {ex.Message}");
-                }
-
-                // 2. Clear Honorific forced title via command (no IPC exists for forced titles)
-                try
-                {
-                    CommandManager.ProcessCommand("/honorific force clear | silent");
-                    Log.Debug("[RevertAllChanges] Honorific forced title cleared via command");
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[RevertAllChanges] Honorific clear failed: {ex.Message}");
-                }
-
-                // 3. Clear Moodles via IPC
-                try
-                {
-                    moodlesClearStatusIpc?.InvokeAction(playerAddress);
-                    Log.Debug("[RevertAllChanges] Moodles cleared");
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[RevertAllChanges] Moodles clear failed: {ex.Message}");
-                }
-
-                // 4. Disable Customize+ active profile via IPC
-                try
-                {
-                    // First get the active profile ID
-                    var activeResult = customizePlusGetActiveProfileIpc?.InvokeFunc((ushort)objectIndex);
-                    if (activeResult?.Item1 == 0 && activeResult?.Item2 != null)
-                    {
-                        // Disable the profile by its GUID
-                        var disableResult = customizePlusDisableProfileIpc?.InvokeFunc(activeResult.Value.Item2.Value);
-                        Log.Debug($"[RevertAllChanges] Customize+ disable profile result: {disableResult}");
-                    }
-                    else
-                    {
-                        Log.Debug($"[RevertAllChanges] No active Customize+ profile to disable (result: {activeResult?.Item1})");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[RevertAllChanges] Customize+ disable failed: {ex.Message}");
-                }
-
-                // 5. Reset Penumbra collection to "Your Character" collection
-                try
-                {
-                    var penumbraResult = PenumbraIntegration?.ResetCollectionToDefault();
-                    Log.Debug($"[RevertAllChanges] Penumbra reset result: {penumbraResult}");
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[RevertAllChanges] Penumbra reset failed: {ex.Message}");
-                }
-
-                // 6. Redraw via Penumbra IPC (objectIndex, redrawType=0 for normal redraw)
-                try
-                {
-                    penumbraRedrawIpc?.InvokeAction(objectIndex, 0);
-                    Log.Debug("[RevertAllChanges] Penumbra redraw triggered");
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[RevertAllChanges] Penumbra redraw failed: {ex.Message}");
-                }
-
-                // 7. Clear CS+ internal state
-                string localName = local.Name.TextValue;
-                string worldName = local.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-                ActiveProfilesByPlayerName.Remove(fullKey);
-                activeCharacter = null;
-
-                // 8. Refresh party list to restore original name
-                playerNameProcessor?.RefreshPartyList();
-
-                // 9. Chat feedback
-                var builder = new SeStringBuilder();
-                builder.AddText("[").AddBlue("CS+", true).AddText("] ");
-                builder.AddText("Reverted to default state");
-                ChatGui.Print(builder.BuiltString);
-
-                Log.Info("[RevertAllChanges] Successfully reverted all CS+ changes via IPC");
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[RevertAllChanges] Failed to revert: {ex.Message}");
-                ChatGui.PrintError("[CS+] Failed to revert some changes");
-            }
-        }
-
+        
+        // TODO Glamourer
         /// <summary>
         /// Applies a Glamourer design by name via IPC.
         /// </summary>
@@ -5122,7 +2938,9 @@ namespace SimpleCharacterSelectPlugin
                 Log.Warning($"[TriggerPenumbraRedraw] Failed: {ex.Message}");
             }
         }
-
+        
+        
+        // TODO this is definitely way too long for what it's doing
         public void SelectRandomCharacterAndDesign()
         {
             var random = new Random();
@@ -5187,23 +3005,6 @@ namespace SimpleCharacterSelectPlugin
                 var selectedDesign = availableDesigns[random.Next(availableDesigns.Count)];
                 ExecuteMacro(selectedDesign.Macro, selectedCharacter, selectedDesign.Name);
 
-                // Apply conflict resolution if enabled
-                if (Configuration.EnableConflictResolution)
-                {
-                    // Apply mod state asynchronously first, then execute macro with proper threading
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await ApplyDesignModState(selectedCharacter, selectedDesign);
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error($"Error applying conflict resolution for random selection: {ex}");
-                        }
-                    });
-                }
-
                 // Update last used design tracking
                 Configuration.LastUsedDesignCharacterKey = selectedCharacter.Name;
                 Configuration.LastUsedDesignByCharacter[selectedCharacter.Name] = selectedDesign.Name;
@@ -5255,35 +3056,8 @@ namespace SimpleCharacterSelectPlugin
 
             // Update Quick Switch window to reflect the new selection (same as normal character click)
             QuickSwitchWindow.UpdateSelectionFromCharacter(selectedCharacter);
-
-            // Send themed chat message if enabled
-            if (Configuration.ShowRandomSelectionChatMessages)
-            {
-                SeString message = GetRandomSelectionChatMessage(selectedCharacter.Name);
-                ChatGui.Print(message);
-            }
+            
             SaveConfiguration();
-
-            // Always upload to keep server in sync - server uses sharing/exclusion flags to decide visibility
-            if (ObjectTable.LocalPlayer is { } uploadPlayer && uploadPlayer.HomeWorld.IsValid)
-            {
-                string localName = uploadPlayer.Name.TextValue;
-                string worldName = uploadPlayer.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-
-                var profileToSend = BuildProfileForUpload(selectedCharacter);
-                var effectiveSharing = GetEffectiveSharingForUpload(selectedCharacter, fullKey);
-
-                // If profile is private/unmade or excluded, tell server not to show the name
-                bool shouldHideName = selectedCharacter.ExcludeFromNameSync ||
-                                      selectedCharacter.RPProfile == null ||
-                                      selectedCharacter.RPProfile.Sharing == ProfileSharing.NeverShare;
-
-                _ = Plugin.UploadProfileAsync(profileToSend, selectedCharacter.LastInGameName ?? selectedCharacter.Name,
-                    sharingOverride: shouldHideName ? ProfileSharing.NeverShare : effectiveSharing,
-                    excludeFromNameSync: selectedCharacter.ExcludeFromNameSync);
-                Log.Info($"[RandomSelect] ✓ Uploaded profile for {selectedCharacter.Name} (sharing: {(shouldHideName ? "NeverShare (hidden)" : effectiveSharing.ToString())}, excluded: {selectedCharacter.ExcludeFromNameSync})");
-            }
         }
 
         public void SelectRandomDesignOnly(string characterName)
@@ -5328,15 +3102,6 @@ namespace SimpleCharacterSelectPlugin
             // Select random design
             var random = new Random();
             var selectedDesign = availableDesigns[random.Next(availableDesigns.Count)];
-
-            
-            // Apply conflict resolution if this design has it
-            if (Configuration.EnableConflictResolution && selectedDesign.SecretModState != null && selectedDesign.SecretModState.Any())
-            {
-                ApplyDesignModState(character, selectedDesign).GetAwaiter().GetResult();
-                // Set flag to prevent character CR from overwriting design CR
-                randomDesignCRAppliedThisSession = true;
-            }
             
             // Execute the selected design's macro
             ExecuteMacro(selectedDesign.Macro, character, selectedDesign.Name);
@@ -5348,34 +3113,6 @@ namespace SimpleCharacterSelectPlugin
 
             // Refresh party list name replacement after character switch
             playerNameProcessor?.RefreshPartyList();
-
-            // Send themed chat message if enabled
-            if (Configuration.ShowRandomSelectionChatMessages)
-            {
-                SeString message = GetRandomSelectionChatMessage(character.Name);
-                ChatGui.Print(message);
-            }
-
-            // Always upload to keep server in sync - server uses sharing/exclusion flags to decide visibility
-            if (ObjectTable.LocalPlayer is { } uploadPlayer && uploadPlayer.HomeWorld.IsValid)
-            {
-                string localName = uploadPlayer.Name.TextValue;
-                string worldName = uploadPlayer.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-
-                var profileToSend = BuildProfileForUpload(character);
-                var effectiveSharing = GetEffectiveSharingForUpload(character, fullKey);
-
-                // If profile is private/unmade or excluded, tell server not to show the name
-                bool shouldHideName = character.ExcludeFromNameSync ||
-                                      character.RPProfile == null ||
-                                      character.RPProfile.Sharing == ProfileSharing.NeverShare;
-
-                _ = Plugin.UploadProfileAsync(profileToSend, character.LastInGameName ?? character.Name,
-                    sharingOverride: shouldHideName ? ProfileSharing.NeverShare : effectiveSharing,
-                    excludeFromNameSync: character.ExcludeFromNameSync);
-                Log.Info($"[RandomDesign] ✓ Uploaded profile for {character.Name} (sharing: {(shouldHideName ? "NeverShare (hidden)" : effectiveSharing.ToString())}, excluded: {character.ExcludeFromNameSync})");
-            }
         }
 
         /// <summary>
@@ -5453,163 +3190,7 @@ namespace SimpleCharacterSelectPlugin
 
             // Refresh party list name replacement after character switch
             playerNameProcessor?.RefreshPartyList();
-
-            // Send themed chat message if enabled
-            if (Configuration.ShowRandomSelectionChatMessages)
-            {
-                SeString message = GetRandomSelectionChatMessage(selectedCharacter.Name, group.Name);
-                ChatGui.Print(message);
-            }
-
-            // Always upload to keep server in sync
-            if (ObjectTable.LocalPlayer is { } uploadPlayer && uploadPlayer.HomeWorld.IsValid)
-            {
-                string localName = uploadPlayer.Name.TextValue;
-                string worldName = uploadPlayer.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-
-                var profileToSend = BuildProfileForUpload(selectedCharacter);
-                var effectiveSharing = GetEffectiveSharingForUpload(selectedCharacter, fullKey);
-
-                bool shouldHideName = selectedCharacter.ExcludeFromNameSync ||
-                                      selectedCharacter.RPProfile == null ||
-                                      selectedCharacter.RPProfile.Sharing == ProfileSharing.NeverShare;
-
-                _ = Plugin.UploadProfileAsync(profileToSend, selectedCharacter.LastInGameName ?? selectedCharacter.Name,
-                    sharingOverride: shouldHideName ? ProfileSharing.NeverShare : effectiveSharing,
-                    excludeFromNameSync: selectedCharacter.ExcludeFromNameSync);
-                Log.Info($"[RandomGroup] ✓ Selected {selectedCharacter.Name} from group '{group.Name}'");
-            }
-        }
-
-        private SeString GetRandomSelectionChatMessage(string characterName, string? groupName = null)
-        {
-            var random = new Random();
-            var builder = new SeStringBuilder();
             
-            // Check if Halloween theme is active
-            bool isHalloween = SeasonalThemeManager.IsSeasonalThemeEnabled(Configuration) && 
-                              SeasonalThemeManager.GetEffectiveTheme(Configuration) == SeasonalTheme.Halloween;
-            
-            // Check if Winter/Christmas theme is active
-            bool isWinterChristmas = SeasonalThemeManager.IsSeasonalThemeEnabled(Configuration) &&
-                                    (SeasonalThemeManager.GetEffectiveTheme(Configuration) == SeasonalTheme.Winter ||
-                                     SeasonalThemeManager.GetEffectiveTheme(Configuration) == SeasonalTheme.Christmas);
-            
-            if (isHalloween)
-            {
-                // Add purple plugin prefix for Halloween
-                builder.AddText("[").AddPurple("Simple Character Select", true).AddText("] ");
-                
-                // Halloween themed messages with purple text and white character names
-                var halloweenMessages = new System.Action<SeStringBuilder, string>[]
-                {
-                    (b, name) => b.AddWhite(name, true).AddPurple(" was transformed by a mysterious hex...", false),
-                    (b, name) => b.AddPurple("Dark magic coursed through ", false).AddWhite(name, true).AddPurple("...", false),
-                    (b, name) => b.AddPurple("A wicked spell took hold of ", false).AddWhite(name, true).AddPurple("...", false),
-                    (b, name) => b.AddWhite(name, true).AddPurple(" was bewitched by ancient forces...", false),
-                    (b, name) => b.AddPurple("Shadowy enchantments changed ", false).AddWhite(name, true).AddPurple("...", false),
-                    (b, name) => b.AddWhite(name, true).AddPurple(" fell under a malevolent charm...", false),
-                    (b, name) => b.AddPurple("Otherworldly powers possessed ", false).AddWhite(name, true).AddPurple("...", false),
-                    (b, name) => b.AddPurple("Spectral forces reshaped ", false).AddWhite(name, true).AddPurple("...", false),
-                    (b, name) => b.AddWhite(name, true).AddPurple(" was cursed with a new form...", false),
-                    (b, name) => b.AddPurple("Eerie magic enveloped ", false).AddWhite(name, true).AddPurple("...", false),
-                    (b, name) => b.AddWhite(name, true).AddPurple(" succumbed to dark sorcery...", false),
-                    (b, name) => b.AddPurple("Sinister whispers changed ", false).AddWhite(name, true).AddPurple("...", false),
-                    (b, name) => b.AddWhite(name, true).AddPurple(" was touched by haunting magic...", false),
-                    (b, name) => b.AddPurple("Phantom energies transformed ", false).AddWhite(name, true).AddPurple("...", false),
-                    (b, name) => b.AddWhite(name, true).AddPurple(" was enshrouded by mystical darkness...", false),
-                    (b, name) => b.AddPurple("Forbidden rituals altered ", false).AddWhite(name, true).AddPurple("...", false),
-                    (b, name) => b.AddWhite(name, true).AddPurple(" was influenced by ethereal shadows...", false),
-                    (b, name) => b.AddPurple("Necromantic forces shifted ", false).AddWhite(name, true).AddPurple("...", false)
-                };
-                
-                var selectedMessage = halloweenMessages[random.Next(halloweenMessages.Length)];
-                selectedMessage(builder, characterName);
-            }
-            else if (isWinterChristmas)
-            {
-                // Add silver/white plugin prefix for Winter/Christmas
-                builder.AddText("[").AddWhite("Simple Character Select", true).AddText("] ");
-                
-                // Winter/Christmas themed messages with blue text and white character names
-                var winterMessages = new System.Action<SeStringBuilder, string>[]
-                {
-                    (b, name) => b.AddWhite(name, true).AddBlue(" was touched by winter magic...", false),
-                    (b, name) => b.AddBlue("Crystalline frost transformed ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" was blessed by snowfall...", false),
-                    (b, name) => b.AddBlue("The spirit of winter embraced ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" received a frosty makeover...", false),
-                    (b, name) => b.AddBlue("Icicle magic reshaped ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" was gifted by winter winds...", false),
-                    (b, name) => b.AddBlue("A Christmas miracle changed ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" was wrapped in holiday cheer...", false),
-                    (b, name) => b.AddBlue("Seasonal enchantment visited ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" received festive inspiration...", false),
-                    (b, name) => b.AddBlue("The magic of the season touched ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" was blessed with winter wonder...", false),
-                    (b, name) => b.AddBlue("Holiday spirit transformed ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" was kissed by snowflakes...", false),
-                    (b, name) => b.AddBlue("A winter's dream reshaped ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" was touched by frost magic...", false),
-                    (b, name) => b.AddBlue("Festive energy flowed through ", false).AddWhite(name, true).AddBlue("...", false),
-                    // Gift-opening themed messages
-                    (b, name) => b.AddWhite(name, true).AddBlue(" unwrapped a magical transformation...", false),
-                    (b, name) => b.AddBlue("A festive surprise awaited ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" discovered holiday magic in their gift box...", false),
-                    (b, name) => b.AddBlue("A wrapped present transformed ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" opened a winter wonderland makeover...", false),
-                    (b, name) => b.AddBlue("Surprise gift magic changed ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" revealed a Christmas surprise transformation...", false),
-                    (b, name) => b.AddBlue("A magical holiday package blessed ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" unwrapped their festive destiny...", false),
-                    (b, name) => b.AddBlue("Gift box magic flowed through ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" found seasonal enchantment in a wrapped box...", false),
-                    (b, name) => b.AddBlue("A surprise gift revealed ", false).AddWhite(name, true).AddBlue("'s new form...", false)
-                };
-                
-                var selectedMessage = winterMessages[random.Next(winterMessages.Length)];
-                selectedMessage(builder, characterName);
-            }
-            else
-            {
-                // Add blue plugin prefix for normal
-                builder.AddText("[").AddBlue("Simple Character Select", true).AddText("] ");
-                
-                // Normal themed messages with blue text and white character names
-                var normalMessages = new System.Action<SeStringBuilder, string>[]
-                {
-                    (b, name) => b.AddWhite(name, true).AddBlue(" underwent a random transformation...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" adopted a new appearance...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" received a style makeover...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" embraced a different look...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" was given a fresh appearance...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" changed their style...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" got a random makeover...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" experimented with a new design...", false),
-                    (b, name) => b.AddBlue("Fashion magic touched ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" discovered a fresh aesthetic...", false),
-                    (b, name) => b.AddBlue("Style inspiration struck ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" refreshed their entire wardrobe...", false),
-                    (b, name) => b.AddBlue("Creative energy flowed through ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" reinvented their personal style...", false),
-                    (b, name) => b.AddBlue("Aesthetic inspiration influenced ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" explored a bold new direction...", false),
-                    (b, name) => b.AddBlue("Design innovation guided ", false).AddWhite(name, true).AddBlue("...", false),
-                    (b, name) => b.AddWhite(name, true).AddBlue(" embraced creative transformation...", false)
-                };
-                
-                var selectedMessage = normalMessages[random.Next(normalMessages.Length)];
-                selectedMessage(builder, characterName);
-            }
-
-            // Add group name suffix if provided
-            if (!string.IsNullOrEmpty(groupName))
-            {
-                builder.AddText(" (from ").AddBlue(groupName, false).AddText(")");
-            }
-
-            return builder.BuiltString;
         }
 
         public string? GetTargetedPlayerName()
@@ -5668,28 +3249,6 @@ namespace SimpleCharacterSelectPlugin
                         Log.Info($"Migrated background: {oldName} -> {newName}");
                     }
                 }
-
-                if (character.RPProfile != null && !string.IsNullOrEmpty(character.RPProfile.BackgroundImage))
-                {
-                    string oldName = character.RPProfile.BackgroundImage;
-                    string newName = oldName;
-
-                    if (oldName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                    {
-                        newName = oldName.Substring(0, oldName.Length - 4) + ".jpg";
-                    }
-                    else if (!oldName.Contains("."))
-                    {
-                        newName = oldName + ".jpg";
-                    }
-
-                    if (newName != oldName)
-                    {
-                        character.RPProfile.BackgroundImage = newName;
-                        configChanged = true;
-                        Log.Info($"Migrated RP profile background: {oldName} -> {newName}");
-                    }
-                }
             }
 
             if (configChanged)
@@ -5716,32 +3275,7 @@ namespace SimpleCharacterSelectPlugin
 
             return null;
         }
-
-        private EmoteController.PoseType TranslatePoseState(byte state)
-        {
-            return state switch
-            {
-                1 => EmoteController.PoseType.GroundSit,
-                2 => EmoteController.PoseType.Sit,
-                3 => EmoteController.PoseType.Doze,
-                _ => EmoteController.PoseType.Idle
-            };
-        }
-        private void TryRestorePosesAfterLogin()
-        {
-            if (ObjectTable.LocalPlayer == null)
-                return;
-
-            var currentActiveCharacter = GetActiveCharacter();
-            if (currentActiveCharacter == null)
-            {
-                Plugin.Log.Debug("[SafeRestore] No active character found for current player");
-                return;
-            }
-
-            Plugin.Log.Debug("[SafeRestore] Applying poses after 5s login delay.");
-            PoseRestorer.RestorePosesFor(currentActiveCharacter);
-        }
+        
         public void AddCharacterAssignment(string realCharacter, string csCharacter)
         {
             Configuration.CharacterAssignments[realCharacter] = csCharacter;
@@ -5823,520 +3357,7 @@ namespace SimpleCharacterSelectPlugin
                 return false;
             }
         }
-
-        public async Task ApplyDesignModState(Character character, CharacterDesign design)
-        {
-            // Check if Conflict Resolution is enabled
-            if (!Configuration.EnableConflictResolution || design.SecretModState == null)
-                return;
-
-            try
-            {
-                Log.Info($"Applying Conflict Resolution mod state for design: {design.Name}");
-                
-                // Check if Penumbra is available
-                if (PenumbraIntegration?.IsPenumbraAvailable != true)
-                {
-                    Log.Warning("Penumbra is not available - skipping Conflict Resolution mod state application");
-                    return;
-                }
-                
-                // Resolve the character's collection GUID by name
-                Guid collectionId;
-                if (!string.IsNullOrWhiteSpace(character.PenumbraCollection))
-                {
-                    var collections = penumbraGetCollectionsIpc?.InvokeFunc();
-                    if (collections == null)
-                    {
-                        Log.Warning("Could not get Penumbra collections for design mod state");
-                        return;
-                    }
-                    var match = collections.FirstOrDefault(kvp =>
-                        string.Equals(kvp.Value, character.PenumbraCollection, StringComparison.OrdinalIgnoreCase));
-                    if (match.Key == Guid.Empty)
-                    {
-                        Log.Warning($"Collection '{character.PenumbraCollection}' not found in Penumbra");
-                        return;
-                    }
-                    collectionId = match.Key;
-                }
-                else
-                {
-                    // Fallback: use Penumbra's current UI collection
-                    var getCurrentCollection = PluginInterface.GetIpcSubscriber<byte, (Guid, string)?>("Penumbra.GetCollection");
-                    var currentCollectionResult = getCurrentCollection?.InvokeFunc(0xE2);
-                    if (currentCollectionResult?.Item1 == null)
-                    {
-                        Log.Warning("Could not get Penumbra collection for design mod state");
-                        return;
-                    }
-                    collectionId = currentCollectionResult.Value.Item1;
-                }
-
-                // Get all mod settings to determine what needs to be disabled
-                var getAllModSettings = PluginInterface.GetIpcSubscriber<Guid, bool, bool, int, (int, Dictionary<string, (bool, int, Dictionary<string, List<string>>, bool, bool)>?)>("Penumbra.GetAllModSettings");
-                var result = getAllModSettings?.InvokeFunc(collectionId, false, false, 0);
-
-                if (result?.Item2 == null)
-                {
-                    Log.Warning("Could not get mod settings for design mod state");
-                    return;
-                }
-
-                var trySetMod = PluginInterface.GetIpcSubscriber<Guid, string, string, bool, int>("Penumbra.TrySetMod.V5");
-                if (trySetMod == null)
-                {
-                    Log.Warning("TrySetMod IPC not available for design mod state");
-                    return;
-                }
-                
-                // Use cached mod categorization (fast lookup)
-                var pinnedMods = new HashSet<string>(character.SecretModPins ?? new List<string>());
-                
-                // Get mod categories from cache (should be instant)
-                var modCategories = new Dictionary<string, SimpleCharacterSelectPlugin.Windows.ModType>();
-                if (modCategorizationCache == null)
-                {
-                    Log.Error("Mod categorization cache not initialized! Cannot apply Conflict Resolution.");
-                    return;
-                }
-                
-                foreach (var (modDir, settings) in result.Value.Item2)
-                {
-                    if (modCategorizationCache.ContainsKey(modDir))
-                    {
-                        modCategories[modDir] = modCategorizationCache[modDir];
-                    }
-                    else
-                    {
-                        Log.Warning($"Mod {modDir} not found in categorization cache, skipping");
-                    }
-                }
-                
-                // Get all mods that should be treated as "character-specific"
-                // This includes: Gear, Hair (always), and any individually checked mods from other categories
-                var managedMods = new HashSet<string>();
-                
-                // Always include all Gear and Hair mods
-                foreach (var (modDir, settings) in result.Value.Item2)
-                {
-                    if (modCategories.ContainsKey(modDir))
-                    {
-                        var modType = modCategories[modDir];
-                        if (modType == ModType.Gear || modType == ModType.Hair)
-                        {
-                            managedMods.Add(modDir);
-                        }
-                    }
-                }
-                
-                // Add individually checked mods from other categories (current design)
-                foreach (var (modDir, isSelected) in design.SecretModState)
-                {
-                    if (isSelected)
-                    {
-                        managedMods.Add(modDir);
-                    }
-                }
-                
-                // Also include any mods that have been selected in ANY design for this character
-                // These should be treated like Gear/Hair mods (managed across all design switches)
-                foreach (var characterDesign in character.Designs)
-                {
-                    if (characterDesign.SecretModState != null)
-                    {
-                        foreach (var (modDir, wasSelected) in characterDesign.SecretModState)
-                        {
-                            if (wasSelected)
-                            {
-                                managedMods.Add(modDir);
-                            }
-                        }
-                    }
-                }
-                
-                // Also check character-level selections if they exist
-                if (character.SecretModState != null)
-                {
-                    foreach (var (modDir, wasSelected) in character.SecretModState)
-                    {
-                        if (wasSelected)
-                        {
-                            managedMods.Add(modDir);
-                        }
-                    }
-                }
-                
-                // Build lists of mods to disable and enable
-                var modsToDisable = new List<string>();
-                var modsToEnable = new List<string>();
-                
-                // First pass: Collect mods that need to be disabled
-                foreach (var modDir in managedMods)
-                {
-                    // Skip if we don't have settings for this mod
-                    if (!result.Value.Item2.ContainsKey(modDir))
-                        continue;
-                    
-                    var settings = result.Value.Item2[modDir];
-                    
-                    // NEVER disable pinned mods
-                    if (pinnedMods.Contains(modDir))
-                    {
-                        continue;
-                    }
-
-                    // Check if mod is explicitly configured in CR for this design
-                    bool hasExplicitCRState = design.SecretModState.ContainsKey(modDir);
-                    bool crWantsEnabled = hasExplicitCRState && design.SecretModState[modDir];
-
-                    // If mod is enabled and not in our selection, consider disabling it
-                    if (settings.Item1 && !crWantsEnabled)
-                    {
-                        // Respect Penumbra inheritance (if enabled): if mod is inherited and not
-                        // explicitly configured in CR, leave it alone (don't disable inherited mods)
-                        if (Configuration.RespectPenumbraInheritance)
-                        {
-                            bool isInherited = settings.Item4; // Item4 = inherited from parent collection
-                            if (!hasExplicitCRState && isInherited)
-                            {
-                                // Skip - inherited mod not explicitly configured, leave as-is
-                                continue;
-                            }
-                        }
-
-                        modsToDisable.Add(modDir);
-                    }
-                }
-
-                // Second pass: Collect mods that need to be enabled
-                foreach (var (modDir, shouldEnable) in design.SecretModState)
-                {
-                    if (shouldEnable)
-                    {
-                        modsToEnable.Add(modDir);
-                    }
-                }
-                
-                // Execute all disable operations in parallel
-                var disableTasks = modsToDisable.Select(modDir => 
-                    Task.Run(() => trySetMod.InvokeFunc(collectionId, modDir, "", false))
-                ).ToArray();
-                
-                // Execute all enable operations in parallel
-                var enableTasks = modsToEnable.Select(modDir => 
-                    Task.Run(() => trySetMod.InvokeFunc(collectionId, modDir, "", true))
-                ).ToArray();
-                
-                // Wait for all operations to complete
-                await Task.WhenAll(disableTasks.Concat(enableTasks));
-                
-                Log.Info($"[DEBUG] Conflict Resolution for design '{design.Name}': Disabled {modsToDisable.Count} mods, Enabled {modsToEnable.Count} mods");
-
-                // Apply design-specific mod option settings (detailed configurations)
-                if (design.ModOptionSettings != null && design.ModOptionSettings.Any())
-                {
-                    Log.Info($"Applying mod option settings for design '{design.Name}' - {design.ModOptionSettings.Count} mods with custom options");
-                    await Task.Delay(50); // Small delay before applying detailed options
-                    PenumbraIntegration?.ApplyModOptionsForDesign(collectionId, design.ModOptionSettings);
-                }
-
-                Log.Info($"Applied Conflict Resolution mod state for design '{design.Name}' - {design.SecretModState.Count} mods configured");
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error applying design mod state: {ex}");
-            }
-        }
-        
-        public async Task ApplySecretModState(Character character)
-        {
-            // Check if Conflict Resolution is enabled
-            if (!Configuration.EnableConflictResolution)
-                return;
-                
-            if (character.SecretModState == null || !character.SecretModState.Any())
-                return;
-                
-            try
-            {
-                Log.Info($"Applying Secret Mode mod state for character: {character.Name}");
-
-                // Resolve the character's collection GUID by name
-                Guid collectionId;
-                if (!string.IsNullOrWhiteSpace(character.PenumbraCollection))
-                {
-                    var collections = penumbraGetCollectionsIpc?.InvokeFunc();
-                    if (collections == null)
-                    {
-                        Log.Warning("Could not get Penumbra collections for secret mod state");
-                        return;
-                    }
-                    var match = collections.FirstOrDefault(kvp =>
-                        string.Equals(kvp.Value, character.PenumbraCollection, StringComparison.OrdinalIgnoreCase));
-                    if (match.Key == Guid.Empty)
-                    {
-                        Log.Warning($"Collection '{character.PenumbraCollection}' not found in Penumbra");
-                        return;
-                    }
-                    collectionId = match.Key;
-                }
-                else
-                {
-                    // Fallback: use Penumbra's current UI collection
-                    var getCurrentCollection = PluginInterface.GetIpcSubscriber<byte, (Guid, string)?>("Penumbra.GetCollection");
-                    var currentCollectionResult = getCurrentCollection?.InvokeFunc(0xE2);
-                    if (currentCollectionResult?.Item1 == null)
-                    {
-                        Log.Warning("Could not get Penumbra collection for secret mod state");
-                        return;
-                    }
-                    collectionId = currentCollectionResult.Value.Item1;
-                }
-
-                // Get all mod settings to determine what needs to be disabled
-                var getAllModSettings = PluginInterface.GetIpcSubscriber<Guid, bool, bool, int, (int, Dictionary<string, (bool, int, Dictionary<string, List<string>>, bool, bool)>?)>("Penumbra.GetAllModSettings");
-                var result = getAllModSettings?.InvokeFunc(collectionId, false, false, 0);
-
-                if (result?.Item2 == null)
-                {
-                    Log.Warning("Could not get mod settings");
-                    return;
-                }
-
-                var trySetMod = PluginInterface.GetIpcSubscriber<Guid, string, string, bool, int>("Penumbra.TrySetMod.V5");
-                if (trySetMod == null)
-                {
-                    Log.Warning("TrySetMod IPC not available");
-                    return;
-                }
-                
-                var pinnedMods = new HashSet<string>(character.SecretModPins ?? new List<string>());
-                
-                // Use cached mod categorization (fast lookup)
-                var modCategories = new Dictionary<string, SimpleCharacterSelectPlugin.Windows.ModType>();
-                if (modCategorizationCache == null)
-                {
-                    Log.Error("Mod categorization cache not initialized! Cannot apply Conflict Resolution.");
-                    return;
-                }
-                
-                foreach (var (modDir, settings) in result.Value.Item2)
-                {
-                    if (modCategorizationCache.ContainsKey(modDir))
-                    {
-                        modCategories[modDir] = modCategorizationCache[modDir];
-                    }
-                    else
-                    {
-                        Log.Warning($"Mod {modDir} not found in categorization cache, skipping");
-                    }
-                }
-                
-                // Get all mods that should be treated as "character-specific"
-                // This includes: Gear, Hair (always), and any individually checked mods from other categories
-                var managedMods = new HashSet<string>();
-                
-                // Always include all Gear and Hair mods
-                foreach (var (modDir, settings) in result.Value.Item2)
-                {
-                    if (modCategories.ContainsKey(modDir))
-                    {
-                        var modType = modCategories[modDir];
-                        if (modType == ModType.Gear || modType == ModType.Hair)
-                        {
-                            managedMods.Add(modDir);
-                        }
-                    }
-                }
-                
-                // Add individually checked mods from other categories (treat them like Gear/Hair)
-                foreach (var (modDir, isSelected) in character.SecretModState)
-                {
-                    if (isSelected)
-                    {
-                        managedMods.Add(modDir);
-                    }
-                }
-                
-                // Also include any mods that have been selected in ANY design for this character
-                // These should be treated like Gear/Hair mods (managed when applying character)
-                foreach (var characterDesign in character.Designs)
-                {
-                    if (characterDesign.SecretModState != null)
-                    {
-                        foreach (var (modDir, wasSelected) in characterDesign.SecretModState)
-                        {
-                            if (wasSelected)
-                            {
-                                managedMods.Add(modDir);
-                            }
-                        }
-                    }
-                }
-                
-                // Build lists of mods to disable and enable
-                var modsToDisable = new List<string>();
-                var modsToEnable = new List<string>();
-                
-                // First pass: Collect mods that need to be disabled
-                foreach (var modDir in managedMods)
-                {
-                    // Skip if we don't have settings for this mod
-                    if (!result.Value.Item2.ContainsKey(modDir))
-                        continue;
-                    
-                    var settings = result.Value.Item2[modDir];
-                    
-                    // NEVER disable pinned mods
-                    if (pinnedMods.Contains(modDir))
-                    {
-                        continue;
-                    }
-
-                    // Check if mod is explicitly configured in CR
-                    bool hasExplicitCRState = character.SecretModState.ContainsKey(modDir);
-                    bool crWantsEnabled = hasExplicitCRState && character.SecretModState[modDir];
-
-                    // If mod is enabled and not in our selection, consider disabling it
-                    if (settings.Item1 && !crWantsEnabled)
-                    {
-                        // Respect Penumbra inheritance (if enabled): if mod is inherited and not
-                        // explicitly configured in CR, leave it alone (don't disable inherited mods)
-                        if (Configuration.RespectPenumbraInheritance)
-                        {
-                            bool isInherited = settings.Item4; // Item4 = inherited from parent collection
-                            if (!hasExplicitCRState && isInherited)
-                            {
-                                // Skip - inherited mod not explicitly configured, leave as-is
-                                continue;
-                            }
-                        }
-
-                        modsToDisable.Add(modDir);
-                    }
-                }
-
-                // Second pass: Collect mods that need to be enabled
-                foreach (var (modDir, shouldEnable) in character.SecretModState)
-                {
-                    if (shouldEnable)
-                    {
-                        modsToEnable.Add(modDir);
-                    }
-                }
-                
-                // Execute all disable operations in parallel
-                var disableTasks = modsToDisable.Select(modDir => 
-                    Task.Run(() => trySetMod.InvokeFunc(collectionId, modDir, "", false))
-                ).ToArray();
-                
-                // Execute all enable operations in parallel
-                var enableTasks = modsToEnable.Select(modDir => 
-                    Task.Run(() => trySetMod.InvokeFunc(collectionId, modDir, "", true))
-                ).ToArray();
-                
-                // Wait for all operations to complete
-                await Task.WhenAll(disableTasks.Concat(enableTasks));
-                
-                Log.Info($"Applied Conflict Resolution mod state for character '{character.Name}' - {character.SecretModState.Count} mods configured");
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error applying Secret Mode mod state: {ex}");
-            }
-        }
-
-        /// <summary>
-        /// Restores Penumbra inheritance for mods that were set to "Inherit" in CR.
-        /// This removes the explicit mod setting from the collection, allowing it to inherit from parent.
-        /// </summary>
-        public async Task RestoreModInheritance(HashSet<string> modsToInherit)
-        {
-            if (modsToInherit == null || modsToInherit.Count == 0)
-                return;
-
-            if (PenumbraIntegration == null || !PenumbraIntegration.IsPenumbraAvailable)
-            {
-                Log.Warning("Penumbra not available, cannot restore mod inheritance");
-                return;
-            }
-
-            try
-            {
-                // Get current collection
-                var getCurrentCollection = PluginInterface.GetIpcSubscriber<byte, (Guid, string)?>("Penumbra.GetCollection");
-                var currentCollectionResult = getCurrentCollection?.InvokeFunc(0xE2); // ApiCollectionType.Current
-
-                if (currentCollectionResult?.Item1 == null)
-                {
-                    Log.Warning("Could not get current Penumbra collection for inheritance restoration");
-                    return;
-                }
-
-                var collectionId = currentCollectionResult.Value.Item1;
-
-                Log.Info($"Restoring inheritance for {modsToInherit.Count} mods in collection {currentCollectionResult.Value.Item2}");
-
-                // Restore inheritance for each mod
-                var tasks = modsToInherit.Select(modDir =>
-                    Task.Run(() => PenumbraIntegration.TryInheritMod(collectionId, modDir, "", true))
-                ).ToArray();
-
-                await Task.WhenAll(tasks);
-
-                Log.Info($"Inheritance restored for {modsToInherit.Count} mods");
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error restoring mod inheritance: {ex}");
-            }
-        }
-
-        /// <summary>
-        /// Simplified mod type determination for switching logic
-        /// </summary>
-        private SimpleCharacterSelectPlugin.Windows.ModType DetermineModTypeForSwitching(string modDir, string modName)
-        {
-            // This is a simplified version - in reality, you'd want to reuse the logic from SecretModeModWindow
-            // For now, we'll use basic name/path analysis
-            var nameLower = modName.ToLowerInvariant();
-            var dirLower = modDir.ToLowerInvariant();
-            
-            // Basic categorization
-            if (nameLower.Contains("hair") || dirLower.Contains("hair")) return ModType.Hair;
-            if (nameLower.Contains("body") || nameLower.Contains("bibo") || nameLower.Contains("tbse")) return ModType.Body;
-            if (nameLower.Contains("face") && !nameLower.Contains("face paint")) return ModType.Face;
-            if (nameLower.Contains("eye") || nameLower.Contains("iris")) return ModType.Eyes;
-            if (nameLower.Contains("tattoo")) return ModType.Tattoos;
-            if (nameLower.Contains("face paint") || nameLower.Contains("makeup")) return ModType.FacePaint;
-            if (nameLower.Contains("ear") || nameLower.Contains("tail")) return ModType.EarsTails;
-            if (nameLower.Contains("mount")) return ModType.Mount;
-            if (nameLower.Contains("minion") || nameLower.Contains("companion")) return ModType.Minion;
-            if (nameLower.Contains("emote") || nameLower.Contains("pose") || nameLower.Contains("idle")) return ModType.Emote;
-            if (nameLower.Contains("vfx") || nameLower.Contains("effect")) return ModType.VFX;
-            if (nameLower.Contains("skeleton") || nameLower.Contains("bone")) return ModType.Skeleton;
-            
-            // Default to gear for anything else
-            return ModType.Gear;
-        }
-
-
-        // Cache data structures
-        private class ModCacheData
-        {
-            public int Version { get; set; } = 1;
-            public DateTime LastUpdated { get; set; }
-            public Dictionary<string, ModCacheEntry> Mods { get; set; } = new();
-        }
-        
-        private class ModCacheEntry
-        {
-            public string Name { get; set; } = "";
-            public ModType Type { get; set; }
-            public DateTime LastSeen { get; set; }
-        }
-
+   
         /// <summary>
         /// Apply character/design to target using direct IPC calls instead of macros
         /// This works for GPose actors spawned by Brio/Ktisis unlike the old macro approach
@@ -6590,17 +3611,11 @@ namespace SimpleCharacterSelectPlugin
                     macroText = character.Macros;
                 }
                 
-                // Apply Conflict Resolution mod state to target BEFORE macro commands (like regular character application)
-                if (Configuration.EnableConflictResolution)
-                {
-                    await ApplyConflictResolutionToTarget(character, designIndex, objectIndex);
-                }
-                
                 // Parse macro text and execute via IPC after conflict resolution has set up mod state
-                var commands = ParseMacroForTargetApplication(macroText);
-                var success = await ExecuteTargetCommands(commands, objectIndex);
+                // var commands = ParseMacroForTargetApplication(macroText);
+                // var success = await ExecuteTargetCommands(commands, objectIndex);
                 
-                return success;
+                return true;
             }
             catch (Exception ex)
             {
@@ -6608,293 +3623,6 @@ namespace SimpleCharacterSelectPlugin
                 ChatGui.PrintError($"[Simple Character Select] Failed to apply to target: {ex.Message}");
                 return false;
             }
-        }
-        
-        /// <summary>
-        /// Apply Conflict Resolution mod state to target object
-        /// </summary>
-        private async Task ApplyConflictResolutionToTarget(Character character, int designIndex, int objectIndex)
-        {
-            try
-            {
-                
-                // For target application, we need to determine what collection to apply conflict resolution to
-                // This could be either from a collection switch command or the character's main collection
-                string targetCollectionName = "";
-                Guid currentCollectionId = Guid.Empty;
-                
-                // Extract collection name from character macro or design macro
-                string macroText;
-                if (designIndex >= 0 && designIndex < character.Designs.Count)
-                {
-                    var design = character.Designs[designIndex];
-                    macroText = design.IsAdvancedMode ? design.AdvancedMacro : design.Macro;
-                }
-                else
-                {
-                    macroText = character.Macros;
-                }
-                
-                // First, try to find a collection name in the macro
-                var lines = macroText.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var line in lines)
-                {
-                    var trimmed = line.Trim();
-                    if (trimmed.Contains("/penumbra collection individual", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var parts = trimmed.Split('|');
-                        if (parts.Length >= 2)
-                        {
-                            targetCollectionName = parts[1].Trim();
-                            break;
-                        }
-                    }
-                }
-                
-                // If no collection command found in macro, use the character's main collection
-                if (string.IsNullOrEmpty(targetCollectionName))
-                {
-                    targetCollectionName = character.PenumbraCollection;
-                }
-                
-                if (string.IsNullOrEmpty(targetCollectionName))
-                {
-                    return;
-                }
-                
-                // Get the target collection ID
-                var collections = penumbraGetCollectionsIpc?.InvokeFunc();
-                if (collections == null)
-                {
-                    return;
-                }
-                
-                var targetCollection = collections.FirstOrDefault(kvp => 
-                    string.Equals(kvp.Value, targetCollectionName, StringComparison.OrdinalIgnoreCase));
-                
-                if (targetCollection.Key == Guid.Empty)
-                {
-                    return;
-                }
-                
-                currentCollectionId = targetCollection.Key;
-                
-                // Check if we have any conflict resolution data to apply
-                bool hasCharacterMods = character.SecretModState != null && character.SecretModState.Any();
-                bool hasDesignMods = designIndex >= 0 && designIndex < character.Designs.Count && 
-                                   character.Designs[designIndex].SecretModState != null && 
-                                   character.Designs[designIndex].SecretModState.Any();
-                
-                if (!hasCharacterMods && !hasDesignMods)
-                {
-                    return; // Exit early if no conflict resolution data is available
-                }
-                
-                // Apply character-level mod state first
-                if (hasCharacterMods)
-                {
-                    await ApplyModStateToObject(character, currentCollectionId, objectIndex);
-                }
-                
-                // Apply design-specific mod state if we're applying a specific design
-                if (hasDesignMods)
-                {
-                    var design = character.Designs[designIndex];
-                    
-                    // Create a temporary character with the design's mod state for ApplyModStateToObject
-                    var tempCharacter = new Character("", "", null, new List<CharacterDesign>(), Vector3.Zero, "", "", "", "", "", "", Vector3.Zero, Vector3.Zero, "", "", "") 
-                    { 
-                        SecretModState = design.SecretModState 
-                    };
-                    await ApplyModStateToObject(tempCharacter, currentCollectionId, objectIndex);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error applying Conflict Resolution to target: {ex}");
-            }
-        }
-        
-        /// <summary>
-        /// Apply mod state to a specific object (target)
-        /// </summary>
-        private async Task ApplyModStateToObject(Character character, Guid collectionId, int objectIndex)
-        {
-            try
-            {
-                if (character.SecretModState == null || !character.SecretModState.Any())
-                    return;
-                
-                // Get all mod settings for the collection using robust method
-                var modSettings = PenumbraIntegration?.GetAllModSettingsRobust(collectionId);
-                if (modSettings == null)
-                {
-                    return;
-                }
-                
-                // Use robust IPC calling for TrySetMod as well - actually test the methods work
-                ICallGateSubscriber<Guid, string, string, bool, int>? trySetModIpc = null;
-                var trySetModMethods = new[] { "Penumbra.TrySetMod.V5", "Penumbra.TrySetMod" };
-                
-                foreach (var method in trySetModMethods)
-                {
-                    try
-                    {
-                        var testIpc = PluginInterface.GetIpcSubscriber<Guid, string, string, bool, int>(method);
-                        if (testIpc != null)
-                        {
-                            // Actually test if the method is available by making a dummy call
-                            // This will throw if the method isn't registered
-                            var dummyResult = testIpc.InvokeFunc(Guid.Empty, "", "", false);
-                            // If we get here, the method works (even if it returns an error, it's registered)
-                            trySetModIpc = testIpc;
-                            break;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        continue;
-                    }
-                }
-                
-                if (trySetModIpc == null)
-                {
-                    return;
-                }
-                
-                var modsToDisable = new List<string>();
-                var modsToEnable = new List<string>();
-                
-                // Collect mods that need state changes
-                foreach (var (modDir, shouldEnable) in character.SecretModState)
-                {
-                    if (!modSettings.ContainsKey(modDir))
-                        continue;
-                    
-                    var currentSettings = modSettings[modDir];
-                    var isCurrentlyEnabled = currentSettings.Item1;
-                    
-                    if (isCurrentlyEnabled != shouldEnable)
-                    {
-                        if (shouldEnable)
-                            modsToEnable.Add(modDir);
-                        else
-                            modsToDisable.Add(modDir);
-                    }
-                }
-                
-                // Apply changes with error handling like normal character application
-                var allTasks = new List<Task>();
-                
-                foreach (var modDir in modsToDisable)
-                {
-                    allTasks.Add(Task.Run(() =>
-                    {
-                        try
-                        {
-                            var result = trySetModIpc.InvokeFunc(collectionId, modDir, "", false);
-                            if (result != 0) // 0 = Success
-                            {
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error($"[ApplyToTarget] Error disabling mod {modDir} on object {objectIndex}: {ex.Message}");
-                        }
-                    }));
-                }
-                
-                foreach (var modDir in modsToEnable)
-                {
-                    allTasks.Add(Task.Run(() =>
-                    {
-                        try
-                        {
-                            var result = trySetModIpc.InvokeFunc(collectionId, modDir, "", true);
-                            if (result != 0) // 0 = Success
-                            {
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error($"[ApplyToTarget] Error enabling mod {modDir} on object {objectIndex}: {ex.Message}");
-                        }
-                    }));
-                }
-                
-                await Task.WhenAll(allTasks);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error applying mod state to object: {ex}");
-            }
-        }
-        
-        /// <summary>
-        /// Parse macro text and extract commands for target application
-        /// </summary>
-        private List<object> ParseMacroForTargetApplication(string macroText)
-        {
-            var commands = new List<object>();
-            
-            if (string.IsNullOrEmpty(macroText))
-            {
-                return commands;
-            }
-            
-            var lines = macroText.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            
-            foreach (var line in lines)
-            {
-                var trimmed = line.Trim();
-                
-                if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//"))
-                {
-                    continue;
-                }
-                
-                // Parse Penumbra collection commands - handle "individual" format: /penumbra collection individual | CollectionName | self
-                if (trimmed.Contains("/penumbra collection individual", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = trimmed.Split('|');
-                    if (parts.Length >= 2)
-                    {
-                        var collectionName = parts[1].Trim();
-                        if (!string.IsNullOrEmpty(collectionName))
-                        {
-                            commands.Add(new PenumbraCommand { CollectionName = collectionName });
-                        }
-                    }
-                }
-                // Parse Glamourer design commands - handle pipe format: /glamour apply DesignName | Self
-                else if (trimmed.Contains("/glamour apply", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = trimmed.Split('|');
-                    if (parts.Length >= 1)
-                    {
-                        var designPart = parts[0].Replace("/glamour apply", "").Trim();
-                        if (!string.IsNullOrEmpty(designPart))
-                        {
-                            commands.Add(new GlamourerCommand { DesignName = designPart });
-                        }
-                    }
-                }
-                // Parse CustomizePlus profile commands - handle enable format: /customize profile enable <me>, ProfileName
-                else if (trimmed.Contains("/customize profile enable", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = trimmed.Split(',');
-                    if (parts.Length >= 2)
-                    {
-                        var profileName = parts[1].Trim();
-                        if (!string.IsNullOrEmpty(profileName))
-                        {
-                            commands.Add(new CustomizePlusCommand { ProfileName = profileName });
-                        }
-                    }
-                }
-            }
-            
-            return commands;
         }
         
         /// <summary>

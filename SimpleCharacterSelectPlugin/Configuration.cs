@@ -37,7 +37,6 @@ namespace SimpleCharacterSelectPlugin
 
         /// <summary>Last seen patch notes version (e.g., "2.1"). Only changes when patch notes content changes.</summary>
         public string LastSeenPatchNotesVersion { get; set; } = "";
-        public ProfileSharing RPSharingMode { get; set; } = ProfileSharing.AlwaysShare;
         public List<string> KnownTags { get; set; } = new();
         public byte LastIdlePoseAppliedByPlugin { get; set; } = 255;
         public byte LastSitPoseAppliedByPlugin { get; set; } = 255;
@@ -106,7 +105,6 @@ namespace SimpleCharacterSelectPlugin
         
         public HashSet<string> FavoriteGalleryProfiles { get; set; } = new();
         public HashSet<string> LikedGalleryProfiles { get; set; } = new();
-        public List<FavoriteSnapshot> FavoriteSnapshots { get; set; } = new();
         public bool ShowRecentlyActiveStatus { get; set; } = true;
         public bool HasSeenTutorial { get; set; } = false;
         public bool HasSeenPage2Surprise { get; set; } = false;
@@ -287,7 +285,6 @@ namespace SimpleCharacterSelectPlugin
             config.LastUsedDesignByCharacter ??= new Dictionary<string, string>();
             config.FavoriteGalleryProfiles ??= new HashSet<string>();
             config.LikedGalleryProfiles ??= new HashSet<string>();
-            config.FavoriteSnapshots ??= new List<FavoriteSnapshot>();
             config.BlockedGalleryProfiles ??= new HashSet<string>();
             config.SecretModeBlacklistedMods ??= new HashSet<string>();
             config.FollowedPlayers ??= new HashSet<string>();

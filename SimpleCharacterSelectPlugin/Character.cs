@@ -61,7 +61,6 @@ namespace SimpleCharacterSelectPlugin
         public string? Bio { get; set; }
         public string? RpTags { get; set; }
         public string? RpImagePath { get; set; } 
-        public RPProfile RPProfile { get; set; } = new();
         public string? LastInGameName { get; set; }
         public List<string> Tags { get; set; } = new();
         [JsonIgnore]
@@ -85,7 +84,6 @@ namespace SimpleCharacterSelectPlugin
         public List<DesignFolder> DesignFolders { get; set; } = new();
         public Vector3? OverrideAccentColor { get; set; } 
         public string? BackgroundImage { get; set; }
-        public ProfileEffects? Effects { get; set; }
         public string GalleryStatus { get; set; } = "";
         public bool IsAdvancedMode { get; set; } = false;
         
@@ -139,8 +137,6 @@ namespace SimpleCharacterSelectPlugin
             MoodlePreset = moodlePreset;
             CharacterAutomation = characterautomation;
             BackgroundImage = null;
-            Effects = new ProfileEffects();
-            GalleryStatus = galleryStatus;
         }
     }
     public class DesignFolder

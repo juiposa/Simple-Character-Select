@@ -278,12 +278,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             activeCharacterIndex = -1;
             plugin.IsDesignPanelOpen = false;
             
-            // Close Mod Manager window if it's open
-            if (plugin.SecretModeModWindow?.IsOpen ?? false)
-            {
-                plugin.SecretModeModWindow.IsOpen = false;
-            }
-            
             CloseDesignEditor();
         }
 
@@ -649,13 +643,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             DrawPreviewImageField(scale);
 
-            // Secret Mode Mod Selection (only for secret mode designs)
-            if (isSecretDesignMode)
-            {
-                DrawSecretModeDesignField(character, scale);
-                ImGui.Separator();
-            }
-
             ImGui.Separator();
 
             DrawAdvancedModeToggle(scale);
@@ -794,21 +781,21 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetNextItemWidth(inputWidth);
 
             // Get available gearsets
-            var gearsets = plugin.GetPlayerGearsets();
+            //var gearsets = plugin.GetPlayerGearsets();
 
             // Build display text for current selection
             string currentDisplay = "None (use character setting)";
             if (editedGearset.HasValue)
             {
-                var matchingGearset = gearsets.FirstOrDefault(g => g.Number == editedGearset.Value);
-                if (matchingGearset.Number > 0)
-                {
-                    currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
-                }
-                else
-                {
-                    currentDisplay = $"Gearset {editedGearset.Value}";
-                }
+                //var matchingGearset = gearsets.FirstOrDefault(g => g.Number == editedGearset.Value);
+                // if (matchingGearset.Number > 0)
+                // {
+                //     //currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
+                // }
+                // else
+                // {
+                //     currentDisplay = $"Gearset {editedGearset.Value}";
+                // }
             }
 
             if (ImGui.BeginCombo("##AssignedGearset", currentDisplay))
@@ -822,18 +809,18 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     ImGui.SetItemDefaultFocus();
 
                 // Gearset options
-                foreach (var gearset in gearsets)
-                {
-                    string displayName = plugin.GetGearsetDisplayName(gearset.Number, gearset.JobId, gearset.Name);
-                    bool isSelected = editedGearset.HasValue && editedGearset.Value == gearset.Number;
-
-                    if (ImGui.Selectable(displayName, isSelected))
-                    {
-                        editedGearset = gearset.Number;
-                    }
-                    if (isSelected)
-                        ImGui.SetItemDefaultFocus();
-                }
+                // foreach (var gearset in gearsets)
+                // {
+                //     string displayName = plugin.GetGearsetDisplayName(gearset.Number, gearset.JobId, gearset.Name);
+                //     bool isSelected = editedGearset.HasValue && editedGearset.Value == gearset.Number;
+                //
+                //     if (ImGui.Selectable(displayName, isSelected))
+                //     {
+                //         editedGearset = gearset.Number;
+                //     }
+                //     if (isSelected)
+                //         ImGui.SetItemDefaultFocus();
+                // }
 
                 ImGui.EndCombo();
             }
@@ -939,167 +926,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             else if (!string.IsNullOrEmpty(editedDesignPreviewPath))
             {
                 ImGui.Text("Preview: " + Path.GetFileName(editedDesignPreviewPath));
-            }
-        }
-
-        private void DrawSecretModeDesignField(Character character, float scale)
-        {
-            ImGui.Text("Mod Manager");
-            ImGui.SameLine();
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.Text("\uf05a");
-            ImGui.PopFont();
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.BeginTooltip();
-                ImGui.PushTextWrapPos(300 * scale);
-                ImGui.TextUnformatted("Select which mods to enable and configure their options for this design.\nAllows different designs to use different mod combinations and settings.");
-                ImGui.PopTextWrapPos();
-                ImGui.EndTooltip();
-            }
-
-            ImGui.SetCursorPosX(10 * scale);
-
-            // Get mod count for button text
-            int selectedModCount = 0;
-            Dictionary<string, bool> modState = null;
-            HashSet<string> pinOverrides = null;
-
-            if (isNewDesign)
-            {
-                // For new designs, use temporary state
-                modState = temporaryDesignSecretModState ?? new Dictionary<string, bool>();
-                pinOverrides = temporaryDesignSecretModPinOverrides ?? new HashSet<string>();
-                selectedModCount = modState.Count(kvp => kvp.Value);
-            }
-            else if (!string.IsNullOrEmpty(originalDesignName))
-            {
-                // For existing designs, use the design's state
-                var currentDesign = character.Designs.FirstOrDefault(d => d.Name == originalDesignName);
-                if (currentDesign != null)
-                {
-                    modState = currentDesign.SecretModState ?? new Dictionary<string, bool>();
-                    pinOverrides = currentDesign.SecretModPinOverrides ?? new HashSet<string>();
-                    selectedModCount = modState.Count(kvp => kvp.Value);
-                }
-            }
-
-            string buttonText = selectedModCount > 0 
-                ? $"Configure Mods ({selectedModCount} selected)"
-                : "Configure Mods";
-
-            // Validate that design name is filled before opening mod manager
-            bool hasValidDesignName = !string.IsNullOrWhiteSpace(editedDesignName);
-            
-            if (!hasValidDesignName)
-                ImGui.BeginDisabled();
-            
-            if (ImGui.Button(buttonText))
-            {
-                if (hasValidDesignName)
-                {
-                    // Open Secret Mode mod window for this design
-                    var currentDesignForWindow = isNewDesign ? null : character.Designs.FirstOrDefault(d => d.Name == originalDesignName);
-                    plugin.SecretModeModWindow.Open(
-                        activeCharacterIndex,
-                        modState,
-                        LogAndReturnPins(character),
-                        (newModState) =>
-                        {
-                            // Save callback for design-level mod state
-                            if (isNewDesign)
-                            {
-                                // For new designs, store temporarily
-                                temporaryDesignSecretModState = newModState;
-                            }
-                            else if (!string.IsNullOrEmpty(originalDesignName))
-                            {
-                                // For existing designs, save directly AND update temporary state
-                                var design = character.Designs.FirstOrDefault(d => d.Name == originalDesignName);
-                                if (design != null)
-                                {
-                                    design.SecretModState = newModState;
-                                    temporaryDesignSecretModState = newModState; // Keep temp state in sync
-                                    plugin.SaveConfiguration();
-                                }
-                            }
-                        },
-                        (pins) =>
-                        {
-                            // Character pin callback
-                            Plugin.Log.Information($"[PIN DEBUG] Design save callback: saving {pins?.Count ?? 0} pins to character");
-                            character.SecretModPins = pins?.ToList();
-                            plugin.SaveConfiguration();
-                        },
-                        currentDesignForWindow,  // Pass the design context
-                        character.Name,  // Pass the character name for context
-                        (inheritMods) =>
-                        {
-                            // Inherit callback - restore Penumbra inheritance for these mods
-                            if (inheritMods != null && inheritMods.Count > 0)
-                            {
-                                _ = plugin.RestoreModInheritance(inheritMods);
-                            }
-                        }
-                    );
-                }
-            }
-            
-            // Quick update button for gear/hair changes
-            ImGui.SameLine();
-            
-            ImGui.PushFont(UiBuilder.IconFont);
-            
-            bool canQuickUpdate = hasValidDesignName && plugin.Configuration.EnableConflictResolution;
-            
-            if (!canQuickUpdate)
-                ImGui.BeginDisabled();
-            
-            if (ImGui.Button("\uf2f1")) // Import icon - suggests pulling in current state
-            {
-                if (canQuickUpdate)
-                {
-                    PerformQuickGearHairUpdate(character);
-                }
-            }
-            
-            if (!canQuickUpdate)
-                ImGui.EndDisabled();
-            
-            ImGui.PopFont();
-            
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.BeginTooltip();
-                if (canQuickUpdate)
-                {
-                    ImGui.Text("Update gear/hair changes");
-                }
-                else
-                {
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.7f, 1.0f));
-                    if (!hasValidDesignName)
-                        ImGui.Text("Enter a Design Name first");
-                    else if (!plugin.Configuration.EnableConflictResolution)
-                        ImGui.Text("Conflict Resolution must be enabled");
-                    ImGui.PopStyleColor();
-                }
-                ImGui.EndTooltip();
-            }
-            
-            if (!hasValidDesignName)
-            {
-                ImGui.EndDisabled();
-                
-                // Show tooltip explaining why the button is disabled
-                if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                {
-                    ImGui.BeginTooltip();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.7f, 1.0f));
-                    ImGui.Text("Please enter a Design Name before configuring mods.");
-                    ImGui.PopStyleColor();
-                    ImGui.EndTooltip();
-                }
             }
         }
 
@@ -1745,7 +1571,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     var effectiveGearset = design.AssignedGearset ?? character.AssignedGearset;
                     if (effectiveGearset.HasValue)
                     {
-                        plugin.SwitchToGearset(effectiveGearset.Value);
+                        //plugin.SwitchToGearset(effectiveGearset.Value);
                     }
                 }
 
@@ -1757,31 +1583,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     {
                         plugin.EnsurePenumbraCollectionAssignment(character.PenumbraCollection);
                     }
-
-                    // Apply mod state asynchronously first, then execute macro with proper threading
-                    _ = Task.Run(async () =>
-                    {
-                        await plugin.ApplyDesignModState(character, design);
-                        Plugin.Framework.RunOnFrameworkThread(() => {
-                            plugin.ExecuteMacro(design.Macro, character, design.Name);
-                            // Track last used design and character for auto-reapplication and UI feedback
-                            plugin.Configuration.LastUsedDesignByCharacter[character.Name] = design.Name;
-                            plugin.Configuration.LastUsedDesignCharacterKey = character.Name;
-                            plugin.Configuration.LastUsedCharacterKey = character.Name;
-                            
-                            // Update player-specific character tracking for green highlighting
-                            if (Plugin.ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
-                            {
-                                string localName = player.Name.TextValue;
-                                string worldName = player.HomeWorld.Value.Name.ToString();
-                                string fullKey = $"{localName}@{worldName}";
-                                string pluginCharacterKey = $"{character.Name}@{worldName}";
-                                plugin.Configuration.LastUsedCharacterByPlayer[fullKey] = pluginCharacterKey;
-                            }
-                            
-                            plugin.Configuration.Save();
-                        });
-                    });
                 }
                 else
                 {
@@ -2338,12 +2139,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             isAdvancedModeWindowOpen = false;
             isNewDesign = false;
             isSecretDesignMode = false;
-            
-            // Close Mod Manager window if it's open
-            if (plugin.SecretModeModWindow?.IsOpen ?? false)
-            {
-                plugin.SecretModeModWindow.IsOpen = false;
-            }
             
             ResetEditFields();
         }
@@ -3177,136 +2972,136 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             snapshotIsProcessing = true;
             snapshotStatusMessage = "Creating design...";
 
-            Task.Run(async () =>
-            {
-                try
-                {
-                    // Generate the appropriate macro based on CR mode
-                    var snapshotMacro = GenerateSnapshotMacro(snapshotUseConflictResolution);
-                    
-                    // For CR mode, generate different macros
-                    var regularMacro = GenerateSnapshotMacro(false); // Regular macro without CR
-                    var advancedMacro = snapshotUseConflictResolution ? GenerateSnapshotMacro(true) : ""; // CR macro if enabled
-                    
-                    var newDesign = new CharacterDesign(
-                        snapshotDesignName,
-                        regularMacro, // Always use regular macro for base
-                        snapshotUseConflictResolution, // Enable Advanced Mode if CR is checked
-                        advancedMacro, // Advanced/CR macro
-                        "", // GlamourerDesign - will be set later
-                        "", // Automation
-                        "", // CustomizePlusProfile - will be set later
-                        null // PreviewImagePath - will be set later
-                    );
-
-                    // Create Glamourer design from current state if detected
-                    if (snapshotDetectedMods.Count > 0)
-                    {
-                        var glamourerDesignName = $"{snapshotDesignName}";
-                        var glamourerDesignId = await CreateGlamourerDesignFromCurrentState(glamourerDesignName);
-                        if (glamourerDesignId != Guid.Empty)
-                        {
-                            // Store the design name, not the GUID, for CS+ compatibility
-                            newDesign.GlamourerDesign = glamourerDesignName;
-                            Plugin.Log.Information($"Created Glamourer design: {glamourerDesignName} (ID: {glamourerDesignId})");
-                        }
-                    }
-
-                    // Set Customize+ profile if detected (only if it's not the Character default)
-                    if (!string.IsNullOrEmpty(snapshotDetectedCustomizePlusProfile) && 
-                        snapshotDetectedCustomizePlusProfile != "Character")
-                    {
-                        newDesign.CustomizePlusProfile = snapshotDetectedCustomizePlusProfile;
-                    }
-
-                    // Set up Secret Mode state for CR mode
-                    if (snapshotUseConflictResolution)
-                    {
-                        // Get only gear/hair mods from Currently Affecting You tab (prevents body/sculpt/eye mods from being managed)
-                        var allAffectingMods = plugin.PenumbraIntegration?.GetOnScreenTabMods();
-                        var currentlyAffectingMods = new HashSet<string>();
-                        
-                        if (allAffectingMods != null)
-                        {
-                            foreach (var modDir in allAffectingMods)
-                            {
-                                try
-                                {
-                                    // Get mod type from cache or determine it
-                                    ModType modType;
-                                    if (plugin.modCategorizationCache.ContainsKey(modDir))
-                                    {
-                                        modType = plugin.modCategorizationCache[modDir];
-                                    }
-                                    else
-                                    {
-                                        // Use the static method to determine mod type
-                                        modType = SecretModeModWindow.DetermineModType(modDir, "", plugin);
-                                        plugin.modCategorizationCache[modDir] = modType;
-                                    }
-
-                                    // Only include gear and hair mods (safe to toggle, won't break body/sculpt/eyes)
-                                    if (modType == ModType.Gear || modType == ModType.Hair)
-                                    {
-                                        currentlyAffectingMods.Add(modDir);
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    Plugin.Log.Warning($"Failed to determine mod type for {modDir}: {ex.Message}");
-                                }
-                            }
-                        }
-                        if (currentlyAffectingMods != null && currentlyAffectingMods.Count > 0)
-                        {
-                            // Create mod state dictionary with all currently affecting mods enabled
-                            newDesign.SecretModState = new Dictionary<string, bool>();
-                            foreach (var modName in currentlyAffectingMods)
-                            {
-                                newDesign.SecretModState[modName] = true;
-                            }
-                            Plugin.Log.Information($"Detected {newDesign.SecretModState.Count} currently affecting mods for CR design");
-                        }
-                        else
-                        {
-                            Plugin.Log.Information("No currently affecting mods detected for CR design");
-                        }
-                    }
-
-                    // Save clipboard image if available
-                    if (snapshotHasClipboardImage)
-                    {
-                        var imagePath = await SaveClipboardImageForDesign(newDesign.Id);
-                        if (!string.IsNullOrEmpty(imagePath))
-                        {
-                            newDesign.PreviewImagePath = imagePath;
-                        }
-                    }
-
-                    // The macro was already set during construction, no need to regenerate
-
-                    // Add the design to the character
-                    snapshotTargetCharacter.Designs.Add(newDesign);
-                    
-                    // Save configuration
-                    plugin.Configuration.Save();
-
-                    snapshotStatusMessage = "Design created successfully!";
-                    
-                    // Close dialog after a brief delay
-                    await Task.Delay(1000);
-                    isSnapshotDialogOpen = false;
-                }
-                catch (Exception ex)
-                {
-                    Plugin.Log.Error($"Error creating snapshot design: {ex}");
-                    snapshotStatusMessage = $"Error: {ex.Message}";
-                }
-                finally
-                {
-                    snapshotIsProcessing = false;
-                }
-            });
+            // Task.Run(async () =>
+            // {
+            //     try
+            //     {
+            //         // Generate the appropriate macro based on CR mode
+            //         var snapshotMacro = GenerateSnapshotMacro(snapshotUseConflictResolution);
+            //         
+            //         // For CR mode, generate different macros
+            //         var regularMacro = GenerateSnapshotMacro(false); // Regular macro without CR
+            //         var advancedMacro = snapshotUseConflictResolution ? GenerateSnapshotMacro(true) : ""; // CR macro if enabled
+            //         
+            //         var newDesign = new CharacterDesign(
+            //             snapshotDesignName,
+            //             regularMacro, // Always use regular macro for base
+            //             snapshotUseConflictResolution, // Enable Advanced Mode if CR is checked
+            //             advancedMacro, // Advanced/CR macro
+            //             "", // GlamourerDesign - will be set later
+            //             "", // Automation
+            //             "", // CustomizePlusProfile - will be set later
+            //             null // PreviewImagePath - will be set later
+            //         );
+            //
+            //         // Create Glamourer design from current state if detected
+            //         if (snapshotDetectedMods.Count > 0)
+            //         {
+            //             var glamourerDesignName = $"{snapshotDesignName}";
+            //             var glamourerDesignId = await CreateGlamourerDesignFromCurrentState(glamourerDesignName);
+            //             if (glamourerDesignId != Guid.Empty)
+            //             {
+            //                 // Store the design name, not the GUID, for CS+ compatibility
+            //                 newDesign.GlamourerDesign = glamourerDesignName;
+            //                 Plugin.Log.Information($"Created Glamourer design: {glamourerDesignName} (ID: {glamourerDesignId})");
+            //             }
+            //         }
+            //
+            //         // Set Customize+ profile if detected (only if it's not the Character default)
+            //         if (!string.IsNullOrEmpty(snapshotDetectedCustomizePlusProfile) && 
+            //             snapshotDetectedCustomizePlusProfile != "Character")
+            //         {
+            //             newDesign.CustomizePlusProfile = snapshotDetectedCustomizePlusProfile;
+            //         }
+            //
+            //         // Set up Secret Mode state for CR mode
+            //         if (snapshotUseConflictResolution)
+            //         {
+            //             // Get only gear/hair mods from Currently Affecting You tab (prevents body/sculpt/eye mods from being managed)
+            //             var allAffectingMods = plugin.PenumbraIntegration?.GetOnScreenTabMods();
+            //             var currentlyAffectingMods = new HashSet<string>();
+            //             
+            //             if (allAffectingMods != null)
+            //             {
+            //                 foreach (var modDir in allAffectingMods)
+            //                 {
+            //                     try
+            //                     {
+            //                         // Get mod type from cache or determine it
+            //                         ModType modType;
+            //                         if (plugin.modCategorizationCache.ContainsKey(modDir))
+            //                         {
+            //                             modType = plugin.modCategorizationCache[modDir];
+            //                         }
+            //                         else
+            //                         {
+            //                             // Use the static method to determine mod type
+            //                             modType = SecretModeModWindow.DetermineModType(modDir, "", plugin);
+            //                             plugin.modCategorizationCache[modDir] = modType;
+            //                         }
+            //
+            //                         // Only include gear and hair mods (safe to toggle, won't break body/sculpt/eyes)
+            //                         if (modType == ModType.Gear || modType == ModType.Hair)
+            //                         {
+            //                             currentlyAffectingMods.Add(modDir);
+            //                         }
+            //                     }
+            //                     catch (Exception ex)
+            //                     {
+            //                         Plugin.Log.Warning($"Failed to determine mod type for {modDir}: {ex.Message}");
+            //                     }
+            //                 }
+            //             }
+            //             if (currentlyAffectingMods != null && currentlyAffectingMods.Count > 0)
+            //             {
+            //                 // Create mod state dictionary with all currently affecting mods enabled
+            //                 newDesign.SecretModState = new Dictionary<string, bool>();
+            //                 foreach (var modName in currentlyAffectingMods)
+            //                 {
+            //                     newDesign.SecretModState[modName] = true;
+            //                 }
+            //                 Plugin.Log.Information($"Detected {newDesign.SecretModState.Count} currently affecting mods for CR design");
+            //             }
+            //             else
+            //             {
+            //                 Plugin.Log.Information("No currently affecting mods detected for CR design");
+            //             }
+            //         }
+            //
+            //         // Save clipboard image if available
+            //         if (snapshotHasClipboardImage)
+            //         {
+            //             var imagePath = await SaveClipboardImageForDesign(newDesign.Id);
+            //             if (!string.IsNullOrEmpty(imagePath))
+            //             {
+            //                 newDesign.PreviewImagePath = imagePath;
+            //             }
+            //         }
+            //
+            //         // The macro was already set during construction, no need to regenerate
+            //
+            //         // Add the design to the character
+            //         snapshotTargetCharacter.Designs.Add(newDesign);
+            //         
+            //         // Save configuration
+            //         plugin.Configuration.Save();
+            //
+            //         snapshotStatusMessage = "Design created successfully!";
+            //         
+            //         // Close dialog after a brief delay
+            //         await Task.Delay(1000);
+            //         isSnapshotDialogOpen = false;
+            //     }
+            //     catch (Exception ex)
+            //     {
+            //         Plugin.Log.Error($"Error creating snapshot design: {ex}");
+            //         snapshotStatusMessage = $"Error: {ex.Message}";
+            //     }
+            //     finally
+            //     {
+            //         snapshotIsProcessing = false;
+            //     }
+            // });
         }
 
         private string GenerateSnapshotMacro(bool useConflictResolution)
@@ -3807,60 +3602,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         : ""
                 );
 
-                // Set CR mode if requested
-                if (snapshotUseConflictResolution)
-                {
-                    // Get only gear/hair mods from Currently Affecting You tab (prevents body/sculpt/eye mods from being managed)
-                    var allAffectingMods = plugin.PenumbraIntegration?.GetOnScreenTabMods();
-                    var currentlyAffectingMods = new HashSet<string>();
-                    
-                    if (allAffectingMods != null)
-                    {
-                        foreach (var modDir in allAffectingMods)
-                        {
-                            try
-                            {
-                                // Get mod type from cache or determine it
-                                ModType modType;
-                                if (plugin.modCategorizationCache.ContainsKey(modDir))
-                                {
-                                    modType = plugin.modCategorizationCache[modDir];
-                                }
-                                else
-                                {
-                                    // Use the static method to determine mod type
-                                    modType = SecretModeModWindow.DetermineModType(modDir, "", plugin);
-                                    plugin.modCategorizationCache[modDir] = modType;
-                                }
-
-                                // Only include gear and hair mods (safe to toggle, won't break body/sculpt/eyes)
-                                if (modType == ModType.Gear || modType == ModType.Hair)
-                                {
-                                    currentlyAffectingMods.Add(modDir);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Plugin.Log.Warning($"Failed to determine mod type for {modDir}: {ex.Message}");
-                            }
-                        }
-                    }
-                    if (currentlyAffectingMods != null && currentlyAffectingMods.Count > 0)
-                    {
-                        // Create mod state dictionary with all currently affecting mods enabled
-                        newDesign.SecretModState = new Dictionary<string, bool>();
-                        foreach (var modName in currentlyAffectingMods)
-                        {
-                            newDesign.SecretModState[modName] = true;
-                        }
-                        Plugin.Log.Information($"Smart snapshot detected {newDesign.SecretModState.Count} currently affecting mods for CR design");
-                    }
-                    else
-                    {
-                        Plugin.Log.Information("Smart snapshot: No currently affecting mods detected for CR design");
-                    }
-                }
-
                 // Handle clipboard image if available
                 if (snapshotHasClipboardImage)
                 {
@@ -3959,124 +3700,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
 
             return currentCharacter;
-        }
-
-        /// <summary>
-        /// Performs quick update of gear and hair mods for the current design
-        /// </summary>
-        private void PerformQuickGearHairUpdate(Character character)
-        {
-            try
-            {
-                Plugin.Log.Information("Starting quick gear/hair update...");
-                
-                // Get all currently affecting mods using the existing method
-                var allAffectingMods = plugin.PenumbraIntegration.GetCurrentlyAffectingMods();
-                Plugin.Log.Information($"Found {allAffectingMods.Count} total affecting mods");
-                
-                if (!allAffectingMods.Any())
-                {
-                    Plugin.Log.Warning("No affecting mods detected for quick update");
-                    return;
-                }
-                
-                // Filter for gear and hair mods only
-                var gearHairMods = new HashSet<string>();
-                var modList = plugin.PenumbraIntegration.GetModList();
-                
-                foreach (var modDir in allAffectingMods)
-                {
-                    // Check if mod is in categorization cache
-                    if (plugin.modCategorizationCache?.TryGetValue(modDir, out var modType) == true)
-                    {
-                        if (modType == SimpleCharacterSelectPlugin.Windows.ModType.Gear || 
-                            modType == SimpleCharacterSelectPlugin.Windows.ModType.Hair)
-                        {
-                            gearHairMods.Add(modDir);
-                            Plugin.Log.Debug($"✓ Included {modType} mod: {modDir}");
-                        }
-                        else
-                        {
-                            Plugin.Log.Debug($"✗ Excluded {modType} mod: {modDir}");
-                        }
-                    }
-                    else if (modList.TryGetValue(modDir, out var modName))
-                    {
-                        // Not in cache, check by changed items
-                        var changedItems = plugin.PenumbraIntegration.GetModChangedItems(modDir, modName);
-                        if (IsGearMod(changedItems.Keys) || IsHairMod(changedItems.Keys))
-                        {
-                            gearHairMods.Add(modDir);
-                            Plugin.Log.Debug($"✓ Included gear/hair mod by analysis: {modDir}");
-                        }
-                    }
-                }
-                
-                Plugin.Log.Information($"Filtered to {gearHairMods.Count} gear/hair mods");
-                
-                if (!gearHairMods.Any())
-                {
-                    Plugin.Log.Information("No gear/hair mods currently affecting - nothing to update");
-                    return;
-                }
-                
-                // Create new mod state with only gear/hair mods enabled
-                var newModState = new Dictionary<string, bool>();
-                
-                // Get existing mod state to preserve non-gear/hair selections
-                Dictionary<string, bool> existingState = null;
-                if (isNewDesign)
-                {
-                    existingState = temporaryDesignSecretModState ?? new Dictionary<string, bool>();
-                }
-                else if (!string.IsNullOrEmpty(originalDesignName))
-                {
-                    var currentDesign = character.Designs.FirstOrDefault(d => d.Name == originalDesignName);
-                    existingState = currentDesign?.SecretModState ?? new Dictionary<string, bool>();
-                }
-                
-                // Preserve existing non-gear/hair mod selections
-                if (existingState != null)
-                {
-                    foreach (var (modDir, enabled) in existingState)
-                    {
-                        if (!gearHairMods.Contains(modDir))
-                        {
-                            newModState[modDir] = enabled; // Keep existing state for non-gear/hair mods
-                        }
-                    }
-                }
-                
-                // Add the new gear/hair mods as enabled
-                foreach (var modDir in gearHairMods)
-                {
-                    newModState[modDir] = true;
-                }
-                
-                // Update the design's mod state
-                if (isNewDesign)
-                {
-                    temporaryDesignSecretModState = newModState;
-                    Plugin.Log.Information($"Updated temporary design state with {gearHairMods.Count} gear/hair mods");
-                }
-                else if (!string.IsNullOrEmpty(originalDesignName))
-                {
-                    var design = character.Designs.FirstOrDefault(d => d.Name == originalDesignName);
-                    if (design != null)
-                    {
-                        design.SecretModState = newModState;
-                        temporaryDesignSecretModState = newModState; // Keep temp state in sync
-                        plugin.SaveConfiguration();
-                        Plugin.Log.Information($"Updated design '{design.Name}' with {gearHairMods.Count} gear/hair mods");
-                    }
-                }
-                
-                Plugin.Log.Information("Quick gear/hair update completed successfully");
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Error during quick gear/hair update: {ex}");
-            }
         }
         
         /// <summary>

@@ -1428,21 +1428,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 }
             }
 
-            if (ImGui.IsMouseHoveringRect(iconHitMin, iconHitMax))
-            {
-                string tooltip = $"View RolePlay Profile for {character.Name}";
-                if (showRPBadge)
-                {
-                    tooltip += "\n\nNEW: Expanded RP Profiles with content boxes!";
-                }
-                ImGui.SetTooltip(tooltip);
-
-                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
-                {
-                    plugin.OpenRPProfileViewWindow(character);
-                }
-            }
-
             if (characterIndex == 0)
             {
                 plugin.RPProfileButtonPos = iconHitMin;
@@ -2215,19 +2200,13 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 plugin.SwitchPenumbraCollection(character.PenumbraCollection);
             }
-            
-            // Apply Secret Mode mod states if configured
-            if (character.SecretModState != null && character.SecretModState.Any())
-            {
-                _ = plugin.ApplySecretModState(character);
-            }
 
             plugin.ExecuteMacro(character.Macros, character, null);
 
             // Switch gearset if assigned at character level
             if (plugin.Configuration.EnableGearsetAssignments && character.AssignedGearset.HasValue)
             {
-                plugin.SwitchToGearset(character.AssignedGearset.Value);
+                //plugin.SwitchToGearset(character.AssignedGearset.Value);
             }
 
             plugin.SetActiveCharacter(character);
@@ -2238,73 +2217,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 string localName = player.Name.TextValue;
                 string worldName = player.HomeWorld.Value.Name.ToString();
                 string fullKey = $"{localName}@{worldName}";
-
-                if (ShouldUploadToServer(character))
-                {
-                    var effectiveSharing = GetEffectiveSharingForUpload(character, fullKey);
-                    var excludeFromSync = character.ExcludeFromNameSync; // Capture for closure
-                    System.Threading.Tasks.Task.Run(() =>
-                    {
-                        var profileToSend = plugin.BuildProfileForUpload(character);
-                        _ = Plugin.UploadProfileAsync(profileToSend, character.LastInGameName ?? character.Name,
-                            sharingOverride: effectiveSharing, excludeFromNameSync: excludeFromSync);
-                    });
-                    Plugin.Log.Info($"[CharacterGrid] ✓ Uploading profile for {character.Name} (effective sharing: {effectiveSharing}, excluded: {excludeFromSync})");
-                }
-                else
-                {
-                    Plugin.Log.Info($"[CharacterGrid] ⚠ Skipped upload for {character.Name} (NeverShare)");
-                }
+                
+                Plugin.Log.Info($"[CharacterGrid] ⚠ Skipped upload for {character.Name} (NeverShare)");
             }
             plugin.QuickSwitchWindow.UpdateSelectionFromCharacter(character);
         }
-        private bool ShouldUploadToServer(Character character)
-        {
-            var sharing = character.RPProfile?.Sharing ?? ProfileSharing.AlwaysShare;
-
-            // NeverShare = never upload to server
-            if (sharing == ProfileSharing.NeverShare)
-            {
-                Plugin.Log.Debug($"[CharacterGrid-ShouldUpload] NeverShare - not uploading {character.Name}");
-                return false;
-            }
-
-            // AlwaysShare and ShowcasePublic both upload to server
-            Plugin.Log.Debug($"[CharacterGrid-ShouldUpload] ✓ {sharing} - uploading {character.Name}");
-            return true;
-        }
-
-        private ProfileSharing GetEffectiveSharingForUpload(Character character, string currentPhysicalCharacter)
-        {
-            // ExcludeFromNameSync = upload as NeverShare so server cache excludes this character
-            if (character.ExcludeFromNameSync)
-            {
-                Plugin.Log.Debug($"[CharacterGrid-Sharing] ExcludeFromNameSync - sending as NeverShare");
-                return ProfileSharing.NeverShare;
-            }
-
-            var sharing = character.RPProfile?.Sharing ?? ProfileSharing.AlwaysShare;
-
-            // NeverShare and AlwaysShare are sent as-is
-            if (sharing != ProfileSharing.ShowcasePublic)
-                return sharing;
-
-            // ShowcasePublic: Only send as ShowcasePublic (gallery listing) if on Main Character
-            var userMain = plugin.Configuration.GalleryMainCharacter;
-            bool onMainCharacter = !string.IsNullOrEmpty(userMain) && currentPhysicalCharacter == userMain;
-
-            if (onMainCharacter)
-            {
-                Plugin.Log.Debug($"[CharacterGrid-Sharing] ShowcasePublic on Main Character - will appear in Gallery");
-                return ProfileSharing.ShowcasePublic;
-            }
-            else
-            {
-                Plugin.Log.Debug($"[CharacterGrid-Sharing] ShowcasePublic but not on Main Character - sending as AlwaysShare");
-                return ProfileSharing.AlwaysShare;
-            }
-        }
-
+        
         private List<Character> GetFilteredCharacters()
         {
             if (filterCacheDirty ||

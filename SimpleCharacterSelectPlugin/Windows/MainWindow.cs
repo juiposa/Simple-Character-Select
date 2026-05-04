@@ -311,7 +311,7 @@ namespace SimpleCharacterSelectPlugin.Windows
             // Revert button
             if (uiStyles.IconButton("\uf0e2", "Revert All CS+ Changes\n\nReverts:\n• Glamourer → Game state\n• Honorific → Cleared\n• Moodles → All removed\n• Customize+ → Disabled\n• Penumbra → Your Character collection\n• CS+ → No active character", new Vector2(iconButtonSize, iconButtonSize)))
             {
-                plugin.RevertAllChanges();
+                //plugin.RevertAllChanges();
             }
 
             ImGui.SameLine();
@@ -477,26 +477,7 @@ namespace SimpleCharacterSelectPlugin.Windows
                 ImGui.Text("Opens a more compact UI to swap between Characters & Designs.");
                 ImGui.EndTooltip();
             }
-
-            ImGui.SameLine();
-
-            if (ImGui.Button("Gallery"))
-                plugin.GalleryWindow.IsOpen = !plugin.GalleryWindow.IsOpen;
-            plugin.GalleryButtonPos = ImGui.GetItemRectMin();
-            plugin.GalleryButtonSize = ImGui.GetItemRectSize();
-
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup))
-            {
-                ImGui.BeginTooltip();
-                ImGui.Text("Browse the Character Showcase Gallery");
-                ImGui.Text("See other players' characters and share your own!");
-                ImGui.EndTooltip();
-            }
-
-            ImGui.SameLine();
-
-            if (ImGui.Button("Tutorial"))
-                plugin.TutorialManager.StartTutorial();
+            
             ImGui.SameLine();
 
             // Features button with notification badge
@@ -547,22 +528,7 @@ namespace SimpleCharacterSelectPlugin.Windows
                 ImGui.Text("Tips, tricks, and hidden gems.");
                 ImGui.EndTooltip();
             }
-            ImGui.SameLine();
-
-            if (ImGui.Button("Patch Notes"))
-            {
-                plugin.PatchNotesWindow.OpenMainMenuOnClose = false;
-                plugin.PatchNotesWindow.IsOpen = !plugin.PatchNotesWindow.IsOpen;
-            }
-
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup))
-            {
-                ImGui.BeginTooltip();
-                ImGui.Text("View what's new in Simple Character Select");
-                ImGui.Text("See the latest features and updates!");
-                ImGui.EndTooltip();
-            }
-
+            
             ImGui.SameLine();
 
             // Random button with seasonal icons

@@ -491,12 +491,6 @@ namespace SimpleCharacterSelectPlugin
 
                     var physicalName = $"{playerName}@{worldName}";
 
-                    // Queue lookups for both systems (they have internal checks)
-                    if (sharedReplacementEnabled)
-                        plugin.SharedNameManager?.QueueLookup(physicalName);
-                    if (rpProfileLookupEnabled)
-                        plugin.RPProfileLookupManager?.QueueLookup(physicalName);
-
                     // Name replacement only when shared replacement is enabled
                     if (sharedReplacementEnabled)
                     {

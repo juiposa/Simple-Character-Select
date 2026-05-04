@@ -549,42 +549,6 @@ namespace SimpleCharacterSelectPlugin.Windows
             }
         }
 
-        private bool ShouldUploadToServer(Character character)
-        {
-            var sharing = character.RPProfile?.Sharing ?? ProfileSharing.AlwaysShare;
-
-            if (sharing == ProfileSharing.NeverShare)
-            {
-                Plugin.Log.Debug($"[QuickSwitch-ShouldUpload] NeverShare - not uploading {character.Name}");
-                return false;
-            }
-
-            Plugin.Log.Debug($"[QuickSwitch-ShouldUpload] ✓ {sharing} - uploading {character.Name}");
-            return true;
-        }
-
-        private ProfileSharing GetEffectiveSharingForUpload(Character character, string currentPhysicalCharacter)
-        {
-            var sharing = character.RPProfile?.Sharing ?? ProfileSharing.AlwaysShare;
-
-            if (sharing != ProfileSharing.ShowcasePublic)
-                return sharing;
-
-            var userMain = plugin.Configuration.GalleryMainCharacter;
-            bool onMainCharacter = !string.IsNullOrEmpty(userMain) && currentPhysicalCharacter == userMain;
-
-            if (onMainCharacter)
-            {
-                Plugin.Log.Debug($"[QuickSwitch-Sharing] ShowcasePublic on Main Character - will appear in Gallery");
-                return ProfileSharing.ShowcasePublic;
-            }
-            else
-            {
-                Plugin.Log.Debug($"[QuickSwitch-Sharing] ShowcasePublic but not on Main Character - sending as AlwaysShare");
-                return ProfileSharing.AlwaysShare;
-            }
-        }
-
         private (float width, float height) CalculateImageDimensions(Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap texture, float maxSize)
         {
             float originalWidth = texture.Width;
