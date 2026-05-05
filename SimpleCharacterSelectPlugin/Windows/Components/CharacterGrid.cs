@@ -9,7 +9,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 using SimpleCharacterSelectPlugin.Windows.Utils;
-using SimpleCharacterSelectPlugin.Effects;
 using SimpleCharacterSelectPlugin;
 
 namespace SimpleCharacterSelectPlugin.Windows.Components
@@ -23,16 +22,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private string searchQuery = "";
         private string selectedTag = "All";
         private bool showTagFilter = false;
-        private Dictionary<int, FavoriteSparkEffect> characterFavoriteEffects = new();
-        private Dictionary<int, WinterSnowEffect> characterSnowEffects = new();
-        private FogSequenceEffect fogEffect;
-
-        // Drag and drop state
-        private int? draggedCharacterIndex = null;
-        private bool isDragging = false;
-        private Vector2 dragStartPos = Vector2.Zero;
-        private const float DragThreshold = 5f;
-        public bool ShouldPreventWindowDrag => isDragging;
 
         // Pagination
         private int currentPage = 0;
@@ -65,14 +54,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         // Frame limiting for animations
         private float lastAnimationUpdate = 0f;
         private const float AnimationUpdateInterval = 1f / 60f; // 60 FPS max
-        
-        // Halloween wiggle animation state
-        private readonly Dictionary<int, float> wiggleStartTimes = new();
-        private readonly Dictionary<int, Vector2> wiggleOffsets = new();
-        private float lastWiggleCheck = 0f;
-        private const float WiggleCheckInterval = 2f; // Check every 2 seconds for new wiggles
-        private const float WiggleDuration = 0.8f; // Each wiggle lasts 0.8 seconds
-        private const float WiggleIntensity = 3f; // Maximum wiggle offset in pixels
 
         // Ghost image state
         private Character? draggedCharacter = null;
@@ -86,7 +67,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             this.plugin = plugin;
             this.uiStyles = uiStyles;
             CurrentSort = (Plugin.SortType)plugin.Configuration.CurrentSortIndex;
-            fogEffect = new FogSequenceEffect(plugin);
         }
 
         public void Dispose()
@@ -94,8 +74,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Clear caches
             fileExistsCache.Clear();
             textSizeCache.Clear();
-            characterFavoriteEffects.Clear();
-            fogEffect?.Dispose();
+            //characterFavoriteEffects.Clear();
         }
 
         public void Draw()
@@ -104,479 +83,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier);
 
             ImGuiWindowFlags windowFlags = ImGuiWindowFlags.None;
-
-            // Disable window moving while dragging a character
-            if (isDragging && draggedCharacterIndex.HasValue)
-            {
-                windowFlags |= ImGuiWindowFlags.NoMove;
-            }
-
-            // Apply the flags to window
-            
-            // Draw seasonal background effects behind everything (before toolbar)
-            if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration))
-            {
-                var effectiveTheme = SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration);
-                Vector2 windowSize = ImGui.GetWindowSize();
-                
-                if (effectiveTheme == SeasonalTheme.Halloween)
-                {
-                    DrawHalloweenSpiderWebs();
-                    
-                    // Set fog area right before drawing
-                    fogEffect?.SetEffectArea(windowSize);
-                    fogEffect?.Draw(); // Draw fog on same layer as spider webs
-                }
-                else if (effectiveTheme == SeasonalTheme.Winter || effectiveTheme == SeasonalTheme.Christmas)
-                {
-                    // Corner line decorations removed per user request
-                }
-            }
             
             DrawToolbar(totalScale);
             DrawCharacterGridContent(totalScale);
 
-            // Throttle animation updates
-            float currentTime = (float)ImGui.GetTime();
-            if (currentTime - lastAnimationUpdate >= AnimationUpdateInterval)
-            {
-                UpdateEffects(ImGui.GetIO().DeltaTime);
-                lastAnimationUpdate = currentTime;
-            }
-
-            DrawEffects();
             DrawPagination(totalScale);
-
-            // Draw the ghost image last so it appears on top of everything
-            DrawDragGhostImage(totalScale);
-        }
-
-        private void UpdateEffects(float deltaTime)
-        {
-            foreach (var effect in characterFavoriteEffects.Values)
-            {
-                effect.Update(deltaTime);
-            }
-            
-            // Update seasonal background effects
-            if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration))
-            {
-                var effectiveTheme = SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration);
-                Vector2 contentSize = ImGui.GetContentRegionAvail();
-                
-                if (effectiveTheme == SeasonalTheme.Halloween)
-                {
-                    // Update fog effect for Halloween theme
-                    if (contentSize.X > 0 && contentSize.Y > 0)
-                    {
-                        fogEffect.SetEffectArea(contentSize);
-                    }
-                    fogEffect.Update(deltaTime);
-                }
-            }
-        }
-
-        private void DrawHalloweenSpiderWebs()
-        {
-            var drawList = ImGui.GetWindowDrawList();
-            var windowPos = ImGui.GetWindowPos();
-            var windowSize = ImGui.GetWindowSize();
-            
-            // Use white color for spider webs
-            var webColor = new Vector4(1.0f, 1.0f, 1.0f, 0.6f); // White with higher opacity
-            uint color = ImGui.GetColorU32(webColor);
-            
-            // Draw simple corner webs
-            float webSize = 50f;
-            
-            // Top-left corner web - positioned exactly at corner
-            Vector2 cornerTL = windowPos;
-            DrawSimpleWeb(drawList, cornerTL, webSize, color, 0); // Top-left
-            
-            // Top-right corner web - positioned exactly at corner
-            Vector2 cornerTR = windowPos + new Vector2(windowSize.X, 0);
-            DrawSimpleWeb(drawList, cornerTR, webSize, color, 1); // Top-right
-            
-            // Bottom-right corner web - positioned exactly at corner (skip bottom-left to avoid hiding behind character cards)
-            Vector2 cornerBR = windowPos + new Vector2(windowSize.X, windowSize.Y);
-            DrawSimpleWeb(drawList, cornerBR, webSize, color, 3); // Bottom-right
-        }
-
-        private void DrawSimpleWeb(ImDrawListPtr drawList, Vector2 corner, float size, uint color, int cornerType)
-        {
-            // Vary pattern based on corner for uniqueness
-            int strands = cornerType switch
-            {
-                0 => 5, // Top-left: 5 strands
-                1 => 4, // Top-right: 4 strands  
-                2 => 6, // Bottom-left: 6 strands
-                3 => 4, // Bottom-right: 4 strands
-                _ => 4
-            };
-            
-            // Draw radial strands from corner
-            for (int i = 0; i < strands; i++)
-            {
-                float angle = 0f;
-                Vector2 direction = Vector2.Zero;
-                
-                switch (cornerType)
-                {
-                    case 0: // Top-left
-                        angle = (float)(Math.PI * 0.5f * i / (strands - 1));
-                        direction = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
-                        break;
-                    case 1: // Top-right
-                        angle = (float)(Math.PI * 0.5f + Math.PI * 0.5f * i / (strands - 1));
-                        direction = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
-                        break;
-                    case 2: // Bottom-left
-                        angle = (float)(Math.PI * 1.5f + Math.PI * 0.5f * i / (strands - 1));
-                        direction = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
-                        break;
-                    case 3: // Bottom-right
-                        angle = (float)(Math.PI + Math.PI * 0.5f * i / (strands - 1));
-                        direction = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
-                        break;
-                }
-                
-                // Vary strand length for more organic look
-                float strandLength = size * (0.8f + (i % 2) * 0.2f);
-                Vector2 endPoint = corner + direction * strandLength;
-                
-                // Vary line thickness
-                float thickness = i == 0 || i == strands - 1 ? 1.2f : 0.8f;
-                drawList.AddLine(corner, endPoint, color, thickness);
-            }
-            
-            // Draw connecting rings with varied complexity
-            int rings = cornerType == 2 ? 4 : 3; // Bottom-left gets extra ring
-            for (int ring = 1; ring <= rings; ring++)
-            {
-                float ringSize = size * ring / rings * 0.9f;
-                
-                // Add some irregularity to ring connections
-                for (int i = 0; i < strands - 1; i++)
-                {
-                    float angle1 = 0f, angle2 = 0f;
-                    
-                    switch (cornerType)
-                    {
-                        case 0: // Top-left
-                            angle1 = (float)(Math.PI * 0.5f * i / (strands - 1));
-                            angle2 = (float)(Math.PI * 0.5f * (i + 1) / (strands - 1));
-                            break;
-                        case 1: // Top-right
-                            angle1 = (float)(Math.PI * 0.5f + Math.PI * 0.5f * i / (strands - 1));
-                            angle2 = (float)(Math.PI * 0.5f + Math.PI * 0.5f * (i + 1) / (strands - 1));
-                            break;
-                        case 2: // Bottom-left
-                            angle1 = (float)(Math.PI * 1.5f + Math.PI * 0.5f * i / (strands - 1));
-                            angle2 = (float)(Math.PI * 1.5f + Math.PI * 0.5f * (i + 1) / (strands - 1));
-                            break;
-                        case 3: // Bottom-right
-                            angle1 = (float)(Math.PI + Math.PI * 0.5f * i / (strands - 1));
-                            angle2 = (float)(Math.PI + Math.PI * 0.5f * (i + 1) / (strands - 1));
-                            break;
-                    }
-                    
-                    // Add slight curve to connections for more organic look
-                    Vector2 point1 = corner + new Vector2((float)Math.Cos(angle1), (float)Math.Sin(angle1)) * ringSize;
-                    Vector2 point2 = corner + new Vector2((float)Math.Cos(angle2), (float)Math.Sin(angle2)) * ringSize;
-                    
-                    // Draw all connections for complete web
-                    drawList.AddLine(point1, point2, color, 0.6f);
-                }
-            }
-            
-            // Add small spider at corner for some webs
-            if (cornerType == 0 || cornerType == 3) // Top-left and bottom-right
-            {
-                Vector2 spiderPos = corner + new Vector2(
-                    cornerType == 0 ? 8 : -8,
-                    cornerType == 0 ? 8 : -8
-                );
-                drawList.AddCircleFilled(spiderPos, 2f, color, 6);
-            }
-        }
-
-        private void DrawCharacterCardSpiderWebs(ImDrawListPtr drawList, Vector2 cardMin, float cardWidth, float imageHeight, float scale, float hoverAmount)
-        {
-            // Smaller, more subtle webs for character cards
-            float baseAlpha = 0.4f;
-            float hoverAlpha = baseAlpha + (hoverAmount * 0.3f); // Increase visibility on hover
-            var webColor = new Vector4(1.0f, 1.0f, 1.0f, hoverAlpha);
-            uint color = ImGui.GetColorU32(webColor);
-            
-            float baseWebSize = 25f * scale;
-            float webSize = baseWebSize * (1.0f + hoverAmount * 0.2f); // Grow on hover
-            
-            // Only draw on top corners to not obstruct character image too much
-            Vector2 topLeft = cardMin;
-            Vector2 topRight = cardMin + new Vector2(cardWidth, 0);
-            
-            // Draw small spider webs in top corners
-            DrawCardWeb(drawList, topLeft, webSize, color, 0); // Top-left
-            DrawCardWeb(drawList, topRight, webSize, color, 1); // Top-right
-        }
-
-        private void DrawCardWeb(ImDrawListPtr drawList, Vector2 corner, float size, uint color, int cornerType)
-        {
-            // Simpler web pattern for character cards
-            int strands = 3; // Fewer strands for subtlety
-            
-            for (int i = 0; i < strands; i++)
-            {
-                float angle = 0f;
-                
-                switch (cornerType)
-                {
-                    case 0: // Top-left
-                        angle = (float)(Math.PI * 0.5f * i / (strands - 1));
-                        break;
-                    case 1: // Top-right
-                        angle = (float)(Math.PI * 0.5f + Math.PI * 0.5f * i / (strands - 1));
-                        break;
-                }
-                
-                Vector2 direction = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
-                Vector2 endPoint = corner + direction * size;
-                
-                drawList.AddLine(corner, endPoint, color, 0.8f);
-            }
-            
-            // Add simple connecting rings
-            for (int ring = 1; ring <= 2; ring++)
-            {
-                float ringSize = size * ring / 2f * 0.8f;
-                
-                for (int i = 0; i < strands - 1; i++)
-                {
-                    float angle1 = 0f, angle2 = 0f;
-                    
-                    switch (cornerType)
-                    {
-                        case 0: // Top-left
-                            angle1 = (float)(Math.PI * 0.5f * i / (strands - 1));
-                            angle2 = (float)(Math.PI * 0.5f * (i + 1) / (strands - 1));
-                            break;
-                        case 1: // Top-right
-                            angle1 = (float)(Math.PI * 0.5f + Math.PI * 0.5f * i / (strands - 1));
-                            angle2 = (float)(Math.PI * 0.5f + Math.PI * 0.5f * (i + 1) / (strands - 1));
-                            break;
-                    }
-                    
-                    Vector2 point1 = corner + new Vector2((float)Math.Cos(angle1), (float)Math.Sin(angle1)) * ringSize;
-                    Vector2 point2 = corner + new Vector2((float)Math.Cos(angle2), (float)Math.Sin(angle2)) * ringSize;
-                    
-                    drawList.AddLine(point1, point2, color, 0.6f);
-                }
-            }
-        }
-
-        private void DrawWinterSnowDecorations()
-        {
-            // Simple window corner decorations - just like Halloween spider webs
-            var drawList = ImGui.GetWindowDrawList();
-            var windowPos = ImGui.GetWindowPos();
-            var windowSize = ImGui.GetWindowSize();
-            
-            var snowColor = new Vector4(0.95f, 0.98f, 1.0f, 0.6f);
-            uint color = ImGui.GetColorU32(snowColor);
-            
-            float snowSize = 50f;
-            
-            // Draw simple snow decorations at window corners - same as Halloween
-            Vector2 cornerTL = windowPos;
-            Vector2 cornerTR = windowPos + new Vector2(windowSize.X, 0);
-            Vector2 cornerBR = windowPos + new Vector2(windowSize.X, windowSize.Y);
-            
-            // Simple icicle lines at corners
-            for (int i = 0; i < 3; i++)
-            {
-                float offset = (i + 1) * snowSize / 4;
-                
-                // Top-left icicles
-                drawList.AddLine(
-                    cornerTL + new Vector2(offset, 0),
-                    cornerTL + new Vector2(offset, snowSize * 0.6f + i * 3f),
-                    color, 1.5f);
-                    
-                // Top-right icicles  
-                drawList.AddLine(
-                    cornerTR + new Vector2(-offset, 0),
-                    cornerTR + new Vector2(-offset, snowSize * 0.6f + i * 3f),
-                    color, 1.5f);
-            }
-        }
-
-
-        private void DrawCharacterCardIcicles(ImDrawListPtr drawList, Vector2 cardMin, float cardWidth, float imageHeight, float scale)
-        {
-            // Draw icicle triangles hanging from bottom of character card
-            var iceColor = new Vector4(0.85f, 0.95f, 1.0f, 1.0f); // More opaque for visibility
-            uint iceColorU32 = ImGui.GetColorU32(iceColor);
-            
-            var random = new Random(42); // Fixed seed for consistent icicles per card
-            
-            // Generate 4-6 icicles distributed along the bottom edge 
-            int icicleCount = 4 + random.Next(3);
-            for (int i = 0; i < icicleCount; i++)
-            {
-                // Position icicles across the bottom edge - keep them away from edges
-                float edgeMargin = cardWidth * 0.1f; // 10% margin from each edge
-                float availableWidth = cardWidth - (2 * edgeMargin);
-                float x = cardMin.X + edgeMargin + (availableWidth * ((float)i / (icicleCount - 1)));
-                float length = 15f + random.NextSingle() * 10f; // Longer icicles
-                float width = 3f + random.NextSingle() * 2f; // Wider icicles
-                
-                // Create icicle triangle hanging down from bottom border of the card
-                float cardBottom = cardMin.Y + imageHeight + (65f * scale); // Move up slightly
-                Vector2 topLeft = new Vector2(x - width, cardBottom);
-                Vector2 topRight = new Vector2(x + width, cardBottom);
-                Vector2 bottom = new Vector2(x, cardBottom + length);
-                
-                // Draw icicle triangle with bright color for testing
-                drawList.AddTriangleFilled(topLeft, topRight, bottom, iceColorU32);
-                
-                // Add highlight line
-                Vector2 highlight1 = topLeft + new Vector2(0.3f, 0);
-                Vector2 highlight2 = bottom + new Vector2(-0.3f, 0);
-                drawList.AddLine(highlight1, highlight2, ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 1.0f, 0.8f)), 1.5f);
-            }
-            
-            // Add gentle snow particles falling from character card edges
-            DrawCharacterCardSnowParticles(drawList, cardMin, cardWidth, imageHeight, scale);
-        }
-
-        private void DrawCharacterCardSnowParticles(ImDrawListPtr drawList, Vector2 cardMin, float cardWidth, float imageHeight, float scale)
-        {
-            var snowColor = new Vector4(0.95f, 0.98f, 1.0f, 0.6f);
-            uint snowColorU32 = ImGui.GetColorU32(snowColor);
-            
-            var random = new Random(123); // Different seed for particles
-            
-            // Snow particles falling from bottom edge
-            int bottomParticles = 8 + random.Next(5); // 8-12 particles
-            float cardBottom = cardMin.Y + imageHeight + (65f * scale);
-            for (int i = 0; i < bottomParticles; i++)
-            {
-                float x = cardMin.X + (cardWidth * random.NextSingle());
-                float fallDistance = 20f + (random.NextSingle() * 30f);
-                float particleSize = 0.8f + (random.NextSingle() * 1.2f);
-                
-                Vector2 particlePos = new Vector2(x, cardBottom + fallDistance);
-                drawList.AddCircleFilled(particlePos, particleSize, snowColorU32);
-            }
-            
-            // Snow particles falling from left side - more particles
-            int leftParticles = 8 + random.Next(5); // 8-12 particles
-            for (int i = 0; i < leftParticles; i++)
-            {
-                float y = cardMin.Y + (imageHeight * random.NextSingle());
-                float fallDistance = 8f + (random.NextSingle() * 25f); // Slightly wider spread
-                float particleSize = 0.6f + (random.NextSingle() * 1.0f);
-                
-                Vector2 particlePos = new Vector2(cardMin.X - fallDistance, y);
-                drawList.AddCircleFilled(particlePos, particleSize, snowColorU32);
-            }
-            
-            // Snow particles falling from right side - more particles
-            int rightParticles = 8 + random.Next(5); // 8-12 particles
-            for (int i = 0; i < rightParticles; i++)
-            {
-                float y = cardMin.Y + (imageHeight * random.NextSingle());
-                float fallDistance = 8f + (random.NextSingle() * 25f); // Slightly wider spread
-                float particleSize = 0.6f + (random.NextSingle() * 1.0f);
-                
-                Vector2 particlePos = new Vector2(cardMin.X + cardWidth + fallDistance, y);
-                drawList.AddCircleFilled(particlePos, particleSize, snowColorU32);
-            }
-        }
-
-        private void DrawCharacterCardSnowOverlay(ImDrawListPtr drawList, Vector2 cardMin, float cardWidth, float imageHeight, float scale, float hoverAmount)
-        {
-            // Load snow.png from Assets folder
-            string pluginDirectory = plugin.PluginDirectory;
-            string snowImagePath = Path.Combine(pluginDirectory, "Assets", "snow.png");
-            
-            if (File.Exists(snowImagePath))
-            {
-                var snowTexture = Plugin.TextureProvider.GetFromFile(snowImagePath).GetWrapOrDefault();
-                
-                if (snowTexture != null)
-                {
-                    // Calculate snow overlay size and position for top left corner
-                    float snowSize = 50f * scale; // Slightly smaller size
-                    // Position over the glowing border at top-left corner, with extra offset
-                    var borderMargin = (4f + (hoverAmount * 2f)) * scale;
-                    float extraOffsetUp = 19f * scale; // Additional offset to move further up (reduced by 1px)
-                    float extraOffsetLeft = 4f * scale; // Even less offset to the left to move more right (reduced by 1px)
-                    Vector2 snowPos = cardMin - new Vector2(borderMargin + extraOffsetLeft, borderMargin + extraOffsetUp); // Position over the border
-                    Vector2 snowPosMax = snowPos + new Vector2(snowSize, snowSize);
-                    
-                    // Draw snow overlay with no transparency
-                    drawList.AddImageRounded(
-                        (ImTextureID)snowTexture.Handle,
-                        snowPos,
-                        snowPosMax,
-                        new Vector2(0, 0),
-                        new Vector2(1, 1),
-                        ImGui.GetColorU32(new Vector4(1, 1, 1, 1.0f)), // No transparency
-                        4f * scale, // Small rounded corners
-                        ImDrawFlags.RoundCornersAll
-                    );
-                }
-            }
-        }
-
-        private void DrawCharacterCardChocolateOverlay(ImDrawListPtr drawList, Vector2 cardMin, float cardWidth, float imageHeight, float scale, float hoverAmount)
-        {
-            // Load chocolate.png from Assets folder
-            string pluginDirectory = plugin.PluginDirectory;
-            string chocolateImagePath = Path.Combine(pluginDirectory, "Assets", "chocolate.png");
-
-            if (File.Exists(chocolateImagePath))
-            {
-                var chocolateTexture = Plugin.TextureProvider.GetFromFile(chocolateImagePath).GetWrapOrDefault();
-
-                if (chocolateTexture != null)
-                {
-                    // Calculate chocolate overlay size and position for top left corner
-                    float chocolateSize = 100f * scale; // About double the snow size
-                    // Position so top of chocolate is just below the glow frame
-                    var borderMargin = (4f + (hoverAmount * 2f)) * scale;
-                    float extraOffsetUp = -1f * scale; // Just inside the glow frame
-                    float extraOffsetLeft = -10f * scale; // Moved right into the card
-                    Vector2 chocolatePos = cardMin - new Vector2(borderMargin + extraOffsetLeft, borderMargin + extraOffsetUp);
-                    Vector2 chocolatePosMax = chocolatePos + new Vector2(chocolateSize, chocolateSize);
-
-                    // Draw chocolate overlay
-                    drawList.AddImageRounded(
-                        (ImTextureID)chocolateTexture.Handle,
-                        chocolatePos,
-                        chocolatePosMax,
-                        new Vector2(0, 0),
-                        new Vector2(1, 1),
-                        ImGui.GetColorU32(new Vector4(1, 1, 1, 1.0f)),
-                        4f * scale,
-                        ImDrawFlags.RoundCornersAll
-                    );
-                }
-            }
-        }
-
-        private void DrawEffects()
-        {
-            foreach (var kvp in characterFavoriteEffects.ToList())
-            {
-                kvp.Value.Draw();
-
-                if (!kvp.Value.IsActive)
-                {
-                    characterFavoriteEffects.Remove(kvp.Key);
-                }
-            }
         }
 
         private void DrawToolbar(float scale)
@@ -717,7 +228,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 }
             }
 
-            bool shouldRebuildRects = cardRectsDirty || isDragging || pagedCharacters.Count != cardRects.Count;
+            bool shouldRebuildRects = cardRectsDirty || pagedCharacters.Count != cardRects.Count;
 
             if (shouldRebuildRects)
             {
@@ -824,7 +335,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.InvisibleButton($"##CharCard{index}", new Vector2(cardWidth, imageHeight));
             bool isHovered = ImGui.IsItemHovered();
 
-            if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && !isDragging)
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
             {
                 HandleCharacterClick(character, index);
             }
@@ -836,99 +347,28 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
 
             float hoverAmount = UpdateHoverAnimation(index, isHovered);
-            
-            // Get Halloween wiggle offset (use plugin.Characters.Count for total character count)
-            Vector2 wiggleOffset = UpdateHalloweenWiggle(index, plugin.Characters.Count);
 
             Vector3 borderColor = character.NameplateColor;
-
-            // Check for Custom theme card glow override first
-            if (plugin.Configuration.SelectedTheme == ThemeSelection.Custom)
-            {
-                var customTheme = plugin.Configuration.CustomTheme;
-                // Only use custom color if toggle is OFF (UseNameplateColorForCardGlow = false)
-                if (!customTheme.UseNameplateColorForCardGlow &&
-                    customTheme.ColorOverrides.TryGetValue("custom.cardGlow", out var packedGlowColor) && packedGlowColor.HasValue)
-                {
-                    var glowColor = CustomThemeDefinitions.UnpackColor(packedGlowColor.Value);
-                    borderColor = new Vector3(glowColor.X, glowColor.Y, glowColor.Z);
-                }
-                // Otherwise, keep the character's nameplate color (already set above)
-            }
-            // Override border color for seasonal themes with alternating patterns
-            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration))
-            {
-                var effectiveTheme = SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration);
-                var themeColors = SeasonalThemeManager.GetCurrentThemeColors(plugin.Configuration);
-                
-                switch (effectiveTheme)
-                {
-                    case SeasonalTheme.Halloween:
-                        // Alternate between orange and purple based on character index
-                        borderColor = index % 2 == 0 
-                            ? new Vector3(themeColors.PrimaryAccent.X, themeColors.PrimaryAccent.Y, themeColors.PrimaryAccent.Z)    // Orange
-                            : new Vector3(themeColors.SecondaryAccent.X, themeColors.SecondaryAccent.Y, themeColors.SecondaryAccent.Z); // Purple
-                        break;
-                        
-                    case SeasonalTheme.Winter:
-                        // Alternate between icy blue and pale white based on character index
-                        borderColor = index % 2 == 0 
-                            ? new Vector3(themeColors.PrimaryAccent.X, themeColors.PrimaryAccent.Y, themeColors.PrimaryAccent.Z)     // Icy blue
-                            : new Vector3(themeColors.SecondaryAccent.X, themeColors.SecondaryAccent.Y, themeColors.SecondaryAccent.Z); // Pale white
-                        break;
-                        
-                    case SeasonalTheme.Christmas:
-                        // Alternate between red and green based on character index
-                        borderColor = index % 2 == 0
-                            ? new Vector3(themeColors.PrimaryAccent.X, themeColors.PrimaryAccent.Y, themeColors.PrimaryAccent.Z)     // Red
-                            : new Vector3(themeColors.SecondaryAccent.X, themeColors.SecondaryAccent.Y, themeColors.SecondaryAccent.Z); // Green
-                        break;
-
-                    case SeasonalTheme.Valentines:
-                        // White glow for Valentine's
-                        borderColor = new Vector3(1.0f, 1.0f, 1.0f);
-                        break;
-                }
-            }
             
             float borderIntensity = 0.6f + hoverAmount * 0.4f;
-
-            if (draggedCharacterIndex == index)
-            {
-                borderIntensity = 1.0f;
-            }
-
+            
             // Apply wiggle offset to card positions
-            var wiggleCardMin = cardMin + wiggleOffset;
-            var wiggleCardMax = cardMax + wiggleOffset;
 
             var borderMargin = (4f + (hoverAmount * 2f)) * scale;
             uiStyles.DrawGlowingBorder(
-                wiggleCardMin - new Vector2(borderMargin, borderMargin),
-                wiggleCardMax + new Vector2(borderMargin, borderMargin),
+                cardMin - new Vector2(borderMargin, borderMargin),
+                cardMax + new Vector2(borderMargin, borderMargin),
                 borderColor,
                 borderIntensity,
-                isHovered || draggedCharacterIndex == index
+                isHovered
             );
 
             var drawList = ImGui.GetWindowDrawList();
             
-            // Draw seasonal decorations BEHIND character cards - before background is drawn
-            if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration))
-            {
-                var effectiveTheme = SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration);
-                if (effectiveTheme == SeasonalTheme.Winter || effectiveTheme == SeasonalTheme.Christmas)
-                {
-                    // Draw icicles behind the character card
-                    DrawCharacterCardIcicles(drawList, wiggleCardMin, cardWidth, imageHeight, scale);
-                }
-                // Valentine's - no card decorations, just falling hearts background
-            }
-            
             uint cardBgColor = ImGui.GetColorU32(new Vector4(0.12f, 0.12f, 0.12f, 0.95f));
-            drawList.AddRectFilled(wiggleCardMin, wiggleCardMax, cardBgColor, 12f * scale);
+            drawList.AddRectFilled(cardMin, cardMax, cardBgColor, 12f * scale);
 
-            var imageArea = wiggleCardMin;
+            var imageArea = cardMin;
             var imageAreaSize = new Vector2(cardWidth, imageHeight);
 
             if (!string.IsNullOrEmpty(finalImagePath))
@@ -1017,32 +457,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(0.7f, 0.7f, 0.7f, 1f)), "No Image");
             }
 
-            // Draw Halloween spider webs on character cards
-            if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration) && 
-                SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) == SeasonalTheme.Halloween)
-            {
-                // Add spider webs to all character cards with hover animation
-                DrawCharacterCardSpiderWebs(drawList, wiggleCardMin, cardWidth, imageHeight, scale, hoverAmount);
-            }
-            
-            // Winter icicles now drawn behind cards earlier in the draw order
-            
-            // Draw snow.png overlay in top left corner for Winter/Christmas themes
-            if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration) &&
-                (SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) == SeasonalTheme.Winter ||
-                 SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) == SeasonalTheme.Christmas))
-            {
-                DrawCharacterCardSnowOverlay(drawList, wiggleCardMin, cardWidth, imageHeight, scale, hoverAmount);
-            }
-
-            // Draw chocolate.png overlay in top left corner for Valentine's theme
-            if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration) &&
-                SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) == SeasonalTheme.Valentines)
-            {
-                DrawCharacterCardChocolateOverlay(drawList, wiggleCardMin, cardWidth, imageHeight, scale, hoverAmount);
-            }
-
-            DrawIntegratedNameplate(character, wiggleCardMin, cardWidth, imageHeight, nameplateHeight, index, hoverAmount, scale);
+            DrawIntegratedNameplate(character, cardMin, cardWidth, imageHeight, nameplateHeight, index, hoverAmount, scale);
 
             ImGui.EndGroup();
             ImGui.Dummy(new Vector2(0, spacing));
@@ -1146,163 +561,26 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Favourite Star/Ghost/Snowflake
             string starSymbol;
-            bool usesFontAwesome = false;
-
-            // Check for Custom theme first - it uses user-selected icon
-            if (plugin.Configuration.SelectedTheme == ThemeSelection.Custom)
-            {
-                var customIconId = plugin.Configuration.CustomTheme.FavoriteIconId;
-                if (customIconId == 0)
-                {
-                    // Default star
-                    starSymbol = character.IsFavorite ? "★" : "☆";
-                    usesFontAwesome = false;
-                }
-                else
-                {
-                    // Custom FontAwesome icon
-                    var customIcon = (FontAwesomeIcon)customIconId;
-                    starSymbol = customIcon.ToIconString();
-                    usesFontAwesome = true;
-                }
-            }
-            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration))
-            {
-                var effectiveTheme = SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration);
-                if (effectiveTheme == SeasonalTheme.Halloween)
-                {
-                    starSymbol = "\uf6e2"; // Ghost icon (different colours for favourite/unfavourite)
-                    usesFontAwesome = true;
-                }
-                else if (effectiveTheme == SeasonalTheme.Winter || effectiveTheme == SeasonalTheme.Christmas)
-                {
-                    starSymbol = "\uf2dc"; // Snowflake icon (different colours for favourite/unfavourite)
-                    usesFontAwesome = true;
-                }
-                else if (effectiveTheme == SeasonalTheme.Valentines)
-                {
-                    starSymbol = "\uf004"; // Heart icon for Valentine's Day
-                    usesFontAwesome = true;
-                }
-                else
-                {
-                    starSymbol = character.IsFavorite ? "★" : "☆"; // Default stars
-                    usesFontAwesome = false;
-                }
-            }
-            else
-            {
-                starSymbol = character.IsFavorite ? "★" : "☆"; // Default stars
-                usesFontAwesome = false;
-            }
             
-            // Push FontAwesome font if needed
-            if (usesFontAwesome)
-            {
-                ImGui.PushFont(UiBuilder.IconFont);
-            }
+            // TODO duplicated
+            starSymbol = character.IsFavorite ? "★" : "☆"; // Default stars
             
             var starPos = new Vector2(nameplateMin.X + (8 * scale), topRowY);
             var starSize = GetCachedTextSize(starSymbol);
 
             // Get star colors based on seasonal theme
             Vector4 starMainColor, starGlowColor;
-
-            // Check for Custom theme first
-            if (plugin.Configuration.SelectedTheme == ThemeSelection.Custom)
+            
+            // Default colours
+            if (character.IsFavorite)
             {
-                // Custom theme reads from custom colour overrides
-                var customTheme = plugin.Configuration.CustomTheme;
-                Vector4 customFavoriteColor = new Vector4(1f, 0.85f, 0f, 1f); // Default gold
-
-                // Check if user has a custom favourite icon colour
-                if (customTheme.ColorOverrides.TryGetValue("custom.favoriteIcon", out var packedFavColor) && packedFavColor.HasValue)
-                {
-                    customFavoriteColor = CustomThemeDefinitions.UnpackColor(packedFavColor.Value);
-                }
-
-                if (character.IsFavorite)
-                {
-                    starMainColor = customFavoriteColor;
-                    starGlowColor = new Vector4(customFavoriteColor.X, customFavoriteColor.Y, customFavoriteColor.Z, 0.5f + hoverAmount * 0.3f);
-                }
-                else
-                {
-                    starMainColor = new Vector4(0.5f, 0.5f, 0.5f, 0.7f + hoverAmount * 0.3f); // Gray
-                    starGlowColor = starMainColor;
-                }
-            }
-            else if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration))
-            {
-                var effectiveTheme = SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration);
-                if (effectiveTheme == SeasonalTheme.Halloween)
-                {
-                    var themeColors = SeasonalThemeManager.GetCurrentThemeColors(plugin.Configuration);
-                    if (character.IsFavorite)
-                    {
-                        starMainColor = themeColors.PrimaryAccent; // Orange
-                        starGlowColor = new Vector4(themeColors.GlowColor.X, themeColors.GlowColor.Y, themeColors.GlowColor.Z, 0.5f + hoverAmount * 0.3f);
-                    }
-                    else
-                    {
-                        starMainColor = new Vector4(1.0f, 1.0f, 1.0f, 0.7f + hoverAmount * 0.3f); // White
-                        starGlowColor = starMainColor;
-                    }
-                }
-                else if (effectiveTheme == SeasonalTheme.Winter || effectiveTheme == SeasonalTheme.Christmas)
-                {
-                    if (character.IsFavorite)
-                    {
-                        starMainColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f); // Pure white for favourited snowflake
-                        starGlowColor = new Vector4(0.8f, 0.9f, 1.0f, 0.6f + hoverAmount * 0.4f); // Icy blue glow
-                    }
-                    else
-                    {
-                        starMainColor = new Vector4(0.7f, 0.7f, 0.8f, 0.6f + hoverAmount * 0.3f); // Light grey for unfavourited
-                        starGlowColor = starMainColor;
-                    }
-                }
-                else if (effectiveTheme == SeasonalTheme.Valentines)
-                {
-                    if (character.IsFavorite)
-                    {
-                        starMainColor = new Vector4(1.0f, 0.0f, 0.5f, 1.0f); // Vivid magenta-pink for favourited heart
-                        starGlowColor = new Vector4(1.0f, 0.1f, 0.45f, 0.7f + hoverAmount * 0.3f); // Vibrant pink glow
-                    }
-                    else
-                    {
-                        starMainColor = new Vector4(0.85f, 0.4f, 0.55f, 0.65f + hoverAmount * 0.35f); // Brighter muted pink for unfavourited
-                        starGlowColor = starMainColor;
-                    }
-                }
-                else
-                {
-                    // Default colours for other seasonal themes
-                    if (character.IsFavorite)
-                    {
-                        starMainColor = new Vector4(1f, 0.9f, 0.2f, 1f); // Gold
-                        starGlowColor = new Vector4(1f, 0.8f, 0f, 0.5f + hoverAmount * 0.3f);
-                    }
-                    else
-                    {
-                        starMainColor = new Vector4(0.5f, 0.5f, 0.5f, 0.7f + hoverAmount * 0.3f); // Gray
-                        starGlowColor = starMainColor;
-                    }
-                }
+                starMainColor = new Vector4(1f, 0.9f, 0.2f, 1f); // Gold
+                starGlowColor = new Vector4(1f, 0.8f, 0f, 0.5f + hoverAmount * 0.3f);
             }
             else
             {
-                // Default colours
-                if (character.IsFavorite)
-                {
-                    starMainColor = new Vector4(1f, 0.9f, 0.2f, 1f); // Gold
-                    starGlowColor = new Vector4(1f, 0.8f, 0f, 0.5f + hoverAmount * 0.3f);
-                }
-                else
-                {
-                    starMainColor = new Vector4(0.5f, 0.5f, 0.5f, 0.7f + hoverAmount * 0.3f); // Grey
-                    starGlowColor = starMainColor;
-                }
+                starMainColor = new Vector4(0.5f, 0.5f, 0.5f, 0.7f + hoverAmount * 0.3f); // Grey
+                starGlowColor = starMainColor;
             }
 
             if (character.IsFavorite)
@@ -1313,12 +591,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             uint starColor = ImGui.GetColorU32(starMainColor);
             drawList.AddText(starPos, starColor, starSymbol);
-            
-            // Pop FontAwesome font if it was used
-            if (usesFontAwesome)
-            {
-                ImGui.PopFont();
-            }
 
             var starHitMin = starPos - new Vector2(2 * scale, 2 * scale);
             var starHitMax = starPos + starSize + new Vector2(2 * scale, 2 * scale);
@@ -1332,9 +604,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     actualCharacter.IsFavorite = !actualCharacter.IsFavorite;
 
                     Vector2 effectPos = starPos + starSize / 2;
-                    if (!characterFavoriteEffects.ContainsKey(characterIndex))
-                        characterFavoriteEffects[characterIndex] = new FavoriteSparkEffect();
-                    characterFavoriteEffects[characterIndex].Trigger(effectPos, actualCharacter.IsFavorite, plugin.Configuration);
+                    //characterFavoriteEffects[characterIndex].Trigger(effectPos, actualCharacter.IsFavorite, plugin.Configuration);
 
                     plugin.SaveConfiguration();
                     SortCharacters();
@@ -1344,95 +614,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Character Name - with truncation for narrow cards
             float availableNameWidth = cardWidth - (70 * scale); // Space between star and RP icon
             string displayName = LayoutHelper.ClampText(character.Name, availableNameWidth, "...");
-            bool isNameTruncated = displayName != character.Name;
 
             var textSize = GetCachedTextSize(displayName);
-            var nameAreaMin = new Vector2(nameplateMin.X + (35 * scale), topRowY - (4 * scale));
-            var nameAreaMax = new Vector2(nameplateMax.X - (35 * scale), topRowY + textSize.Y + (4 * scale));
             var textPos = new Vector2(
                 nameplateMin.X + (cardWidth - textSize.X) / 2,
                 topRowY
             );
 
-            bool canDrag = CurrentSort == Plugin.SortType.Manual;
-
-            if (canDrag)
-            {
-                HandleCharacterDragAndDrop(characterIndex, nameAreaMin, nameAreaMax, character, scale);
-            }
-
-            if (draggedCharacterIndex == characterIndex)
-            {
-                var highlightColor = ImGui.GetColorU32(new Vector4(character.NameplateColor.X, character.NameplateColor.Y, character.NameplateColor.Z, 0.4f));
-                drawList.AddRectFilled(nameAreaMin, nameAreaMax, highlightColor, 4f * scale);
-            }
-
-            bool hoveringNameArea = ImGui.IsMouseHoveringRect(nameAreaMin, nameAreaMax);
-            if (hoveringNameArea)
-            {
-                if (isNameTruncated)
-                {
-                    // Show full name tooltip when truncated
-                    ImGui.SetTooltip(character.Name);
-                }
-                else if (canDrag)
-                {
-                    ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-                    ImGui.SetTooltip("Drag to reorder characters\n(Manual sort mode only)");
-                }
-            }
-
             drawList.AddText(textPos + new Vector2(1 * scale, 1 * scale), ImGui.GetColorU32(new Vector4(0, 0, 0, 0.8f)), displayName);
             drawList.AddText(textPos, ImGui.GetColorU32(new Vector4(0.95f, 0.95f, 0.95f, 1f)), displayName);
-
-            // RP Profile Button
-            ImGui.PushFont(UiBuilder.IconFont);
-            string icon = "\uf2c2";
-            var iconSize = GetCachedTextSize(icon);
-            var iconPos = new Vector2(nameplateMax.X - iconSize.X - (8 * scale), topRowY);
-
-            if (hoverAmount > 0.1f)
-            {
-                uint iconGlow = ImGui.GetColorU32(new Vector4(0.3f, 0.7f, 1f, 0.4f + hoverAmount * 0.4f));
-                drawList.AddText(iconPos + new Vector2(1 * scale, 1 * scale), iconGlow, icon);
-            }
-
-            uint iconColor = ImGui.GetColorU32(new Vector4(0.7f, 0.8f, 1f, 0.8f + hoverAmount * 0.2f));
-            drawList.AddText(iconPos, iconColor, icon);
-            ImGui.PopFont();
-
-            // Draw NEW badge on RP Profile icon if user hasn't seen Expanded RP Profiles feature (only on first character)
-            bool showRPBadge = false;
-
-            var iconHitMin = iconPos - new Vector2(2 * scale, 2 * scale);
-            var iconHitMax = iconPos + iconSize + new Vector2(2 * scale, 2 * scale);
-
-            if (showRPBadge)
-            {
-                // Pulsing glow effect around the icon
-                float pulse = (float)(Math.Sin(ImGui.GetTime() * 3.0) * 0.5 + 0.5);
-                var glowColor = new Vector4(0.2f, 1.0f, 0.4f, 0.3f + pulse * 0.5f); // Green glow
-
-                for (int i = 3; i >= 1; i--)
-                {
-                    var layerPadding = i * 2 * scale;
-                    var layerAlpha = glowColor.W * (1.0f - (i * 0.25f));
-                    drawList.AddRect(
-                        iconHitMin - new Vector2(layerPadding, layerPadding),
-                        iconHitMax + new Vector2(layerPadding, layerPadding),
-                        ImGui.ColorConvertFloat4ToU32(new Vector4(glowColor.X, glowColor.Y, glowColor.Z, layerAlpha)),
-                        4f * scale,
-                        ImDrawFlags.None,
-                        2f * scale
-                    );
-                }
-            }
-
-            if (characterIndex == 0)
-            {
-                plugin.RPProfileButtonPos = iconHitMin;
-                plugin.RPProfileButtonSize = iconHitMax - iconHitMin;
-            }
 
             // Buttons!!
             float bottomRowY = nameplateMin.Y + (35 * scale);
@@ -1451,76 +641,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string deleteIcon = "\uf2ed";   // trash-alt
 
             ImGui.SetCursorScreenPos(new Vector2(nameplateMin.X + (8 * scale), bottomRowY));
-
-            // Button styling - Custom theme uses main window colours, seasonal themes have specific colours
-            bool isCustomTheme = plugin.Configuration.SelectedTheme == ThemeSelection.Custom;
-            int buttonColorCount = 0;
-
-            if (!isCustomTheme)
-            {
-                // Seasonal themed button styling or default
-                if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration))
-                {
-                    var effectiveTheme = SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration);
-
-                    switch (effectiveTheme)
-                    {
-                        case SeasonalTheme.Halloween:
-                            // Halloween button styling - dark orange theme
-                            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.20f, 0.10f, 0.05f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.30f, 0.15f, 0.08f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.40f, 0.20f, 0.10f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.87f, 0.70f, 1.0f)); // Warm white text
-                            buttonColorCount = 4;
-                            break;
-
-                        case SeasonalTheme.Winter:
-                            // Winter button styling - bright blue theme
-                            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.20f, 0.30f, 0.45f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.30f, 0.40f, 0.60f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.40f, 0.55f, 0.75f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.98f, 1.0f, 1.0f)); // Bright white text
-                            buttonColorCount = 4;
-                            break;
-
-                        case SeasonalTheme.Christmas:
-                            // Christmas button styling - vibrant saturated red theme
-                            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.65f, 0.15f, 0.10f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.80f, 0.22f, 0.15f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.95f, 0.28f, 0.20f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.98f, 0.95f, 1.0f)); // Bright warm white text
-                            buttonColorCount = 4;
-                            break;
-
-                        case SeasonalTheme.Valentines:
-                            // Valentine's button styling - pink/rose theme
-                            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.55f, 0.12f, 0.30f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.70f, 0.18f, 0.40f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.85f, 0.25f, 0.50f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.95f, 0.97f, 1.0f)); // Soft pink-white text
-                            buttonColorCount = 4;
-                            break;
-
-                        default:
-                            // Default button styling
-                            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.9f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1.0f));
-                            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1.0f));
-                            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
-                            buttonColorCount = 4;
-                            break;
-                    }
-                }
-                else
-                {
-                    // Default button styling
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.9f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
-                    buttonColorCount = 4;
-                }
-            }
+            
+            // Default button styling
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.9f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
+            int buttonColorCount = 4;
+                
             // Custom theme: don't push any button colours - use the main window style colours
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4.0f * scale);
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(4 * scale, 2 * scale)); // Symmetric padding for centered text
@@ -1648,209 +776,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.PopStyleColor(buttonColorCount);
             }
         }
-
-
-        private void HandleCharacterDragAndDrop(int characterIndex, Vector2 areaMin, Vector2 areaMax, Character character, float scale)
-        {
-            bool hoveringArea = ImGui.IsMouseHoveringRect(areaMin, areaMax);
-            bool canDrag = CurrentSort == Plugin.SortType.Manual;
-
-            if (canDrag)
-            {
-                // Create invisible button
-                ImGui.SetCursorScreenPos(areaMin);
-                ImGui.InvisibleButton($"##drag_handle_{characterIndex}", areaMax - areaMin);
-
-                if (ImGui.IsItemActive() && draggedCharacterIndex == null)
-                {
-                    dragStartPos = ImGui.GetMousePos();
-                    draggedCharacterIndex = characterIndex;
-                    draggedCharacter = character;
-                    isDragging = false;
-                }
-
-                if (draggedCharacterIndex == characterIndex && ImGui.IsMouseDown(ImGuiMouseButton.Left))
-                {
-                    Vector2 currentPos = ImGui.GetMousePos();
-                    float distance = Vector2.Distance(dragStartPos, currentPos);
-
-                    if (distance > DragThreshold * scale)
-                    {
-                        isDragging = true;
-                    }
-                }
-
-                // During dragging, find which card the mouse is over
-                if (isDragging && draggedCharacterIndex != null)
-                {
-                    Vector2 mousePos = ImGui.GetMousePos();
-                    if (hoveringArea && characterIndex != draggedCharacterIndex)
-                    {
-                        currentDropTargetIndex = characterIndex;
-
-                        var drawList = ImGui.GetWindowDrawList();
-                        uint dropZoneColor = ImGui.GetColorU32(new Vector4(character.NameplateColor.X, character.NameplateColor.Y, character.NameplateColor.Z, 0.8f));
-                        drawList.AddRect(areaMin - new Vector2(2 * scale, 2 * scale), areaMax + new Vector2(2 * scale, 2 * scale), dropZoneColor, 8f * scale, ImDrawFlags.None, 3f * scale);
-                    }
-                    else if (currentDropTargetIndex == characterIndex)
-                    {
-                        currentDropTargetIndex = null;
-                    }
-                }
-
-                // End dragging
-                if (draggedCharacterIndex == characterIndex && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
-                {
-                    if (isDragging && currentDropTargetIndex.HasValue)
-                    {
-                        ReorderCharacters(draggedCharacterIndex.Value, currentDropTargetIndex.Value);
-                        InvalidateCache();
-                    }
-                    draggedCharacterIndex = null;
-                    draggedCharacter = null;
-                    isDragging = false;
-                    currentDropTargetIndex = null;
-                }
-
-                // Set cursor when hovering over draggable area
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-                    ImGui.SetTooltip("Drag to reorder characters\n(Manual sort mode only)");
-                }
-            }
-        }
-        private void DrawDragGhostImage(float scale)
-        {
-            if (!isDragging || draggedCharacter == null)
-                return;
-
-            Vector2 mousePos = ImGui.GetMousePos();
-
-            Vector2 scaledGhostSize = ghostImageSize * scale;
-
-            Vector2 ghostOffset = new Vector2(-scaledGhostSize.X / 2, -scaledGhostSize.Y / 2 - (20 * scale));
-            Vector2 ghostPos = mousePos + ghostOffset;
-
-            var drawList = ImGui.GetWindowDrawList();
-
-            // Draw a semi-transparent background for the ghost, and maybe it won't haunt us
-            uint ghostBgColor = ImGui.GetColorU32(new Vector4(0.1f, 0.1f, 0.1f, ghostImageAlpha * 0.8f));
-            drawList.AddRectFilled(
-                ghostPos,
-                ghostPos + scaledGhostSize,
-                ghostBgColor,
-                8f * scale 
-            );
-
-            // Glowing border using the character's nameplate colour
-            uint borderColor = ImGui.GetColorU32(new Vector4(
-                draggedCharacter.NameplateColor.X,
-                draggedCharacter.NameplateColor.Y,
-                draggedCharacter.NameplateColor.Z,
-                ghostImageAlpha
-            ));
-            drawList.AddRect(
-                ghostPos - new Vector2(2 * scale, 2 * scale),
-                ghostPos + scaledGhostSize + new Vector2(2 * scale, 2 * scale),
-                borderColor,
-                8f * scale,
-                ImDrawFlags.None,
-                2f * scale
-            );
-
-            // Draw the character's image
-            string pluginDirectory = plugin.PluginDirectory;
-            string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
-            string finalImagePath = GetCachedImagePath(draggedCharacter.ImagePath, defaultImagePath);
-
-            if (!string.IsNullOrEmpty(finalImagePath))
-            {
-                var texture = Plugin.TextureProvider.GetFromFile(finalImagePath).GetWrapOrDefault();
-
-                if (texture != null)
-                {
-                    float imageMargin = 8f * scale;
-                    Vector2 availableSize = scaledGhostSize - new Vector2(imageMargin * 2, imageMargin + (25 * scale));
-
-                    float originalWidth = texture.Width;
-                    float originalHeight = texture.Height;
-                    float aspectRatio = originalWidth / originalHeight;
-
-                    Vector2 imageSize;
-                    if (aspectRatio > 1) // Landscape
-                    {
-                        imageSize.X = availableSize.X;
-                        imageSize.Y = availableSize.X / aspectRatio;
-                        if (imageSize.Y > availableSize.Y)
-                        {
-                            imageSize.Y = availableSize.Y;
-                            imageSize.X = availableSize.Y * aspectRatio;
-                        }
-                    }
-                    else // Portrait or square
-                    {
-                        imageSize.Y = availableSize.Y;
-                        imageSize.X = availableSize.Y * aspectRatio;
-                        if (imageSize.X > availableSize.X)
-                        {
-                            imageSize.X = availableSize.X;
-                            imageSize.Y = availableSize.X / aspectRatio;
-                        }
-                    }
-
-                    // Center the image
-                    Vector2 imagePos = ghostPos + new Vector2(
-                        (scaledGhostSize.X - imageSize.X) / 2,
-                        imageMargin
-                    );
-
-                    // Draw image with transparency
-                    uint imageColor = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, ghostImageAlpha));
-                    
-                    // For high-resolution images, use slightly inset UVs to improve sampling quality
-                    Vector2 uvMin = new Vector2(0, 0);
-                    Vector2 uvMax = new Vector2(1, 1);
-                    
-                    // Detect very large textures that might look crunchy when downscaled
-                    bool isHighRes = originalWidth > 1920 || originalHeight > 1080;
-                    if (isHighRes)
-                    {
-                        // Use slightly inset UV coordinates to avoid edge artifacts and improve sampling
-                        float uvInset = 0.001f; // Very small inset to avoid sampling edge pixels
-                        uvMin = new Vector2(uvInset, uvInset);
-                        uvMax = new Vector2(1.0f - uvInset, 1.0f - uvInset);
-                    }
-                    
-                    drawList.AddImageRounded(
-                        (ImTextureID)texture.Handle,
-                        imagePos,
-                        imagePos + imageSize,
-                        uvMin,
-                        uvMax,
-                        imageColor,
-                        6f * scale,
-                        ImDrawFlags.RoundCornersTop
-                    );
-                }
-            }
-
-            // Character name
-            var nameSize = GetCachedTextSize(draggedCharacter.Name);
-            Vector2 namePos = new Vector2(
-                ghostPos.X + (scaledGhostSize.X - nameSize.X) / 2,
-                ghostPos.Y + scaledGhostSize.Y - (20 * scale) 
-            );
-
-            // Text shadow
-            uint shadowColor = ImGui.GetColorU32(new Vector4(0f, 0f, 0f, ghostImageAlpha * 0.8f));
-            drawList.AddText(namePos + new Vector2(1 * scale, 1 * scale), shadowColor, draggedCharacter.Name);
-
-            // Main text
-            uint textColor = ImGui.GetColorU32(new Vector4(0.95f, 0.95f, 0.95f, ghostImageAlpha));
-            drawList.AddText(namePos, textColor, draggedCharacter.Name);
-        }
-
+        
         private void DrawContextMenu(Character character, float scale)
         {
             if (ImGui.Selectable("Apply to Target"))
@@ -2021,17 +947,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetCursorPosX(startX);
 
             // Check if Custom theme is active - if so, use main window colours instead of pushing overrides
-            bool isPaginationCustomTheme = plugin.Configuration.SelectedTheme == ThemeSelection.Custom;
             int paginationArrowColorCount = 0;
-
-            // Previous button
-            if (!isPaginationCustomTheme)
-            {
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.8f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.3f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.4f, 0.4f, 0.4f, 1.0f));
-                paginationArrowColorCount = 3;
-            }
+            
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.8f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.3f, 0.3f, 1.0f));
+            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.4f, 0.4f, 0.4f, 1.0f));
+            paginationArrowColorCount = 3;
 
             bool canGoPrev = currentPage > 0;
             if (!canGoPrev)
@@ -2065,22 +986,21 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 bool isCurrentPage = i == currentPage;
                 int pageButtonColorCount = 0;
 
-                if (!isPaginationCustomTheme)
+
+                if (isCurrentPage)
                 {
-                    if (isCurrentPage)
-                    {
-                        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.4f, 0.6f, 1.0f, 0.8f));
-                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.5f, 0.7f, 1.0f, 1.0f));
-                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.3f, 0.5f, 0.9f, 1.0f));
-                    }
-                    else
-                    {
-                        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.8f));
-                        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1.0f));
-                        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1.0f));
-                    }
-                    pageButtonColorCount = 3;
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.4f, 0.6f, 1.0f, 0.8f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.5f, 0.7f, 1.0f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.3f, 0.5f, 0.9f, 1.0f));
                 }
+                else
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.8f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1.0f));
+                    ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1.0f));
+                }
+                pageButtonColorCount = 3;
+                
 
                 string pageLabel = (i + 1).ToString();
                 if (ImGui.Button(pageLabel, new Vector2(buttonWidth, buttonHeight)))
@@ -2187,9 +1107,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void HandleCharacterClick(Character character, int index)
         {
-            if (isDragging || draggedCharacterIndex != null)
-                return;
-
             if (plugin.IsDesignPanelOpen)
             {
                 plugin.IsDesignPanelOpen = false;
@@ -2297,69 +1214,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             return current;
         }
-
-        private Vector2 UpdateHalloweenWiggle(int characterIndex, int totalCharacters)
-        {
-            if (!SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration) || 
-                SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) != SeasonalTheme.Halloween)
-            {
-                return Vector2.Zero;
-            }
-
-            float currentTime = (float)ImGui.GetTime();
-
-            // Check if it's time to trigger new wiggles
-            if (currentTime - lastWiggleCheck >= WiggleCheckInterval)
-            {
-                lastWiggleCheck = currentTime;
-                
-                // Random chance to start wiggles on 1-3 random characters
-                Random rand = new Random();
-                int numWiggles = rand.Next(1, 4); // 1-3 wiggles
-                
-                for (int i = 0; i < numWiggles; i++)
-                {
-                    int randomIndex = rand.Next(0, totalCharacters);
-                    
-                    // Don't start a new wiggle if one is already active
-                    if (!wiggleStartTimes.ContainsKey(randomIndex) || 
-                        currentTime - wiggleStartTimes[randomIndex] >= WiggleDuration)
-                    {
-                        wiggleStartTimes[randomIndex] = currentTime;
-                    }
-                }
-                
-                // Clean up expired wiggles
-                var expiredWiggles = wiggleStartTimes.Where(kvp => currentTime - kvp.Value >= WiggleDuration).ToList();
-                foreach (var expired in expiredWiggles)
-                {
-                    wiggleStartTimes.Remove(expired.Key);
-                    wiggleOffsets.Remove(expired.Key);
-                }
-            }
-
-            // Calculate wiggle offset for this character
-            if (wiggleStartTimes.ContainsKey(characterIndex))
-            {
-                float wiggleElapsed = currentTime - wiggleStartTimes[characterIndex];
-                
-                if (wiggleElapsed < WiggleDuration)
-                {
-                    // Sine wave wiggle with decay
-                    float progress = wiggleElapsed / WiggleDuration;
-                    float intensity = (1f - progress) * WiggleIntensity; // Decay over time
-                    float wiggleFreq = 15f; // Fast wiggle
-                    
-                    float offsetX = (float)(Math.Sin(wiggleElapsed * wiggleFreq) * intensity);
-                    float offsetY = (float)(Math.Sin(wiggleElapsed * wiggleFreq * 1.3f) * intensity * 0.5f); // Less Y movement
-                    
-                    return new Vector2(offsetX, offsetY);
-                }
-            }
-
-            return Vector2.Zero;
-        }
-
+        
         public void SortCharacters()
         {
             if (CurrentSort == Plugin.SortType.Favorites)

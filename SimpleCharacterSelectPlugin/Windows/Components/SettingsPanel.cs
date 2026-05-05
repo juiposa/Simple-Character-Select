@@ -292,20 +292,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     DrawDialogueSettings();
                 }
 
-                // Name Sync (Indigo)
-                nameSyncSettingsOpen = DrawModernCollapsingHeader("Name Sync", new Vector4(0.55f, 0.4f, 1.0f, 1.0f), nameSyncSettingsOpen, FeatureKeys.NameSync);
-                if (nameSyncSettingsOpen)
-                {
-                    DrawNameSyncSettings();
-                }
-
-                // Conflict Resolution (Purple/Violet)
-                conflictResolutionSettingsOpen = DrawModernCollapsingHeader("Conflict Resolution", new Vector4(0.8f, 0.4f, 1.0f, 1.0f), conflictResolutionSettingsOpen);
-                if (conflictResolutionSettingsOpen)
-                {
-                    DrawConflictResolutionSettings();
-                }
-
                 // Backup & Restore (Pink/Magenta)
                 backupSettingsOpen = DrawModernCollapsingHeader("Backup & Restore", new Vector4(1.0f, 0.45f, 0.7f, 1.0f), backupSettingsOpen);
                 if (backupSettingsOpen)
@@ -333,10 +319,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 pendingExpandSection = null;
             }
 
-            // Check if this feature has a NEW badge
-            bool showBadge = !string.IsNullOrEmpty(featureKey) &&
-                             !plugin.Configuration.SeenFeatures.Contains(featureKey);
-
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f)); // White text
             ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(titleColor.X * 0.6f, titleColor.Y * 0.6f, titleColor.Z * 0.6f, 0.7f)); // More vibrant
             ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(titleColor.X * 0.7f, titleColor.Y * 0.7f, titleColor.Z * 0.7f, 0.8f)); // More vibrant
@@ -344,30 +326,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             bool isOpen = ImGui.CollapsingHeader(title, flags);
 
-            // Draw "NEW" text if badge should show
-            if (showBadge)
-            {
-                var headerMin = ImGui.GetItemRectMin();
-                var headerMax = ImGui.GetItemRectMax();
-                var drawList = ImGui.GetWindowDrawList();
-
-                var newText = "NEW";
-                var textSize = ImGui.CalcTextSize(newText);
-                var textPos = new Vector2(headerMax.X - textSize.X - 10, headerMin.Y + (headerMax.Y - headerMin.Y - textSize.Y) / 2);
-
-                // Simple bright white text
-                var textColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-                drawList.AddText(textPos, ImGui.ColorConvertFloat4ToU32(textColor), newText);
-            }
-
             ImGui.PopStyleColor(4);
-
-            // Mark feature as seen when section is expanded
-            // if (isOpen && !string.IsNullOrEmpty(featureKey) && !plugin.Configuration.SeenFeatures.Contains(featureKey))
-            // {
-            //     plugin.Configuration.SeenFeatures.Add(featureKey);
-            //     plugin.Configuration.Save();
-            // }
 
             if (isOpen)
             {
@@ -475,125 +434,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.SaveConfiguration();
             }
             DrawTooltip("Characters grow slightly when hovered over for visual feedback.");
-
-            // Custom layout for Theme
-            ImGui.AlignTextToFramePadding();
-            ImGui.Text("Theme:");
-            ImGui.SameLine(labelWidth);
-            ImGui.SetNextItemWidth(inputWidth);
-
-            // Theme dropdown content
-            {
-                var currentSelection = plugin.Configuration.SelectedTheme;
-                var activePresetName = plugin.Configuration.ActivePresetName;
-                var presets = plugin.Configuration.ThemePresets;
-
-                // Build display name - show preset name if Custom + preset is active
-                string displayName;
-                if (currentSelection == ThemeSelection.Custom && !string.IsNullOrEmpty(activePresetName))
-                {
-                    displayName = $"Custom: {activePresetName}";
-                }
-                else
-                {
-                    displayName = SeasonalThemeManager.GetThemeSelectionDisplayName(currentSelection);
-                }
-
-                if (ImGui.BeginCombo("##ThemeDropdown", displayName))
-                {
-                    // Built-in themes
-                    foreach (ThemeSelection theme in Enum.GetValues<ThemeSelection>())
-                    {
-                        var themeDisplayName = SeasonalThemeManager.GetThemeSelectionDisplayName(theme);
-                        var description = SeasonalThemeManager.GetThemeSelectionDescription(theme);
-
-                        // For Custom, show as "Custom (New)" if no preset is active
-                        if (theme == ThemeSelection.Custom)
-                        {
-                            themeDisplayName = "Custom (New)";
-                        }
-
-                        bool isSelected = currentSelection == theme &&
-                            (theme != ThemeSelection.Custom || string.IsNullOrEmpty(activePresetName));
-
-                        if (ImGui.Selectable(themeDisplayName, isSelected))
-                        {
-                            plugin.Configuration.SelectedTheme = theme;
-                            if (theme == ThemeSelection.Custom)
-                            {
-                                // Reset CustomTheme to clean defaults when selecting "Custom (New)"
-                                plugin.Configuration.ActivePresetName = null;
-                                var customTheme = plugin.Configuration.CustomTheme;
-                                customTheme.ColorOverrides.Clear();
-                                customTheme.BackgroundImagePath = null;
-                                customTheme.BackgroundImageOpacity = 0.3f;
-                                customTheme.BackgroundImageZoom = 1.0f;
-                                customTheme.BackgroundImageOffsetX = 0f;
-                                customTheme.BackgroundImageOffsetY = 0f;
-                                customTheme.FavoriteIconId = 0;
-                                customTheme.UseNameplateColorForCardGlow = true;
-                            }
-                            plugin.Configuration.Save();
-
-                            // Legacy migration: sync with old setting for compatibility
-                            plugin.Configuration.UseSeasonalTheme = (theme == ThemeSelection.Current);
-                        }
-
-                        // Only show tooltip for Current Season option
-                        if (ImGui.IsItemHovered() && theme == ThemeSelection.Current)
-                        {
-                            ImGui.SetTooltip(description);
-                        }
-                    }
-
-                    // Separator before presets
-                    if (presets.Count > 0)
-                    {
-                        ImGui.Separator();
-                        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.7f, 1.0f));
-                        ImGui.Text("Saved Presets:");
-                        ImGui.PopStyleColor();
-
-                        // Saved presets
-                        foreach (var preset in presets)
-                        {
-                            bool isPresetSelected = currentSelection == ThemeSelection.Custom &&
-                                preset.Name == activePresetName;
-
-                            if (ImGui.Selectable($"  {preset.Name}", isPresetSelected))
-                            {
-                                plugin.Configuration.SelectedTheme = ThemeSelection.Custom;
-                                plugin.Configuration.CustomTheme.CopyFrom(preset.Config);
-                                plugin.Configuration.ActivePresetName = preset.Name;
-                                plugin.Configuration.Save();
-                            }
-
-                            if (ImGui.IsItemHovered())
-                            {
-                                ImGui.SetTooltip($"Load preset: {preset.Name}");
-                            }
-                        }
-                    }
-                    ImGui.EndCombo();
-                }
-
-                // Only show tooltip for the Theme dropdown if Current Season is selected
-                if (currentSelection == ThemeSelection.Current)
-                {
-                    var currentTheme = SeasonalThemeManager.GetCurrentSeasonalTheme();
-                    var seasonDescription = $"Currently auto-applying: {SeasonalThemeManager.GetThemeDisplayNameSafe(currentTheme)}";
-                    DrawTooltip(seasonDescription);
-                }
-
-            }
-            ImGui.Spacing();
-
-            // Show custom theme editor when Custom theme is selected
-            if (plugin.Configuration.SelectedTheme == ThemeSelection.Custom)
-            {
-                ImGui.Spacing();
-                DrawCustomThemeEditor();
-            }
 
             ImGui.Spacing();
         }
@@ -783,25 +623,25 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.Configuration.ShowViewRPContextMenu = showViewRP;
                 plugin.Configuration.Save();
             }
-            DrawTooltip("When enabled, right-clicking players shows a 'View RP Profile' option.\nThis allows you to view other CS+ users' RP profiles.");
+            DrawTooltip("When enabled, right-clicking players shows a 'View RP Profile' option.\nThis allows you to view other SCS users' RP profiles.");
 
             // Block User toggle
             bool showBlock = plugin.Configuration.ShowBlockUserContextMenu;
-            if (ImGui.Checkbox("Show 'Block CS+ User' in context menu", ref showBlock))
+            if (ImGui.Checkbox("Show 'Block SCS User' in context menu", ref showBlock))
             {
                 plugin.Configuration.ShowBlockUserContextMenu = showBlock;
                 plugin.Configuration.Save();
             }
-            DrawTooltip("When enabled, right-clicking CS+ users shows a 'Block CS+ User' option.\nBlocked users' CS+ names won't be displayed to you.");
+            DrawTooltip("When enabled, right-clicking SCS users shows a 'Block SCS User' option.\nBlocked users' SCS names won't be displayed to you.");
 
             // Report User toggle
             bool showReport = plugin.Configuration.ShowReportUserContextMenu;
-            if (ImGui.Checkbox("Show 'Report CS+ Name' in context menu", ref showReport))
+            if (ImGui.Checkbox("Show 'Report SCS Name' in context menu", ref showReport))
             {
                 plugin.Configuration.ShowReportUserContextMenu = showReport;
                 plugin.Configuration.Save();
             }
-            DrawTooltip("When enabled, right-clicking CS+ users shows a 'Report CS+ Name' option.\nUse this to report offensive CS+ names to moderators.");
+            DrawTooltip("When enabled, right-clicking SCS users shows a 'Report SCS Name' option.\nUse this to report offensive SCS names to moderators.");
 
             ImGui.Spacing();
             ImGui.Separator();
@@ -1108,15 +948,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         }
 
         private void DrawDialogueSettings()
-        {
+        {   
+            //TODO readd
             // Warning
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.4f, 1f));
-            ImGui.TextWrapped("Uses your CS+ Character's name and pronouns in NPC dialogue");
-            ImGui.PopStyleColor();
-
-            // Requirements
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.8f, 1f));
-            ImGui.TextWrapped("Requires: Completed RP Profile (name & pronouns)");
+            ImGui.TextWrapped("Uses your SCS Character's name and pronouns in NPC dialogue");
             ImGui.PopStyleColor();
 
             // They/Them pronoun chat display warning
@@ -1161,7 +997,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 plugin.Configuration.Save();
             }
-            DrawTooltip("Replaces NPC dialogue text to use your CS+ Character's name and pronouns instead of your game character.\nRequires an active CS+ character with RP Profile data.");
+            DrawTooltip("Replaces NPC dialogue text to use your SCS Character's name and pronouns instead of your game character.\nRequires an active SCS character with RP Profile data.");
 
             if (plugin.Configuration.EnableDialogueIntegration)
             {
@@ -1169,15 +1005,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 // Simplified user-facing options
                 bool replaceName = plugin.Configuration.ReplaceNameInDialogue;
-                if (ImGui.Checkbox("Use CS+ Character Name", ref replaceName))
+                if (ImGui.Checkbox("Use SCS Character Name", ref replaceName))
                 {
                     plugin.Configuration.ReplaceNameInDialogue = replaceName;
                     plugin.Configuration.Save();
                 }
-                DrawTooltip("Replace your real character name with your CS+ character name in dialogue.");
+                DrawTooltip("Replace your real character name with your SCS character name in dialogue.");
 
                 bool replacePronouns = plugin.Configuration.ReplacePronounsInDialogue;
-                if (ImGui.Checkbox("Use CS+ Character Pronouns", ref replacePronouns))
+                if (ImGui.Checkbox("Use SCS Character Pronouns", ref replacePronouns))
                 {
                     plugin.Configuration.ReplacePronounsInDialogue = replacePronouns;
                     plugin.Configuration.Save();
@@ -1193,12 +1029,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 DrawTooltip("Replace gendered terms like 'sir/lady', 'man/woman' with appropriate alternatives based on your character's pronouns.");
 
                 //bool replaceRace = plugin.Configuration.EnableRaceReplacement;
-                //if (ImGui.Checkbox("Use CS+ Character Race", ref replaceRace))
+                //if (ImGui.Checkbox("Use SCS Character Race", ref replaceRace))
                 //{
                 //    plugin.Configuration.EnableRaceReplacement = replaceRace;
                 //    plugin.Configuration.Save();
                 //}
-                //DrawTooltip("Replace your race with your CS+ character's race from their RP Profile.");
+                //DrawTooltip("Replace your race with your SCS character's race from their RP Profile.");
 
                 // They/Them settings section
                 ImGui.Spacing();
@@ -1255,313 +1091,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Spacing();
         }
 
-        private void DrawNameSyncSettings()
-        {
-            // Mark feature as seen when this section is opened
-            if (!plugin.Configuration.SeenFeatures.Contains(FeatureKeys.NameSync))
-            {
-                plugin.Configuration.SeenFeatures.Add(FeatureKeys.NameSync);
-                plugin.Configuration.Save();
-            }
-
-            // Your Name section
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.9f, 1.0f));
-            ImGui.Text("Your Name");
-            ImGui.PopStyleColor();
-            ImGui.Spacing();
-
-            // Simple glow option - always visible so users can enable it before the main toggle
-            bool simpleGlow = plugin.Configuration.UseSimpleNameplateGlow;
-            if (ImGui.Checkbox("Use simple glow (enable if crashing)", ref simpleGlow))
-            {
-                plugin.Configuration.UseSimpleNameplateGlow = simpleGlow;
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("Use a simple solid glow instead of the animated wave effect.\n\nEnable this if you're experiencing crashes, especially when using\nHonorific's animated gradient titles (Wave/Pulse/Static).\n\nThe game has internal limits on nameplate effects - this option\nreduces the effect complexity to stay within those limits.");
-
-            ImGui.Spacing();
-
-            // Main toggle
-            bool enableNameReplacement = plugin.Configuration.EnableNameReplacement;
-            if (ImGui.Checkbox("Show my CS+ name to myself", ref enableNameReplacement))
-            {
-                plugin.Configuration.EnableNameReplacement = enableNameReplacement;
-
-                // Set defaults when enabling
-                if (enableNameReplacement)
-                {
-                    plugin.Configuration.NameReplacementNameplate = true;
-                    plugin.Configuration.NameReplacementChat = true;
-                    plugin.Configuration.NameReplacementPartyList = true;
-                    // HideFCTagInNameplate stays at its current value (default false)
-
-                    // Initialize the processor on-demand (deferred from startup for performance)
-                    plugin.EnsurePlayerNameProcessorInitialized();
-                }
-
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("Replace your in-game name with your CS+ character name in various UI elements.\nThis is client-side only - other players will not see this unless they also have CS+ and you've opted in.");
-
-            // Sub-options (only show when main toggle enabled)
-            if (plugin.Configuration.EnableNameReplacement)
-            {
-                ImGui.Indent(20f);
-
-                // Nameplate sub-option
-                bool nameplateEnabled = plugin.Configuration.NameReplacementNameplate;
-                if (ImGui.Checkbox("Nameplate", ref nameplateEnabled))
-                {
-                    plugin.Configuration.NameReplacementNameplate = nameplateEnabled;
-                    plugin.Configuration.Save();
-                }
-                DrawTooltip("Replace your nameplate above your character with your CS+ name.");
-
-                // Chat sub-option
-                bool chatEnabled = plugin.Configuration.NameReplacementChat;
-                if (ImGui.Checkbox("Chat messages", ref chatEnabled))
-                {
-                    plugin.Configuration.NameReplacementChat = chatEnabled;
-                    plugin.Configuration.Save();
-                }
-                DrawTooltip("Replace your name in chat message sender display.");
-
-                // Party list sub-option
-                bool partyListEnabled = plugin.Configuration.NameReplacementPartyList;
-                if (ImGui.Checkbox("Party list", ref partyListEnabled))
-                {
-                    plugin.Configuration.NameReplacementPartyList = partyListEnabled;
-                    plugin.Configuration.Save();
-                }
-                DrawTooltip("Replace your name in the party list.");
-
-                // FC tag hiding (only relevant for nameplate)
-                ImGui.Spacing();
-                bool hideFCTag = plugin.Configuration.HideFCTagInNameplate;
-                if (ImGui.Checkbox("Hide FC tag", ref hideFCTag))
-                {
-                    plugin.Configuration.HideFCTagInNameplate = hideFCTag;
-                    plugin.Configuration.Save();
-                }
-                DrawTooltip("Hide your Free Company tag from your nameplate.\nOnly affects nameplate, not other UI elements.");
-
-                ImGui.Unindent(20f);
-            }
-
-            // Sharing section
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.9f, 1.0f));
-            ImGui.Text("Sharing");
-            ImGui.PopStyleColor();
-            ImGui.Spacing();
-
-            // Opt-in for others seeing your name
-            bool allowOthers = plugin.Configuration.AllowOthersToSeeMyCSName;
-            if (ImGui.Checkbox("Allow others to see my CS+ name", ref allowOthers))
-            {
-                plugin.Configuration.AllowOthersToSeeMyCSName = allowOthers;
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("When enabled, other CS+ users who have 'Show other CS+ users' names' turned on\nwill see your CS+ character name instead of your in-game name.\nRequires your profile to be set to 'Direct Sharing' or 'Public'.");
-
-            // Show requirement note
-            ImGui.Indent(24);
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.7f, 1.0f));
-            ImGui.TextWrapped("Requires RP Profile sharing set to 'Direct Sharing' or 'Public' (not Private).");
-            ImGui.PopStyleColor();
-            ImGui.Unindent(24);
-
-            // Other users section
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.9f, 1.0f));
-            ImGui.Text("Other CS+ Users");
-            ImGui.PopStyleColor();
-            ImGui.Spacing();
-
-            bool enableShared = plugin.Configuration.EnableSharedNameReplacement;
-            if (ImGui.Checkbox("Show other CS+ users' names", ref enableShared))
-            {
-                plugin.Configuration.EnableSharedNameReplacement = enableShared;
-
-                // Initialize the processor on-demand (deferred from startup for performance)
-                if (enableShared)
-                {
-                    plugin.EnsurePlayerNameProcessorInitialized();
-                }
-
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("See other CS+ users' character names instead of their in-game names.\nOnly shows for users who have opted in to share their name.\nThis is independent of self name replacement - you can use one without the other.");
-
-            // Simple glow for others option (only show when shared name replacement is enabled)
-            if (plugin.Configuration.EnableSharedNameReplacement)
-            {
-                ImGui.Indent(20f);
-                bool simpleGlowOthers = plugin.Configuration.UseSimpleGlowForOthers;
-                if (ImGui.Checkbox("Use simple glow for others", ref simpleGlowOthers))
-                {
-                    plugin.Configuration.UseSimpleGlowForOthers = simpleGlowOthers;
-                    plugin.Configuration.Save();
-                }
-                DrawTooltip("Use a simple solid glow instead of animated wave effect for other players' nameplates.\n\nThis disables the periodic nameplate refresh that enables smooth animation.\nEnable this if you notice performance issues or crashes with many CS+ users nearby.");
-                ImGui.Unindent(20f);
-            }
-
-            // Quick Reveal section
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.9f, 1.0f));
-            ImGui.Text("Quick Reveal");
-            ImGui.PopStyleColor();
-            ImGui.Spacing();
-
-            bool enableRevealKeybind = plugin.Configuration.EnableRevealActualNamesKeybind;
-            if (ImGui.Checkbox("Hold key to reveal actual names", ref enableRevealKeybind))
-            {
-                plugin.Configuration.EnableRevealActualNamesKeybind = enableRevealKeybind;
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("When enabled, hold the selected key to temporarily see actual in-game names\ninstead of CS+ names. Useful for checking who someone really is.");
-
-            if (plugin.Configuration.EnableRevealActualNamesKeybind)
-            {
-                ImGui.Indent(20f);
-
-                // Get current key display name
-                string currentKeyName;
-                if (plugin.Configuration.RevealActualNamesCustomKey > 0)
-                {
-                    currentKeyName = !string.IsNullOrEmpty(plugin.Configuration.RevealActualNamesCustomKeyName)
-                        ? plugin.Configuration.RevealActualNamesCustomKeyName
-                        : $"Key {plugin.Configuration.RevealActualNamesCustomKey}";
-                }
-                else
-                {
-                    currentKeyName = plugin.Configuration.RevealActualNamesKey switch
-                    {
-                        Configuration.RevealNamesKeyOption.Alt => "Alt",
-                        Configuration.RevealNamesKeyOption.Ctrl => "Ctrl",
-                        Configuration.RevealNamesKeyOption.Shift => "Shift",
-                        _ => "Alt"
-                    };
-                }
-
-                // Get current modifier display name
-                string currentModifierName = plugin.Configuration.RevealActualNamesModifier switch
-                {
-                    0x11 => "Ctrl",
-                    0x10 => "Shift",
-                    0x12 => "Alt",
-                    _ => "None"
-                };
-
-                // Modifier dropdown
-                ImGui.Text("Keybind:");
-                ImGui.SameLine();
-
-                var modifierOptions = new[] { "None", "Ctrl", "Shift", "Alt" };
-                int currentModifierIndex = plugin.Configuration.RevealActualNamesModifier switch
-                {
-                    0x11 => 1, // Ctrl
-                    0x10 => 2, // Shift
-                    0x12 => 3, // Alt
-                    _ => 0     // None
-                };
-
-                ImGui.SetNextItemWidth(70f);
-                if (ImGui.Combo("##RevealModifier", ref currentModifierIndex, modifierOptions, modifierOptions.Length))
-                {
-                    plugin.Configuration.RevealActualNamesModifier = currentModifierIndex switch
-                    {
-                        1 => 0x11, // Ctrl
-                        2 => 0x10, // Shift
-                        3 => 0x12, // Alt
-                        _ => 0     // None
-                    };
-                    plugin.Configuration.RevealActualNamesModifierName = currentModifierIndex > 0 ? modifierOptions[currentModifierIndex] : "";
-                    plugin.Configuration.Save();
-                }
-
-                // Plus sign between modifier and key
-                if (currentModifierIndex > 0)
-                {
-                    ImGui.SameLine();
-                    ImGui.Text("+");
-                }
-
-                ImGui.SameLine();
-
-                // Key capture button
-                if (isCapturingRevealKey)
-                {
-                    // Check for key press (skip modifier keys when capturing)
-                    int? capturedKey = null;
-                    foreach (var kvp in KeyNames)
-                    {
-                        // Skip modifier keys - they should be set via dropdown
-                        if (kvp.Key == 0x10 || kvp.Key == 0x11 || kvp.Key == 0x12 ||
-                            kvp.Key == 0xA0 || kvp.Key == 0xA1 || kvp.Key == 0xA2 ||
-                            kvp.Key == 0xA3 || kvp.Key == 0xA4 || kvp.Key == 0xA5)
-                            continue;
-
-                        if ((GetAsyncKeyState(kvp.Key) & 0x8000) != 0)
-                        {
-                            capturedKey = kvp.Key;
-                            break;
-                        }
-                    }
-
-                    if (capturedKey.HasValue)
-                    {
-                        plugin.Configuration.RevealActualNamesCustomKey = capturedKey.Value;
-                        plugin.Configuration.RevealActualNamesCustomKeyName = KeyNames.TryGetValue(capturedKey.Value, out var name) ? name : $"Key {capturedKey.Value}";
-                        plugin.Configuration.Save();
-                        isCapturingRevealKey = false;
-                    }
-
-                    // Flashing "Press a key..." button
-                    float pulse = (float)(Math.Sin(ImGui.GetTime() * 6) * 0.5 + 0.5);
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f + pulse * 0.3f, 0.5f + pulse * 0.2f, 0.8f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f + pulse * 0.3f, 0.6f + pulse * 0.2f, 0.9f, 1.0f));
-                    if (ImGui.Button("Press a key...", new Vector2(100f, 0f)))
-                    {
-                        isCapturingRevealKey = false;
-                    }
-                    ImGui.PopStyleColor(2);
-
-                    ImGui.SameLine();
-                    if (ImGui.SmallButton("Cancel"))
-                    {
-                        isCapturingRevealKey = false;
-                    }
-                }
-                else
-                {
-                    // Normal button showing current key
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.25f, 0.25f, 0.3f, 1.0f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.35f, 0.35f, 0.45f, 1.0f));
-                    if (ImGui.Button($"{currentKeyName}##RevealKey", new Vector2(100f, 0f)))
-                    {
-                        isCapturingRevealKey = true;
-                    }
-                    ImGui.PopStyleColor(2);
-                }
-                DrawTooltip("Set your keybind. Use the dropdown for a modifier (Ctrl/Shift/Alt) and click the button to set the main key.");
-
-                ImGui.Unindent(20f);
-            }
-
-            ImGui.Spacing();
-        }
-
         private void DrawCharacterAssignmentSettings()
         {
             // Warning if Auto-Apply Last Used Character is disabled
@@ -1611,7 +1140,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
 
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.9f, 1.0f, 1f));
-            ImGui.TextWrapped("Assign specific CS+ Characters to auto-apply when logging into specific in-game characters.");
+            ImGui.TextWrapped("Assign specific SCS Characters to auto-apply when logging into specific in-game characters.");
             ImGui.PopStyleColor();
 
             ImGui.Spacing();
@@ -1758,9 +1287,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.PopStyleColor();
                 ImGui.Spacing();
 
-                ImGui.Text("New CS+ Character:");
+                ImGui.Text("New SCS Character:");
                 ImGui.SetNextItemWidth(300f);
-                if (ImGui.BeginCombo("##EditCSChar", string.IsNullOrEmpty(editingAssignmentValue) ? "Select CS+ Character" : editingAssignmentValue))
+                if (ImGui.BeginCombo("##EditCSChar", string.IsNullOrEmpty(editingAssignmentValue) ? "Select SCS Character" : editingAssignmentValue))
                 {
                     // Add "None" option first
                     if (ImGui.Selectable("None", editingAssignmentValue == "None"))
@@ -1773,7 +1302,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     // Add separator
                     ImGui.Separator();
 
-                    // Add CS+ characters
+                    // Add SCS characters
                     foreach (var character in plugin.Configuration.Characters.OrderBy(c => c.Name))
                     {
                         bool isSelected = character.Name == editingAssignmentValue;
@@ -1928,9 +1457,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             ImGui.Spacing();
 
-            ImGui.Text("CS+ Character:");
+            ImGui.Text("SCS Character:");
             ImGui.SetNextItemWidth(300f);
-            if (ImGui.BeginCombo("##CSChar", string.IsNullOrEmpty(newCSCharacter) ? "Select CS+ Character" : newCSCharacter))
+            if (ImGui.BeginCombo("##CSChar", string.IsNullOrEmpty(newCSCharacter) ? "Select SCS Character" : newCSCharacter))
             {
                 // Add "None" option first
                 if (ImGui.Selectable("None", newCSCharacter == "None"))
@@ -1943,7 +1472,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // Add separator
                 ImGui.Separator();
 
-                // Add all CS+ characters
+                // Add all SCS characters
                 foreach (var character in plugin.Characters)
                 {
                     if (ImGui.Selectable(character.Name, character.Name == newCSCharacter))
@@ -1958,7 +1487,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 }
                 ImGui.EndCombo();
             }
-            DrawTooltip("Choose which CS+ character should auto-apply for this in-game character.\nSelect 'None' to prevent any auto-application for this character.");
+            DrawTooltip("Choose which SCS character should auto-apply for this in-game character.\nSelect 'None' to prevent any auto-application for this character.");
 
             // Design selection (only show if a valid character is selected)
             var newSelectedChar = plugin.Characters.FirstOrDefault(c => c.Name == newCSCharacterBuffer);
@@ -2028,7 +1557,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 ImGui.Spacing();
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.6f, 1f));
-                ImGui.TextWrapped("Tip: The plugin will remember character names after you log into them and use a CS+ character at least once.");
+                ImGui.TextWrapped("Tip: The plugin will remember character names after you log into them and use a SCS character at least once.");
                 ImGui.PopStyleColor();
             }
 
@@ -2065,6 +1594,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private static readonly string[] RoleNames = new[] { "Tank", "Healer", "Melee", "Ranged", "Caster", "Crafter", "Gatherer" };
 
+        // TODO readd
         private void DrawJobAssignmentSettings()
         {
             // Enable toggle for Job-based switching
@@ -2074,7 +1604,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.Configuration.EnableJobAssignments = enableJobAssignments;
                 plugin.Configuration.Save();
             }
-            DrawTooltip("Automatically switch CS+ character/design when you change jobs in-game.\nJob-specific assignments take priority over role assignments.");
+            DrawTooltip("Automatically switch SCS character/design when you change jobs in-game.\nJob-specific assignments take priority over role assignments.");
 
             // Warning about Glamourer Automations conflict
             if (enableJobAssignments)
@@ -2117,7 +1647,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Info text
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.8f, 0.9f, 1.0f));
-            ImGui.TextWrapped("Assign CS+ characters or designs to specific jobs or roles. When you switch to that job, CS+ will automatically apply the assigned character/design.");
+            ImGui.TextWrapped("Assign SCS characters or designs to specific jobs or roles. When you switch to that job, SCS will automatically apply the assigned character/design.");
             ImGui.PopStyleColor();
 
             ImGui.Spacing();
@@ -2280,7 +1810,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             if (characterNames.Length == 0)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.4f, 1.0f));
-                ImGui.TextWrapped("No CS+ characters found. Create a character first.");
+                ImGui.TextWrapped("No SCS characters found. Create a character first.");
                 ImGui.PopStyleColor();
                 ImGui.Spacing();
                 return;
@@ -2498,89 +2028,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             if (changed)
                 plugin.SaveConfiguration();
-        }
-        private void DrawConflictResolutionSettings()
-        {
-            ImGui.Spacing();
-            
-            // Center the warning box
-            var availableWidth = ImGui.GetContentRegionAvail().X;
-            var warningBoxWidth = availableWidth * 0.9f; // Use 90% of available width
-            var centerOffset = (availableWidth - warningBoxWidth) * 0.5f;
-            
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + centerOffset);
-
-            // Warning box
-            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(1.0f, 0.6f, 0.0f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f));
-            if (ImGui.BeginChild("ConflictWarning", new Vector2(warningBoxWidth, 80), true, ImGuiWindowFlags.NoScrollbar))
-            {
-                // Warning icon + text
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.Text($"{FontAwesomeIcon.ExclamationTriangle.ToIconString()}");
-                ImGui.PopFont();
-                ImGui.SameLine();
-                ImGui.TextWrapped("EXPERIMENTAL FEATURE");
-                ImGui.TextWrapped("This feature automatically manages mod conflicts by controlling which mods are enabled per character. Use at your own risk.");
-            }
-            ImGui.EndChild();
-            ImGui.PopStyleColor(2); // Pop both Border and Text colors
-
-            ImGui.Spacing();
-            ImGui.Indent();
-
-            // Main checkbox
-            var enabled = plugin.Configuration.EnableConflictResolution;
-            if (ImGui.Checkbox("Enable Conflict Resolution", ref enabled))
-            {
-                plugin.Configuration.EnableConflictResolution = enabled;
-                plugin.SaveConfiguration();
-            }
-            
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.BeginTooltip();
-                ImGui.PushTextWrapPos(300f);
-                ImGui.TextUnformatted("When enabled, allows you to select specific mods per character/design that will automatically enable/disable when switching. This prevents mod conflicts without manual Penumbra management.");
-                ImGui.PopTextWrapPos();
-                ImGui.EndTooltip();
-            }
-
-            if (enabled)
-            {
-                ImGui.Spacing();
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "• Hold Ctrl+Shift while clicking Add Character/Design");
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "• Auto-categorizes mods in CS+ only (no Penumbra changes)");
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "• Right-click to move mods if categorization is wrong");
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "• Auto-manages Gear/Hair mods per character");
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "• Other categories managed manually");
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "• Configure individual mod settings per character");
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "• Pin critical mods to keep always active");
-
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.Spacing();
-
-                // Penumbra inheritance toggle
-                var respectInheritance = plugin.Configuration.RespectPenumbraInheritance;
-                if (ImGui.Checkbox("Respect Penumbra Inheritance", ref respectInheritance))
-                {
-                    plugin.Configuration.RespectPenumbraInheritance = respectInheritance;
-                    plugin.SaveConfiguration();
-                }
-
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.BeginTooltip();
-                    ImGui.PushTextWrapPos(300f);
-                    ImGui.TextUnformatted("When enabled, the mod manager shows a dropdown (Enable/Disable/Inherit) instead of a checkbox. The 'Inherit' option appears for mods inherited from parent collections and lets Penumbra manage them. Useful if you use Penumbra's collection inheritance feature.");
-                    ImGui.PopTextWrapPos();
-                    ImGui.EndTooltip();
-                }
-            }
-
-            ImGui.Unindent();
-            ImGui.Spacing();
         }
 
         private float GetSafeScale(float baseScale)

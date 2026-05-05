@@ -46,7 +46,7 @@ namespace SimpleCharacterSelectPlugin
         // Cached level prefix for local player (e.g. "Lv100 ")
         private byte[]? cachedLevelPrefixBytes = null;
 
-        // Track party slot -> physical name for other players (to update when they switch CS+ characters)
+        // Track party slot -> physical name for other players (to update when they switch SCS characters)
         private readonly Dictionary<int, string> partySlotToPhysicalName = new();
 
         // Track party slot -> level prefix bytes for other players (each player has their own level)
@@ -215,7 +215,7 @@ namespace SimpleCharacterSelectPlugin
 
         /// <summary>
         /// Checks if we're in instanced content (dungeon, raid, trial, etc.)
-        /// Party list uses a fixed gold glow in instances so CS+ names are always recognisable.
+        /// Party list uses a fixed gold glow in instances so SCS names are always recognisable.
         /// </summary>
         private bool IsInInstance()
         {
@@ -290,7 +290,7 @@ namespace SimpleCharacterSelectPlugin
             return result;
         }
 
-        // Fixed gold glow for CS+ names in party list while in instances
+        // Fixed gold glow for SCS names in party list while in instances
         // Distinct from the default blue so Name Sync names are immediately recognisable
         private static readonly Vector3 InstancePartyListGlowColor = new(1.0f, 0.8f, 0.2f);
 
@@ -298,7 +298,7 @@ namespace SimpleCharacterSelectPlugin
         /// <param name="forPartyList">If true, uses gold glow in instances for visibility.</param>
         private SeString CreateSimpleColoredName(string name, Vector3 glowColor, bool forPartyList = false)
         {
-            // In instances, party list uses a fixed gold glow so CS+ names are always recognisable
+            // In instances, party list uses a fixed gold glow so SCS names are always recognisable
             if (forPartyList && IsInInstance())
                 glowColor = InstancePartyListGlowColor;
 
@@ -460,7 +460,7 @@ namespace SimpleCharacterSelectPlugin
                     var displayName = !string.IsNullOrWhiteSpace(activeChar?.Alias) ? activeChar.Alias : activeChar?.Name;
                     if (selfReplacementEnabled && activeChar != null && !string.IsNullOrEmpty(displayName) && !revealActualNames)
                     {
-                        // Apply CS+ name (using alias if set)
+                        // Apply SCS name (using alias if set)
                         handler.NameParts.Text = CreateColoredName(displayName, activeChar.NameplateColor);
 
                         // Hide FC tag
@@ -498,7 +498,7 @@ namespace SimpleCharacterSelectPlugin
 
                         if (sharedEntry != null && !revealActualNames)
                         {
-                            // Replace with their CS+ name
+                            // Replace with their SCS name
                             // Use simple glow if configured (disables wave animation for others)
                             if (plugin.Configuration.UseSimpleGlowForOthers)
                                 handler.NameParts.Text = CreateSimpleColoredName(sharedEntry.CSName, sharedEntry.NameplateColor);
@@ -508,10 +508,10 @@ namespace SimpleCharacterSelectPlugin
                         }
                         else if (replacedNameplateNames.Contains(physicalName))
                         {
-                            // Reset to original name: either reveal is held, or they no longer have a CS+ name
+                            // Reset to original name: either reveal is held, or they no longer have a SCS name
                             handler.NameParts.Text = new SeString(new TextPayload(playerName));
 
-                            // Only remove from tracking if they truly don't have a CS+ name anymore
+                            // Only remove from tracking if they truly don't have a SCS name anymore
                             // (not just reveal being held)
                             if (!revealActualNames)
                             {
@@ -748,7 +748,7 @@ namespace SimpleCharacterSelectPlugin
 
         /// <summary>
         /// Checks if party composition has changed and clears tracking if so.
-        /// This prevents stale CS+ names from being applied to new party members.
+        /// This prevents stale SCS names from being applied to new party members.
         /// </summary>
         private void CheckForPartyChange()
         {
@@ -778,7 +778,7 @@ namespace SimpleCharacterSelectPlugin
                     partySlotPrefixBytes.Clear();
 
                     // Skip replacement for a few frames so the game can refresh text nodes
-                    // Without this, stale CS+ names linger on slots that now belong to different players
+                    // Without this, stale SCS names linger on slots that now belong to different players
                     partyChangeSkipFrames = PartyChangeSkipFrameCount;
                 }
 
@@ -897,7 +897,7 @@ namespace SimpleCharacterSelectPlugin
                     if (match.HasValue)
                     {
                         var (sharedEntry, originalName) = match.Value;
-                        // Store this slot's physical name for future lookups (when they switch CS+ characters)
+                        // Store this slot's physical name for future lookups (when they switch SCS characters)
                         partySlotToPhysicalName[i] = originalName;
 
                         // Use pattern detection to get ONLY the level icon bytes (safe, no SeString issues)
@@ -911,7 +911,7 @@ namespace SimpleCharacterSelectPlugin
                             }
                         }
 
-                        // Replace with their CS+ name using the captured prefix
+                        // Replace with their SCS name using the captured prefix
                         try
                         {
                             var coloredName = CreateSimpleColoredName(sharedEntry.CSName, sharedEntry.NameplateColor, forPartyList: true);
@@ -997,7 +997,7 @@ namespace SimpleCharacterSelectPlugin
                             }
                             else
                             {
-                                // No CS+ name found - revert to in-game name (just use plain text, no prefix concat)
+                                // No SCS name found - revert to in-game name (just use plain text, no prefix concat)
                                 try
                                 {
                                     nameNode->SetText(storedPhysicalName);

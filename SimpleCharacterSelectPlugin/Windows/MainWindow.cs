@@ -8,7 +8,6 @@ using SimpleCharacterSelectPlugin.Windows.Components;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
-using SimpleCharacterSelectPlugin.Effects;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 
 namespace SimpleCharacterSelectPlugin.Windows
@@ -22,10 +21,6 @@ namespace SimpleCharacterSelectPlugin.Windows
         private SettingsPanel settingsPanel;
         private ReorderWindow reorderWindow;
         private UIStyles uiStyles;
-        private FavoriteSparkEffect diceEffect = new();
-        private WinterBackgroundSnow winterBackgroundSnow = new();
-        private WinterBackgroundSnow winterBackgroundSnowUI = new(); // Second snow effect for character grid area
-        private ValentinesHeartsEffect valentinesHeartsEffect = new(); // Floating hearts for Valentine's Day
         private float giftBoxShakeTimer = 0f;
         private const float GIFT_BOX_SHAKE_DURATION = 0.3f;
 
@@ -82,29 +77,6 @@ namespace SimpleCharacterSelectPlugin.Windows
             designPanel?.Dispose();
             settingsPanel?.Dispose();
             reorderWindow?.Dispose();
-        }
-        
-        private void DrawSeasonalBackgroundEffects(float deltaTime)
-        {
-            if (!SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration))
-                return;
-
-            var effectiveTheme = SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration);
-
-            if (effectiveTheme == SeasonalTheme.Winter || effectiveTheme == SeasonalTheme.Christmas)
-            {
-                var windowSize = ImGui.GetWindowSize();
-                winterBackgroundSnow.SetEffectArea(windowSize);
-                winterBackgroundSnow.Update(deltaTime);
-                winterBackgroundSnow.Draw();
-            }
-            else if (effectiveTheme == SeasonalTheme.Valentines)
-            {
-                var windowSize = ImGui.GetWindowSize();
-                valentinesHeartsEffect.SetEffectArea(windowSize);
-                valentinesHeartsEffect.Update(deltaTime);
-                valentinesHeartsEffect.Draw();
-            }
         }
 
         /// <summary>Draws custom background image in current child window.</summary>
@@ -256,10 +228,6 @@ namespace SimpleCharacterSelectPlugin.Windows
             {
                 uiStyles.PopMainWindowStyle();
             }
-
-            diceEffect.Update(deltaTime);
-            diceEffect.Draw();
-            DrawSeasonalBackgroundEffects(deltaTime);
         }
 
         private void DrawHeader()
@@ -309,7 +277,7 @@ namespace SimpleCharacterSelectPlugin.Windows
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - buttonWidth - iconButtonSize - spacing);
 
             // Revert button
-            if (uiStyles.IconButton("\uf0e2", "Revert All CS+ Changes\n\nReverts:\n• Glamourer → Game state\n• Honorific → Cleared\n• Moodles → All removed\n• Customize+ → Disabled\n• Penumbra → Your Character collection\n• CS+ → No active character", new Vector2(iconButtonSize, iconButtonSize)))
+            if (uiStyles.IconButton("\uf0e2", "Revert All SCS Changes\n\nReverts:\n• Glamourer → Game state\n• Honorific → Cleared\n• Moodles → All removed\n• Customize+ → Disabled\n• Penumbra → Your Character collection\n• SCS → No active character", new Vector2(iconButtonSize, iconButtonSize)))
             {
                 //plugin.RevertAllChanges();
             }
@@ -345,33 +313,6 @@ namespace SimpleCharacterSelectPlugin.Windows
             float bottomBarHeight = ImGui.GetFrameHeight() + (10 * totalScale);
             ImGui.BeginChild("CharacterGrid", new Vector2(characterGridWidth, -bottomBarHeight), true);
 
-            if (plugin.Configuration.SelectedTheme == ThemeSelection.Custom)
-            {
-                DrawCustomBackgroundInChild();
-            }
-
-            // Valentine's background image behind character grid
-            if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration) &&
-                SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration) == SeasonalTheme.Valentines)
-            {
-                DrawValentinesBackgroundInChild();
-            }
-
-            // Snow behind character grid
-            if (SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration))
-            {
-                var effectiveTheme = SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration);
-                if (effectiveTheme == SeasonalTheme.Winter || effectiveTheme == SeasonalTheme.Christmas)
-                {
-                    winterBackgroundSnowUI.ConfigureSnowEffect(alpha: 0.5f, size: 0.7f, spawnRate: 0.8f);
-                    var childWindowPos = ImGui.GetCursorScreenPos();
-                    var childWindowSize = ImGui.GetContentRegionAvail();
-                    winterBackgroundSnowUI.SetEffectAreaAbsolute(childWindowPos, childWindowSize);
-                    winterBackgroundSnowUI.Update(deltaTime);
-                    winterBackgroundSnowUI.DrawAbsolute();
-                }
-            }
-
             characterGrid.Draw();
             ImGui.EndChild();
 
@@ -385,21 +326,6 @@ namespace SimpleCharacterSelectPlugin.Windows
                 designPanel.Draw();
                 ImGui.EndChild();
             }
-        }
-        public void OpenAddCharacterWindow(bool secretMode = false)
-        {
-            characterForm.ResetFields();
-            if (secretMode)
-            {
-                characterForm.SetSecretMode(true);
-            }
-            plugin.IsAddCharacterWindowOpen = true;
-        }
-
-        public void CloseAddCharacterWindow()
-        {
-            plugin.IsAddCharacterWindowOpen = false;
-            characterForm.SetSecretMode(false);
         }
 
         private void DrawBottomBar()
@@ -415,47 +341,12 @@ namespace SimpleCharacterSelectPlugin.Windows
             plugin.SettingsButtonPos = ImGui.GetItemRectMin();
             plugin.SettingsButtonSize = ImGui.GetItemRectSize();
 
-            bool hasUnseenSettingsFeatures = false;
-            if (hasUnseenSettingsFeatures)
-            {
-                var buttonMin = ImGui.GetItemRectMin();
-                var buttonMax = ImGui.GetItemRectMax();
-                var drawList = ImGui.GetWindowDrawList();
-
-                // Pulsing glow effect
-                float pulse = (float)(Math.Sin(ImGui.GetTime() * 3.0) * 0.5 + 0.5); // 0 to 1 pulsing
-                var glowColor = new Vector4(0.2f, 1.0f, 0.4f, 0.3f + pulse * 0.5f); // Green glow
-                var padding = 2 * totalScale;
-
-                // Draw multiple layers for glow effect
-                for (int i = 3; i >= 1; i--)
-                {
-                    var layerPadding = padding + (i * 2 * totalScale);
-                    var layerAlpha = glowColor.W * (1.0f - (i * 0.25f));
-                    drawList.AddRect(
-                        buttonMin - new Vector2(layerPadding, layerPadding),
-                        buttonMax + new Vector2(layerPadding, layerPadding),
-                        ImGui.ColorConvertFloat4ToU32(new Vector4(glowColor.X, glowColor.Y, glowColor.Z, layerAlpha)),
-                        4f * totalScale,
-                        ImDrawFlags.None,
-                        2f * totalScale
-                    );
-                }
-            }
-
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup))
             {
                 ImGui.BeginTooltip();
                 ImGui.Text("Open Settings Menu.");
                 ImGui.Text("You can find options for adjusting your Character Grid.");
                 ImGui.Text("As well as the Opt-In for Glamourer Automations.");
-                if (hasUnseenSettingsFeatures)
-                {
-                    ImGui.Spacing();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.2f, 1.0f, 0.4f, 1.0f));
-                    ImGui.Text("New features available!");
-                    ImGui.PopStyleColor();
-                }
                 ImGui.EndTooltip();
             }
 
@@ -480,114 +371,17 @@ namespace SimpleCharacterSelectPlugin.Windows
             
             ImGui.SameLine();
 
-            // Features button with notification badge
-            // TODO remove all seen feature stuff
-            bool hasUnseenFeaturesGuide = false;
-            if (hasUnseenFeaturesGuide)
-            {
-                var btnPos = ImGui.GetCursorScreenPos();
-                var drawList = ImGui.GetWindowDrawList();
-
-                if (ImGui.Button("Features"))
-                {
-                    if (plugin.FeaturesWindow != null)
-                    {
-                        plugin.FeaturesWindow.IsOpen = !plugin.FeaturesWindow.IsOpen;
-                        plugin.Configuration.SeenFeatures.Add(FeatureKeys.FeaturesGuide);
-                        plugin.Configuration.Save();
-                    }
-                }
-
-                // Draw notification glow
-                var btnSize = ImGui.GetItemRectSize();
-                float pulse = (float)(Math.Sin(ImGui.GetTime() * 3.0) * 0.5 + 0.5);
-                var glowColor = new Vector4(0.2f, 1.0f, 0.4f, 0.3f + pulse * 0.4f);
-                for (int i = 3; i >= 1; i--)
-                {
-                    var expand = i * 2f;
-                    drawList.AddRect(
-                        btnPos - new Vector2(expand, expand),
-                        btnPos + btnSize + new Vector2(expand, expand),
-                        ImGui.ColorConvertFloat4ToU32(glowColor * (1f - i * 0.2f)),
-                        4f, ImDrawFlags.None, 2f);
-                }
-            }
-            else
-            {
-                if (ImGui.Button("Features"))
-                {
-                    if (plugin.FeaturesWindow != null)
-                        plugin.FeaturesWindow.IsOpen = !plugin.FeaturesWindow.IsOpen;
-                }
-            }
-
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup))
-            {
-                ImGui.BeginTooltip();
-                ImGui.Text("Discover all the features CS+ has to offer!");
-                ImGui.Text("Tips, tricks, and hidden gems.");
-                ImGui.EndTooltip();
-            }
-            
-            ImGui.SameLine();
-
-            // Random button with seasonal icons
-            var effectiveTheme = SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration)
-                ? SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration)
-                : SeasonalTheme.Default;
-            bool isHalloween = effectiveTheme == SeasonalTheme.Halloween;
-            bool isWinterChristmas = effectiveTheme == SeasonalTheme.Winter || effectiveTheme == SeasonalTheme.Christmas;
-            bool isValentines = effectiveTheme == SeasonalTheme.Valentines;
-
             string randomIcon;
             Vector4? iconColor = null;
-
-            if (isHalloween)
-            {
-                randomIcon = "\uf492"; // Skull
-                iconColor = new Vector4(0.2f, 0.8f, 0.3f, 1.0f);
-            }
-            else if (isWinterChristmas)
-            {
-                randomIcon = "\uf06b"; // Gift
-                iconColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-            }
-            else if (isValentines)
-            {
-                randomIcon = "\uf564"; // Cookie-bite
-                iconColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f); // White
-            }
-            else
-            {
-                randomIcon = "\uf522"; // Dice
-            }
+            randomIcon = "\uf522"; // Dice
 
             string randomTooltip = plugin.Configuration.RandomSelectionFavoritesOnly
                 ? "Randomly selects from favourited characters and designs only"
                 : "Randomly selects from all characters and designs";
 
-            // Shake effect for gift box
-            Vector2 shakeOffset = Vector2.Zero;
-            if (isWinterChristmas && giftBoxShakeTimer > 0f)
-            {
-                float shakeIntensity = 2.0f;
-                float shakeProgress = 1.0f - (giftBoxShakeTimer / GIFT_BOX_SHAKE_DURATION);
-                float shakeAmount = shakeIntensity * (1.0f - shakeProgress);
-
-                float time = giftBoxShakeTimer * 20f;
-                shakeOffset.X = MathF.Sin(time * 1.7f) * shakeAmount;
-                shakeOffset.Y = MathF.Cos(time * 2.3f) * shakeAmount;
-
-                ImGui.SetCursorPos(ImGui.GetCursorPos() + shakeOffset);
-            }
-
             if (uiStyles.IconButtonWithColor(randomIcon, randomTooltip, null, 1.0f, iconColor))
             {
-                if (isWinterChristmas)
-                    giftBoxShakeTimer = GIFT_BOX_SHAKE_DURATION;
-
                 Vector2 effectPos = ImGui.GetItemRectMin() + ImGui.GetItemRectSize() / 2;
-                diceEffect.Trigger(effectPos, true, plugin.Configuration);
                 plugin.SelectRandomCharacterAndDesign();
             }
 

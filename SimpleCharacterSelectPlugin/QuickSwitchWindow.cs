@@ -73,10 +73,6 @@ namespace SimpleCharacterSelectPlugin.Windows
 
                 // Get button opacity - use custom value if Custom theme, otherwise 1.0 (opaque)
                 float buttonOpacity = 1.0f;
-                if (plugin.Configuration.SelectedTheme == ThemeSelection.Custom)
-                {
-                    buttonOpacity = plugin.Configuration.CustomTheme.CompactQuickSwitchButtonOpacity;
-                }
 
                 // Push button colours for compact mode (NoBackground means semi-transparent buttons are see-through)
                 ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.16f, 0.16f, 0.16f, buttonOpacity));

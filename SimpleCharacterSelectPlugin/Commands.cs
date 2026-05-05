@@ -47,7 +47,7 @@ public class Commands
         });
         commandManager.AddHandler("/scsrevert", new CommandInfo((_, _) => RevertAllChanges())
         {
-            HelpMessage = "Reverts all CS+ changes (Glamourer, Honorific, Moodles, Customize+, Penumbra collection)"
+            HelpMessage = "Reverts all SCS changes (Glamourer, Honorific, Moodles, Customize+, Penumbra collection)"
         });
     }
     
@@ -149,12 +149,12 @@ public class Commands
             //             var charPtr = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)ObjectTable.LocalPlayer.Address;
             //             var currentIdle = charPtr->EmoteController.CPoseState;
             //
-            //             ChatGui.Print($"[CS+] Current idle pose: {currentIdle} (range: 0-6)");
+            //             ChatGui.Print($"[SCS] Current idle pose: {currentIdle} (range: 0-6)");
             //         }
             //     }
             //     else
             //     {
-            //         ChatGui.PrintError("[CS+] You must be logged in to check idle pose.");
+            //         ChatGui.PrintError("[SCS] You must be logged in to check idle pose.");
             //     }
             // }
             // else if (idleArgs.Length >= 2 && byte.TryParse(idleArgs[1], out var poseIndex))
@@ -165,7 +165,7 @@ public class Commands
             // }
             // else
             // {
-            //     ChatGui.PrintError("[CS+] Usage: /select idle [0-6]");
+            //     ChatGui.PrintError("[SCS] Usage: /select idle [0-6]");
             // }
             return;
         }
@@ -232,7 +232,7 @@ public class Commands
     }
 
     /// <summary>
-    /// Reverts all CS+ changes - Glamourer, Honorific, Moodles, Penumbra collection, and clears active character.
+    /// Reverts all SCS changes - Glamourer, Honorific, Moodles, Penumbra collection, and clears active character.
     /// </summary>
     public static void RevertAllChanges()
     {
@@ -329,7 +329,7 @@ public class Commands
         //         Log.Warning($"[RevertAllChanges] Penumbra redraw failed: {ex.Message}");
         //     }
         //
-        //     // 7. Clear CS+ internal state
+        //     // 7. Clear SCS internal state
         //     string localName = local.Name.TextValue;
         //     string worldName = local.HomeWorld.Value.Name.ToString();
         //     string fullKey = $"{localName}@{worldName}";
@@ -341,16 +341,16 @@ public class Commands
         //
         //     // 9. Chat feedback
         //     var builder = new SeStringBuilder();
-        //     builder.AddText("[").AddBlue("CS+", true).AddText("] ");
+        //     builder.AddText("[").AddBlue("SCS", true).AddText("] ");
         //     builder.AddText("Reverted to default state");
         //     ChatGui.Print(builder.BuiltString);
         //
-        //     Log.Info("[RevertAllChanges] Successfully reverted all CS+ changes via IPC");
+        //     Log.Info("[RevertAllChanges] Successfully reverted all SCS changes via IPC");
         // }
         // catch (Exception ex)
         // {
         //     Log.Error($"[RevertAllChanges] Failed to revert: {ex.Message}");
-        //     ChatGui.PrintError("[CS+] Failed to revert some changes");
+        //     ChatGui.PrintError("[SCS] Failed to revert some changes");
         // }
     }
 }

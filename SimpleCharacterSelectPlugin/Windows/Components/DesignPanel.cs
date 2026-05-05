@@ -16,7 +16,6 @@ using SimpleCharacterSelectPlugin.Windows.Utils;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using Dalamud.Interface.Textures.TextureWraps;
-using SimpleCharacterSelectPlugin.Effects;
 using SimpleCharacterSelectPlugin;
 
 namespace SimpleCharacterSelectPlugin.Windows.Components
@@ -28,7 +27,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         public bool IsOpen { get; private set; } = false;
         private int activeCharacterIndex = -1;
-        private Dictionary<string, FavoriteSparkEffect> designFavoriteEffects = new();
 
         // Resizable panel
         public float PanelWidth { get; private set; } = 300f; // Default width
@@ -134,11 +132,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             DrawDesignPanelContent(totalScale, scaledPanelWidth);
             DrawResizeHandle(totalScale, scaledPanelWidth, scaledMinWidth, scaledMaxWidth, scaledHandleWidth);
-
-            if (IsOpen)
-            {
-                UpdateEffects();
-            }
 
             DrawImportWindow(totalScale);
             DrawAdvancedModeWindow(totalScale);
@@ -246,25 +239,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             return Math.Clamp(baseScale, 0.3f, 5.0f);
         }
 
-        private void UpdateEffects()
-        {
-            float deltaTime = ImGui.GetIO().DeltaTime;
-            foreach (var effect in designFavoriteEffects.Values)
-            {
-                effect.Update(deltaTime);
-            }
-
-            foreach (var kvp in designFavoriteEffects.ToList())
-            {
-                kvp.Value.Draw();
-
-                if (!kvp.Value.IsActive)
-                {
-                    designFavoriteEffects.Remove(kvp.Key);
-                }
-            }
-        }
-
         public void Open(int characterIndex)
         {
             activeCharacterIndex = characterIndex;
@@ -316,17 +290,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Check for custom Design Panel background colour
             var designPanelBg = new Vector4(0.08f, 0.08f, 0.1f, 0.98f);
             var designPanelChildBg = new Vector4(0.1f, 0.1f, 0.12f, 0.95f);
-
-            if (plugin.Configuration.SelectedTheme == ThemeSelection.Custom)
-            {
-                var customTheme = plugin.Configuration.CustomTheme;
-                if (customTheme.ColorOverrides.TryGetValue("custom.designPanelBg", out var packed) && packed.HasValue)
-                {
-                    var customColor = CustomThemeDefinitions.UnpackColor(packed.Value);
-                    designPanelBg = customColor;
-                    designPanelChildBg = customColor;
-                }
-            }
 
             ImGui.PushStyleColor(ImGuiCol.WindowBg, designPanelBg);
             ImGui.PushStyleColor(ImGuiCol.ChildBg, designPanelChildBg);
@@ -588,7 +551,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     };
                     character.DesignFolders.Add(folder);
                     plugin.SaveConfiguration();
-                    plugin.RefreshTreeItems(character);
                     newFolderName = "";
                     newFolderSelectedColor = null;
                     ImGui.CloseCurrentPopup();
@@ -1137,7 +1099,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     folder.Name = renameFolderBuf;
                     isRenamingFolder = false;
                     plugin.SaveConfiguration();
-                    plugin.RefreshTreeItems(character);
                 }
                 ImGui.PopStyleColor();
             }
@@ -1185,14 +1146,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 {
                     draggedDesign.FolderId = folder.Id;
                     plugin.SaveConfiguration();
-                    plugin.RefreshTreeItems(character);
                     draggedDesign = null;
                 }
                 else if (draggedFolder != null && draggedFolder != folder)
                 {
                     draggedFolder.ParentFolderId = folder.Id;
                     plugin.SaveConfiguration();
-                    plugin.RefreshTreeItems(character);
                     draggedFolder = null;
                 }
             }
@@ -1414,73 +1373,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Favourite star/ghost
             ImGui.SetCursorScreenPos(new Vector2(x, rowMin.Y + (rowH - btnSize) / 2));
-            
-            // Check for seasonal themes
-            var effectiveTheme = SeasonalThemeManager.IsSeasonalThemeEnabled(plugin.Configuration)
-                ? SeasonalThemeManager.GetEffectiveTheme(plugin.Configuration)
-                : SeasonalTheme.Default;
 
             string star;
-            bool usesFontAwesome = false;
-
-            if (effectiveTheme == SeasonalTheme.Halloween)
-            {
-                star = "\uf6e2"; // Ghost icon for Halloween
-                usesFontAwesome = true;
-            }
-            else if (effectiveTheme == SeasonalTheme.Winter || effectiveTheme == SeasonalTheme.Christmas)
-            {
-                star = "\uf2dc"; // Snowflake icon for Winter/Christmas
-                usesFontAwesome = true;
-            }
-            else if (effectiveTheme == SeasonalTheme.Valentines)
-            {
-                star = "\uf004"; // Heart icon for Valentine's
-                usesFontAwesome = true;
-            }
-            else
-            {
-                star = design.IsFavorite ? "★" : "☆"; // Normal stars
-                usesFontAwesome = false;
-            }
-
+            star = design.IsFavorite ? "★" : "☆"; // Normal stars
+                
             Vector4 starColor;
-            if (effectiveTheme == SeasonalTheme.Halloween)
-            {
-                var themeColors = SeasonalThemeManager.GetCurrentThemeColors(plugin.Configuration);
-                starColor = design.IsFavorite
-                    ? new Vector4(themeColors.PrimaryAccent.X, themeColors.PrimaryAccent.Y, themeColors.PrimaryAccent.Z, hovered ? 1f : 0.7f) // Orange
-                    : new Vector4(1.0f, 1.0f, 1.0f, hovered ? 0.8f : 0.6f); // White
-            }
-            else if (effectiveTheme == SeasonalTheme.Winter || effectiveTheme == SeasonalTheme.Christmas)
-            {
-                starColor = design.IsFavorite
-                    ? new Vector4(1.0f, 1.0f, 1.0f, hovered ? 1f : 0.8f) // Pure white for favourited snowflake
-                    : new Vector4(0.7f, 0.7f, 0.8f, hovered ? 0.8f : 0.5f); // Light grey for unfavourited
-            }
-            else if (effectiveTheme == SeasonalTheme.Valentines)
-            {
-                starColor = design.IsFavorite
-                    ? new Vector4(1.0f, 1.0f, 1.0f, hovered ? 1f : 0.9f) // Solid white for favourited heart
-                    : new Vector4(0.7f, 0.5f, 0.55f, hovered ? 0.7f : 0.4f); // Muted for unfavourited
-            }
-            else
-            {
-                starColor = design.IsFavorite
-                    ? new Vector4(1f, 0.8f, 0.2f, hovered ? 1f : 0.7f) // Gold for normal favourites
-                    : new Vector4(0.5f, 0.5f, 0.5f, hovered ? 0.8f : 0.4f); // Grey for normal unfavourited
-            }
-
-            // Ensure proper icon centering with explicit alignment
-            bool scaleDownIcon = effectiveTheme == SeasonalTheme.Valentines; // Heart needs to be smaller
-            if (scaleDownIcon)
-            {
-                ImGui.SetWindowFontScale(0.85f);
-            }
-            if (usesFontAwesome)
-            {
-                ImGui.PushFont(UiBuilder.IconFont);
-            }
+            starColor = design.IsFavorite
+                ? new Vector4(1f, 0.8f, 0.2f, hovered ? 1f : 0.7f) // Gold for normal favourites
+                : new Vector4(0.5f, 0.5f, 0.5f, hovered ? 0.8f : 0.4f); // Grey for normal unfavourited
 
             ImGui.PushStyleColor(ImGuiCol.Text, starColor);
             ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f)); // CENTER ICON
@@ -1489,15 +1389,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             ImGui.PopStyleVar();
             ImGui.PopStyleColor();
-
-            if (usesFontAwesome)
-            {
-                ImGui.PopFont();
-            }
-            if (scaleDownIcon)
-            {
-                ImGui.SetWindowFontScale(1.0f);
-            }
             
             if (buttonClicked)
             {
@@ -1507,9 +1398,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // Trigger particle effect
                 Vector2 effectPos = ImGui.GetItemRectMin() + ImGui.GetItemRectSize() / 2;
                 string effectKey = $"{character.Name}_{design.Name}";
-                if (!designFavoriteEffects.ContainsKey(effectKey))
-                    designFavoriteEffects[effectKey] = new FavoriteSparkEffect();
-                designFavoriteEffects[effectKey].Trigger(effectPos, design.IsFavorite, plugin.Configuration);
 
                 plugin.SaveConfiguration();
                 SortDesigns(character);
@@ -1690,7 +1578,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 list.Insert(idx, draggedDesign);
                 draggedDesign = null;
                 plugin.SaveConfiguration();
-                plugin.RefreshTreeItems(character);
             }
 
             // Blue outline while dragging over
@@ -1709,7 +1596,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 draggedDesign.FolderId = null;
                 plugin.SaveConfiguration();
-                plugin.RefreshTreeItems(character);
                 draggedDesign = null;
             }
 
@@ -1718,7 +1604,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 draggedFolder.ParentFolderId = null;
                 plugin.SaveConfiguration();
-                plugin.RefreshTreeItems(character);
                 draggedFolder = null;
             }
         }
@@ -2254,7 +2139,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             character.DesignFolders.RemoveAll(f => f.Id == folder.Id);
 
             plugin.SaveConfiguration();
-            plugin.RefreshTreeItems(character);
         }
 
         private DesignSortType GetDesignSortFromConfig()
@@ -3001,7 +2885,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             //             var glamourerDesignId = await CreateGlamourerDesignFromCurrentState(glamourerDesignName);
             //             if (glamourerDesignId != Guid.Empty)
             //             {
-            //                 // Store the design name, not the GUID, for CS+ compatibility
+            //                 // Store the design name, not the GUID, for SCS compatibility
             //                 newDesign.GlamourerDesign = glamourerDesignName;
             //                 Plugin.Log.Information($"Created Glamourer design: {glamourerDesignName} (ID: {glamourerDesignId})");
             //             }
@@ -3473,7 +3357,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                     await Task.WhenAll(detectionTasks);
 
-                    // Create the CS+ design with the Glamourer design field populated
+                    // Create the SCS design with the Glamourer design field populated
                     CreateSmartSnapshotDesign(recentDesign.Value);
 
                     Plugin.ChatGui.Print($"[Simple Character Select] Smart snapshot created: '{recentDesign.Value.Name}' {(useConflictResolution ? "with" : "without")} CR");
@@ -3659,7 +3543,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private bool IsDesignCurrentlyActive(Character character, CharacterDesign design)
         {
-            // Only show active design for the currently active CS+ character
+            // Only show active design for the currently active SCS character
             var currentActiveCharacter = GetCurrentActiveCharacter();
             if (currentActiveCharacter == null || currentActiveCharacter.Name != character.Name)
                 return false;

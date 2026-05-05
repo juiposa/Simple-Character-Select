@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace SimpleCharacterSelectPlugin
 {
     /// <summary>
-    /// Manages fetching and caching CS+ names for other players.
+    /// Manages fetching and caching SCS names for other players.
     /// Used for shared name replacement feature.
     /// </summary>
     public class SharedNameManager : IDisposable
@@ -80,7 +80,7 @@ namespace SimpleCharacterSelectPlugin
             }
         }
 
-        /// <summary>Gets a cached CS+ name. Returns null if not found or user is blocked.</summary>
+        /// <summary>Gets a cached SCS name. Returns null if not found or user is blocked.</summary>
         public SharedNameEntry? GetCachedName(string physicalCharacterName)
         {
             if (string.IsNullOrEmpty(physicalCharacterName))
@@ -113,7 +113,7 @@ namespace SimpleCharacterSelectPlugin
             return null;
         }
 
-        /// <summary>Gets a cached CS+ name by character name only (without world).</summary>
+        /// <summary>Gets a cached SCS name by character name only (without world).</summary>
         public SharedNameEntry? GetCachedNameByCharacterName(string characterName)
         {
             if (string.IsNullOrEmpty(characterName))

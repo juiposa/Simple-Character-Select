@@ -1897,13 +1897,18 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string honorPref = IsEditWindowOpen ? editedCharacterHonorificPrefix : plugin.NewCharacterHonorificPrefix;
             Vector3 honorColor = IsEditWindowOpen ? editedCharacterHonorificColor : plugin.NewCharacterHonorificColor;
             Vector3 honorGlow = IsEditWindowOpen ? editedCharacterHonorificGlow : plugin.NewCharacterHonorificGlow;
-            Vector3? honorColor3 = IsEditWindowOpen ? editedCharacterHonorificColor3 : plugin.NewCharacterHonorificColor3;
-            int? honorGradientSet = IsEditWindowOpen ? editedCharacterHonorificGradientSet : plugin.NewCharacterHonorificGradientSet;
-            string? honorAnimStyle = IsEditWindowOpen ? editedCharacterHonorificAnimationStyle : plugin.NewCharacterHonorificAnimationStyle;
+            Vector3? honorColor3 =
+                IsEditWindowOpen ? editedCharacterHonorificColor3 : plugin.NewCharacterHonorificColor3;
+            int? honorGradientSet = IsEditWindowOpen
+                ? editedCharacterHonorificGradientSet
+                : plugin.NewCharacterHonorificGradientSet;
+            string? honorAnimStyle = IsEditWindowOpen
+                ? editedCharacterHonorificAnimationStyle
+                : plugin.NewCharacterHonorificAnimationStyle;
             string moodlePreset = IsEditWindowOpen ? editedCharacterMoodlePreset : plugin.NewCharacterMoodlePreset;
             int idlePose = IsEditWindowOpen
-                                    ? plugin.Characters[selectedCharacterIndex].IdlePoseIndex
-                                    : plugin.NewCharacterIdlePoseIndex;
+                ? plugin.Characters[selectedCharacterIndex].IdlePoseIndex
+                : plugin.NewCharacterIdlePoseIndex;
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"/penumbra collection individual | {penumbra} | self");
@@ -1929,8 +1934,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             sb.AppendLine("/honorific force clear | silent");
             if (!string.IsNullOrWhiteSpace(honorTitle))
             {
-                var colorHex = $"#{(int)(honorColor.X * 255):X2}{(int)(honorColor.Y * 255):X2}{(int)(honorColor.Z * 255):X2}";
-                var glowHex = $"#{(int)(honorGlow.X * 255):X2}{(int)(honorGlow.Y * 255):X2}{(int)(honorGlow.Z * 255):X2}";
+                var colorHex =
+                    $"#{(int)(honorColor.X * 255):X2}{(int)(honorColor.Y * 255):X2}{(int)(honorColor.Z * 255):X2}";
+                var glowHex =
+                    $"#{(int)(honorGlow.X * 255):X2}{(int)(honorGlow.Y * 255):X2}{(int)(honorGlow.Z * 255):X2}";
 
                 string gradientPart = "";
                 if (honorGradientSet.HasValue && !string.IsNullOrEmpty(honorAnimStyle))
@@ -1938,7 +1945,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     if (honorGradientSet.Value == -1 && honorColor3.HasValue)
                     {
                         // Two-colour gradient: include Color3 in the command
-                        var color3Hex = $"#{(int)(honorColor3.Value.X * 255):X2}{(int)(honorColor3.Value.Y * 255):X2}{(int)(honorColor3.Value.Z * 255):X2}";
+                        var color3Hex =
+                            $"#{(int)(honorColor3.Value.X * 255):X2}{(int)(honorColor3.Value.Y * 255):X2}{(int)(honorColor3.Value.Z * 255):X2}";
                         gradientPart = $" | {color3Hex} | +-1/{honorAnimStyle}";
                     }
                     else
@@ -1947,7 +1955,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     }
                 }
 
-                sb.AppendLine($"/honorific force set {honorTitle} | {honorPref} | {colorHex} | {glowHex}{gradientPart} | silent");
+                sb.AppendLine(
+                    $"/honorific force set {honorTitle} | {honorPref} | {colorHex} | {glowHex}{gradientPart} | silent");
             }
 
             sb.AppendLine("/moodle remove self preset all");
@@ -1959,15 +1968,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             sb.Append("/penumbra redraw self");
             return sb.ToString();
-        }
-
-        public void SetSecretMode(bool secretMode)
-        {
-            isSecretMode = secretMode;
-            if (secretMode && !IsEditWindowOpen)
-            {
-                plugin.NewCharacterMacros = (secretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro();
-            }
         }
 
         private void CloseForm()
@@ -2112,7 +2112,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 //             // Green success message
                 //             var msg = new DalamudSeStringBuilder()
                 //                 .AddText("[")
-                //                 .AddGreen("CS+", true)
+                //                 .AddGreen("SCS", true)
                 //                 .AddText("] ")
                 //                 .AddGreen(result.Message, false)
                 //                 .Build();
@@ -2123,7 +2123,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 //             // Yellow pending message
                 //             var msg = new DalamudSeStringBuilder()
                 //                 .AddText("[")
-                //                 .AddYellow("CS+", true)
+                //                 .AddYellow("SCS", true)
                 //                 .AddText("] ")
                 //                 .AddYellow(result.Message, false)
                 //                 .Build();

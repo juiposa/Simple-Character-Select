@@ -45,7 +45,7 @@ namespace SimpleCharacterSelectPlugin
         public Dictionary<string, string> LastUsedCharacterByPlayer { get; set; } = new();
         public Dictionary<string, string> CharacterAssignments { get; set; } = new();
 
-        // Job Assignments - maps job IDs or roles to CS+ characters/designs
+        // Job Assignments - maps job IDs or roles to SCS characters/designs
         // Key format: "Job_{JobId}" for specific jobs, "Role_{RoleName}" for roles
         // Value format: "Character:{CharacterName}" or "Design:{CharacterName}:{DesignName}"
         public Dictionary<string, string> JobAssignments { get; set; } = new();
@@ -94,7 +94,6 @@ namespace SimpleCharacterSelectPlugin
         public string? LastBrowserDirectory { get; set; }
 
         // Theme Settings
-        public ThemeSelection SelectedTheme { get; set; } = ThemeSelection.Current;
         public CustomThemeConfig CustomTheme { get; set; } = new();
         public List<ThemePreset> ThemePresets { get; set; } = new();
         public string? ActivePresetName { get; set; } = null;
@@ -237,7 +236,7 @@ namespace SimpleCharacterSelectPlugin
         [JsonPropertyName("showReportUserContextMenu")]
         public bool ShowReportUserContextMenu { get; set; } = true;
 
-        // Blocked CS+ users
+        // Blocked SCS users
         [JsonPropertyName("blockedCSUsers")]
         public HashSet<string> BlockedCSUsers { get; set; } = new();
 
@@ -364,20 +363,6 @@ namespace SimpleCharacterSelectPlugin
                 {
                     Plugin.Log.Warning("[Configuration.Save] pluginInterface is null, skipping save");
                     return;
-                }
-
-                // Auto-save to active preset (with null checks)
-                if (SelectedTheme == ThemeSelection.Custom && !string.IsNullOrEmpty(ActivePresetName))
-                {
-                    // Ensure collections are initialized
-                    ThemePresets ??= new List<ThemePreset>();
-                    CustomTheme ??= new CustomThemeConfig();
-
-                    var activePreset = ThemePresets.FirstOrDefault(p => p.Name == ActivePresetName);
-                    if (activePreset != null)
-                    {
-                        activePreset.Config = CustomTheme.Clone();
-                    }
                 }
 
                 pluginInterface.SavePluginConfig(this);

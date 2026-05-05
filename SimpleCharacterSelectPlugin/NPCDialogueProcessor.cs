@@ -1263,7 +1263,7 @@ namespace SimpleCharacterSelectPlugin
     //
     //                     try
     //                     {
-    //                         var investigationPath = @"F:\CS+\FFXIV_Dialogue_Investigation.txt";
+    //                         var investigationPath = @"F:\SCS\FFXIV_Dialogue_Investigation.txt";
     //                         var entry = $"[{timestamp}] ProcessTextDetour\n" +
     //                                    $"Text: {textString}\n" +
     //                                    $"Hex: {hexString}\n" +
@@ -2384,7 +2384,7 @@ namespace SimpleCharacterSelectPlugin
     //                 IsKnown = isKnown
     //             };
     //
-    //             var jsonPath = @"F:\CS+\FFXIV_Flag_Discovery.json";
+    //             var jsonPath = @"F:\SCS\FFXIV_Flag_Discovery.json";
     //             var json = System.Text.Json.JsonSerializer.Serialize(logEntry, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
     //             File.AppendAllText(jsonPath, json + ",\n");
     //
@@ -2401,7 +2401,7 @@ namespace SimpleCharacterSelectPlugin
     //     {
     //         try
     //         {
-    //             var summaryPath = @"F:\CS+\FFXIV_Flag_Discovery_Summary.txt";
+    //             var summaryPath = @"F:\SCS\FFXIV_Flag_Discovery_Summary.txt";
     //             var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
     //             var status = isKnown ? "KNOWN" : "NEW!";
     //

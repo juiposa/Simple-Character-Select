@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 
 namespace SimpleCharacterSelectPlugin.Windows.Components
