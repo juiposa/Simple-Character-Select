@@ -14,12 +14,12 @@ public static class CharacterManager
     private static readonly string NameEmptyError =
         "Name cannot be empty.";
 
-    public static SCSError? ValidateName(string name, List<Character> characters)
+    public static SCSError? ValidateName(string name, Character currentCharacter, List<Character> characters)
     {
         if (string.IsNullOrWhiteSpace(name))
             return new SCSError(NameEmptyError);
 
-        if (characters.Any(c => c.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        if (name != currentCharacter.Data.Name && characters.Any(c => c.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
         {
             return new SCSError(NameValidationError);
         }
@@ -28,16 +28,13 @@ public static class CharacterManager
     
     public static void SaveCharacter(int index, Character character, Configuration config, IPluginLog log)
     {
-        log.Info("Char {0}", character);
-        log.Info("Data: {0}", character.Data);
-        log.Info("Desings: {0}", character.Data.Designs);
         if (character.Data.Designs.Count == 0)
         {
             character.Data.Designs.Add(CreateDefaultDesign(character, config));
         }
         
         character.Save();
-
+        
         if (index >= 0)
         {
             config.Characters[index] = character;

@@ -267,14 +267,15 @@ namespace SimpleCharacterSelectPlugin.Windows
 
             var totalScale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
 
-            float buttonWidth = 70 * totalScale;
+            float buttonWidth = 12 * totalScale;
             float iconButtonSize = ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2;
             float buttonHeight = iconButtonSize;
             float availableWidth = ImGui.GetContentRegionAvail().X;
             float spacing = ImGui.GetStyle().ItemSpacing.X;
 
             // Position for Revert button + Discord button
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - buttonWidth - iconButtonSize - spacing);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - buttonWidth - iconButtonSize);
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (5 * totalScale) );
 
             // Revert button
             if (uiStyles.IconButton("\uf0e2", "Revert All SCS Changes\n\nReverts:\n• Glamourer → Game state\n• Honorific → Cleared\n• Moodles → All removed\n• Customize+ → Disabled\n• Penumbra → Your Character collection\n• SCS → No active character", new Vector2(iconButtonSize, iconButtonSize)))

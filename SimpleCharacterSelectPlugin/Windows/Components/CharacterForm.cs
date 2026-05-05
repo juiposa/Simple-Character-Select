@@ -164,7 +164,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.WindowState.CharacterNameFieldSize = ImGui.GetItemRectSize();
 
                 // Validate name on change
-                SCSError? err = CharacterManager.ValidateName(tempName, plugin.Characters);
+                SCSError? err = CharacterManager.ValidateName(tempName, currentCharacter, plugin.Characters);
                 if (err != null)
                 {
                     noErrors = false;
@@ -1219,6 +1219,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         public void InitCreateCharacterWindow()
         {
             currentCharacter = new Character();
+            selectedCharacterIndex = -1;
             IsEditWindowOpen = false;
         }
 

@@ -4,7 +4,7 @@ namespace SimpleCharacterSelectPlugin.Models;
 
 public class WindowState
 {
-            public bool IsAddCharacterWindowOpen { get; set; } = false;
+        public bool IsAddCharacterWindowOpen { get; set; } = false;
         // Settings Variables
         public bool IsSettingsOpen { get; set; } = false;  // Tracks if settings panel is open
         public float ProfileImageScale { get; set; } = 1.0f;  // Image scaling (1.0 = normal size)

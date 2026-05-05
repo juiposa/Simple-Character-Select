@@ -8,7 +8,7 @@ namespace SimpleCharacterSelectPlugin.Models;
 
 public class CharacterData
 {
-    public string Name { get; set; } = "foo";
+    public string Name { get; set; } = "";
 
     /// <summary>Optional alias used for Name Sync. If empty, uses Name.</summary>
     public string Alias { get; set; } = "";
