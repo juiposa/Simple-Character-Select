@@ -7,9 +7,12 @@ using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
+using Serilog;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 using SimpleCharacterSelectPlugin.Windows.Utils;
 using SimpleCharacterSelectPlugin;
+using SimpleCharacterSelectPlugin.Managers;
+using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin.Windows.Components
 {
@@ -92,26 +95,19 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void DrawToolbar(float scale)
         {
-            if (!plugin.IsAddCharacterWindowOpen)
+            if (!plugin.WindowState.IsAddCharacterWindowOpen)
             {
                 float buttonHeight = 25f * scale;
 
                 if (ImGui.Button("Add Character", new Vector2(0, buttonHeight)))
                 {
-                    var io = ImGui.GetIO();
-                    bool isSecretMode = io.KeyCtrl && io.KeyShift;
-
-                    plugin.OpenAddCharacterWindow();
-
-                    if (isSecretMode)
-                    {
-                        plugin.IsSecretMode = isSecretMode;
-                    }
+                    plugin.MainWindow.OpenAddCharacterWindow();
+                    
                     InvalidateCache();
                 }
 
-                plugin.AddCharacterButtonPos = ImGui.GetItemRectMin();
-                plugin.AddCharacterButtonSize = ImGui.GetItemRectSize();
+                plugin.WindowState.AddCharacterButtonPos = ImGui.GetItemRectMin();
+                plugin.WindowState.AddCharacterButtonSize = ImGui.GetItemRectSize();
 
                 DrawSearchAndFilters(scale);
             }
@@ -142,7 +138,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     if (ImGui.BeginCombo("##TagFilter", selectedTag))
                     {
                         var allTags = plugin.Characters
-                            .SelectMany(c => c.Tags ?? new List<string>())
+                            .SelectMany(c => c.Data.Tags ?? new List<string>())
                             .Distinct()
                             .OrderBy(f => f)
                             .Prepend("All")
@@ -209,7 +205,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             int columnCount = cachedColumnCount;
 
             // Centre the grid horizontally
-            float columnWidth = cardWidth + (plugin.ProfileSpacing * scale) + (24f * scale);
+            float columnWidth = cardWidth + (plugin.WindowState.ProfileSpacing * scale) + (24f * scale);
             float totalGridWidth = columnCount > 1
                 ? columnCount * columnWidth
                 : cardWidth;
@@ -259,15 +255,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void RecalculateLayout(float availableWidth, float scale)
         {
-            float profileSpacing = plugin.ProfileSpacing * scale;
-            int columnCount = plugin.ProfileColumns;
+            float profileSpacing = plugin.WindowState.ProfileSpacing * scale;
+            int columnCount = plugin.WindowState.ProfileColumns;
 
-            if (plugin.IsDesignPanelOpen)
+            if (plugin.WindowState.IsDesignPanelOpen)
             {
                 columnCount = Math.Max(1, columnCount - 1);
             }
 
-            float cardWidth = 250 * plugin.ProfileImageScale * scale;
+            float cardWidth = 250 * plugin.WindowState.ProfileImageScale * scale;
             float borderMargin = 12f * scale;
             float totalCardWidth = cardWidth + (borderMargin * 2);
             float columnWidth = totalCardWidth + profileSpacing;
@@ -316,11 +312,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string pluginDirectory = plugin.PluginDirectory;
             string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
 
-            string finalImagePath = GetCachedImagePath(character.ImagePath, defaultImagePath);
+            string finalImagePath = GetCachedImagePath(character.Data.ImagePath, defaultImagePath);
 
             // Check if this character is the main character
             bool isMainCharacter = !string.IsNullOrEmpty(plugin.Configuration.MainCharacterName) &&
-                                   character.Name == plugin.Configuration.MainCharacterName;
+                                   character.Data.Name == plugin.Configuration.MainCharacterName;
 
             ImGui.BeginGroup();
 
@@ -340,7 +336,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 HandleCharacterClick(character, index);
             }
 
-            if (ImGui.BeginPopupContextItem($"##ContextMenu_{character.Name}"))
+            if (ImGui.BeginPopupContextItem($"##ContextMenu_{character.Data.Name}"))
             {
                 DrawContextMenu(character, scale);
                 ImGui.EndPopup();
@@ -348,7 +344,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             float hoverAmount = UpdateHoverAnimation(index, isHovered);
 
-            Vector3 borderColor = character.NameplateColor;
+            Vector3 borderColor = character.Data.NameplateColor;
             
             float borderIntensity = 0.6f + hoverAmount * 0.4f;
             
@@ -554,7 +550,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             var accentMin = new Vector2(nameplateMin.X + (6 * scale), nameplateMin.Y + (2 * scale));
             var accentMax = new Vector2(nameplateMax.X - (6 * scale), nameplateMin.Y + (6 * scale));
-            uint accentColor = ImGui.GetColorU32(new Vector4(character.NameplateColor.X, character.NameplateColor.Y, character.NameplateColor.Z, 0.9f + hoverAmount * 0.3f));
+            uint accentColor = ImGui.GetColorU32(new Vector4(character.Data.NameplateColor.X, character.Data.NameplateColor.Y, character.Data.NameplateColor.Z, 0.9f + hoverAmount * 0.3f));
             drawList.AddRectFilled(accentMin, accentMax, accentColor, 3f * scale);
 
             float topRowY = nameplateMin.Y + (12 * scale);
@@ -563,7 +559,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string starSymbol;
             
             // TODO duplicated
-            starSymbol = character.IsFavorite ? "★" : "☆"; // Default stars
+            starSymbol = character.Data.IsFavorite ? "★" : "☆"; // Default stars
             
             var starPos = new Vector2(nameplateMin.X + (8 * scale), topRowY);
             var starSize = GetCachedTextSize(starSymbol);
@@ -572,7 +568,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             Vector4 starMainColor, starGlowColor;
             
             // Default colours
-            if (character.IsFavorite)
+            if (character.Data.IsFavorite)
             {
                 starMainColor = new Vector4(1f, 0.9f, 0.2f, 1f); // Gold
                 starGlowColor = new Vector4(1f, 0.8f, 0f, 0.5f + hoverAmount * 0.3f);
@@ -583,7 +579,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 starGlowColor = starMainColor;
             }
 
-            if (character.IsFavorite)
+            if (character.Data.IsFavorite)
             {
                 uint starGlow = ImGui.GetColorU32(starGlowColor);
                 drawList.AddText(starPos + new Vector2(1 * scale, 1 * scale), starGlow, starSymbol);
@@ -596,12 +592,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             var starHitMax = starPos + starSize + new Vector2(2 * scale, 2 * scale);
             if (ImGui.IsMouseHoveringRect(starHitMin, starHitMax))
             {
-                ImGui.SetTooltip($"{(character.IsFavorite ? "Remove" : "Add")} {character.Name} as a Favourite");
+                ImGui.SetTooltip($"{(character.Data.IsFavorite ? "Remove" : "Add")} {character.Data.Name} as a Favourite");
 
                 if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
                     var actualCharacter = plugin.Characters[characterIndex];
-                    actualCharacter.IsFavorite = !actualCharacter.IsFavorite;
+                    actualCharacter.Data.IsFavorite = !actualCharacter.Data.IsFavorite;
 
                     Vector2 effectPos = starPos + starSize / 2;
                     //characterFavoriteEffects[characterIndex].Trigger(effectPos, actualCharacter.IsFavorite, plugin.Configuration);
@@ -613,7 +609,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Character Name - with truncation for narrow cards
             float availableNameWidth = cardWidth - (70 * scale); // Space between star and RP icon
-            string displayName = LayoutHelper.ClampText(character.Name, availableNameWidth, "...");
+            string displayName = LayoutHelper.ClampText(character.Data.Name, availableNameWidth, "...");
 
             var textSize = GetCachedTextSize(displayName);
             var textPos = new Vector2(
@@ -666,7 +662,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SetWindowFontScale(iconScale);
                 ImGui.PushFont(UiBuilder.IconFont);
             }
-            if (ImGui.Button(useIcons ? $"{designsIcon}##{character.Name}" : $"Designs##{character.Name}", new Vector2(btnWidth, btnHeight)))
+            if (ImGui.Button(useIcons ? $"{designsIcon}##{character.Data.Name}" : $"Designs##{character.Data.Name}", new Vector2(btnWidth, btnHeight)))
             {
                 int realIndex = plugin.Characters.IndexOf(character);
                 if (realIndex >= 0)
@@ -687,8 +683,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Store for tutorial
             if (plugin.Characters.IndexOf(character) == 0)
             {
-                plugin.FirstCharacterDesignsButtonPos = buttonPos;
-                plugin.FirstCharacterDesignsButtonSize = buttonSize;
+                plugin.WindowState.FirstCharacterDesignsButtonPos = buttonPos;
+                plugin.WindowState.FirstCharacterDesignsButtonSize = buttonSize;
             }
 
             ImGui.SameLine(0, btnSpacing);
@@ -702,25 +698,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SetWindowFontScale(iconScale);
                 ImGui.PushFont(UiBuilder.IconFont);
             }
-            if (ImGui.Button(useIcons ? $"{editIcon}##{character.Name}" : $"Edit##{character.Name}", new Vector2(btnWidth, btnHeight)))
+            if (ImGui.Button(useIcons ? $"{editIcon}##{character.Data.Name}" : $"Edit##{character.Data.Name}", new Vector2(btnWidth, btnHeight)))
             {
                 int realIndex = plugin.Characters.IndexOf(character);
                 if (realIndex >= 0)
                 {
-                    if (isCtrlShiftPressed && plugin.Configuration.EnableConflictResolution)
-                    {
-                        // Enable secret mode for this character conversion
-                        plugin.IsSecretMode = true;
-
-                        // Ensure the character has secret mode data structure initialized
-                        var targetChar = plugin.Characters[realIndex];
-                        if (targetChar.SecretModState == null)
-                        {
-                            targetChar.SecretModState = new Dictionary<string, bool>();
-                        }
-
-                        Plugin.ChatGui.Print("[Simple Character Select] Character conversion to Secret Mode enabled. Configure mods in the Edit window.");
-                    }
                     // Always open edit window (either with converted or original macro)
                     plugin.OpenEditCharacterWindow(realIndex);
                 }
@@ -745,7 +727,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SetWindowFontScale(iconScale);
                 ImGui.PushFont(UiBuilder.IconFont);
             }
-            if (ImGui.Button(useIcons ? $"{deleteIcon}##{character.Name}" : $"Delete##{character.Name}", new Vector2(btnWidth, btnHeight)))
+            if (ImGui.Button(useIcons ? $"{deleteIcon}##{character.Data.Name}" : $"Delete##{character.Data.Name}", new Vector2(btnWidth, btnHeight)))
             {
                 if (isCtrlShiftPressed)
                 {
@@ -806,7 +788,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
 
             bool isMainCharacter = !string.IsNullOrEmpty(plugin.Configuration.MainCharacterName) &&
-                                   character.Name == plugin.Configuration.MainCharacterName;
+                                   character.Data.Name == plugin.Configuration.MainCharacterName;
 
             ImGui.Separator();
             if (isMainCharacter)
@@ -838,7 +820,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SameLine(0, 4 * scale);
                 if (ImGui.Selectable("Set as Main Character"))
                 {
-                    plugin.Configuration.MainCharacterName = character.Name;
+                    plugin.Configuration.MainCharacterName = character.Data.Name;
                     plugin.Configuration.Save();
                     InvalidateCache();
                 }
@@ -847,21 +829,21 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
 
             ImGui.Spacing();
-            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(character.NameplateColor, 1.0f));
-            ImGui.BeginChild($"##Separator_{character.Name}", new Vector2(ImGui.GetContentRegionAvail().X, 3 * scale), false);
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(character.Data.NameplateColor, 1.0f));
+            ImGui.BeginChild($"##Separator_{character.Data.Name}", new Vector2(ImGui.GetContentRegionAvail().X, 3 * scale), false);
             ImGui.EndChild();
             ImGui.PopStyleColor();
             ImGui.Spacing();
 
-            if (character.Designs.Count > 0)
+            if (character.Data.Designs.Count > 0)
             {
                 float itemHeight = ImGui.GetTextLineHeightWithSpacing();
                 float maxVisible = 10;
-                float scrollHeight = Math.Min(character.Designs.Count, maxVisible) * itemHeight + (8 * scale);
+                float scrollHeight = Math.Min(character.Data.Designs.Count, maxVisible) * itemHeight + (8 * scale);
 
-                if (ImGui.BeginChild($"##DesignScroll_{character.Name}", new Vector2(300 * scale, scrollHeight)))
+                if (ImGui.BeginChild($"##DesignScroll_{character.Data.Name}", new Vector2(300 * scale, scrollHeight)))
                 {
-                    foreach (var design in character.Designs)
+                    foreach (var design in character.Data.Designs)
                     {
                         if (ImGui.Selectable($"Apply Design: {design.Name}"))
                         {
@@ -873,7 +855,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                             }
                             else
                             {
-                                var designIndex = character.Designs.IndexOf(design);
+                                var designIndex = character.Data.Designs.IndexOf(design);
                                 var targetInfo = new { ObjectIndex = target.ObjectIndex, ObjectKind = target.ObjectKind, Name = target.Name?.ToString() ?? "Unknown" };
                                 
                                 _ = System.Threading.Tasks.Task.Run(async () =>
@@ -1096,34 +1078,34 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             for (int i = 0; i < plugin.Characters.Count; i++)
             {
-                plugin.Characters[i].SortOrder = i;
+                plugin.Characters[i].Data.SortOrder = i;
             }
 
             plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Manual;
             plugin.SaveConfiguration();
 
-            Plugin.Log.Debug($"[DragDrop] Moved character '{character.Name}' from position {fromIndex} to {insertIndex} (target was {toIndex})");
+            Plugin.Log.Debug($"[DragDrop] Moved character '{character.Data.Name}' from position {fromIndex} to {insertIndex} (target was {toIndex})");
         }
 
         private void HandleCharacterClick(Character character, int index)
         {
-            if (plugin.IsDesignPanelOpen)
+            if (plugin.WindowState.IsDesignPanelOpen)
             {
-                plugin.IsDesignPanelOpen = false;
+                plugin.WindowState.IsDesignPanelOpen = false;
             }
 
             // Switch Penumbra collection if specified
-            if (!string.IsNullOrEmpty(character.PenumbraCollection))
+            if (!string.IsNullOrEmpty(character.Data.PenumbraCollection))
             {
-                plugin.SwitchPenumbraCollection(character.PenumbraCollection);
+                plugin.SwitchPenumbraCollection(character.Data.PenumbraCollection);
             }
 
-            plugin.ExecuteMacro(character.Macros, character, null);
+            GameCommandManager.ExecuteMacro(character.Data.Macros, character, null);
 
             // Switch gearset if assigned at character level
-            if (plugin.Configuration.EnableGearsetAssignments && character.AssignedGearset.HasValue)
+            if (plugin.Configuration.EnableGearsetAssignments && character.Data.AssignedGearset.HasValue)
             {
-                //plugin.SwitchToGearset(character.AssignedGearset.Value);
+                //plugin.SwitchToGearset(character.Data.AssignedGearset.Value);
             }
 
             plugin.SetActiveCharacter(character);
@@ -1135,7 +1117,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 string worldName = player.HomeWorld.Value.Name.ToString();
                 string fullKey = $"{localName}@{worldName}";
                 
-                Plugin.Log.Info($"[CharacterGrid] ⚠ Skipped upload for {character.Name} (NeverShare)");
+                Plugin.Log.Info($"[CharacterGrid] ⚠ Skipped upload for {character.Data.Name} (NeverShare)");
             }
             plugin.QuickSwitchWindow.UpdateSelectionFromCharacter(character);
         }
@@ -1164,14 +1146,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Apply tag filter
             if (selectedTag != "All")
             {
-                characters = characters.Where(c => c.Tags?.Contains(selectedTag) ?? false);
+                characters = characters.Where(c => c.Data.Tags?.Contains(selectedTag) ?? false);
             }
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
                 characters = characters.Where(c =>
-                    c.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+                    c.Data.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
             }
 
             cachedFilteredCharacters = characters.ToList();
@@ -1221,26 +1203,26 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 plugin.Characters.Sort((a, b) =>
                 {
-                    int favCompare = b.IsFavorite.CompareTo(a.IsFavorite);
+                    int favCompare = b.Data.IsFavorite.CompareTo(a.Data.IsFavorite);
                     if (favCompare != 0) return favCompare;
-                    return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+                    return string.Compare(a.Data.Name, b.Data.Name, StringComparison.OrdinalIgnoreCase);
                 });
             }
             else if (CurrentSort == Plugin.SortType.Manual)
             {
-                plugin.Characters.Sort((a, b) => a.SortOrder.CompareTo(b.SortOrder));
+                plugin.Characters.Sort((a, b) => a.Data.SortOrder.CompareTo(b.Data.SortOrder));
             }
             else if (CurrentSort == Plugin.SortType.Alphabetical)
             {
-                plugin.Characters.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+                plugin.Characters.Sort((a, b) => string.Compare(a.Data.Name, b.Data.Name, StringComparison.OrdinalIgnoreCase));
             }
             else if (CurrentSort == Plugin.SortType.Recent)
             {
-                plugin.Characters.Sort((a, b) => b.DateAdded.CompareTo(a.DateAdded));
+                plugin.Characters.Sort((a, b) => b.Data.DateAdded.CompareTo(a.Data.DateAdded));
             }
             else if (CurrentSort == Plugin.SortType.Oldest)
             {
-                plugin.Characters.Sort((a, b) => a.DateAdded.CompareTo(b.DateAdded));
+                plugin.Characters.Sort((a, b) => a.Data.DateAdded.CompareTo(b.Data.DateAdded));
             }
 
             InvalidateCache();
@@ -1299,17 +1281,17 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     // Pre-check all character images
                     foreach (var character in characters.ToList())
                     {
-                        if (!string.IsNullOrEmpty(character.ImagePath))
+                        if (!string.IsNullOrEmpty(character.Data.ImagePath))
                         {
-                            var exists = File.Exists(character.ImagePath);
+                            var exists = File.Exists(character.Data.ImagePath);
                             lock (fileExistsCache)
                             {
-                                fileExistsCache[character.ImagePath] = exists;
+                                fileExistsCache[character.Data.ImagePath] = exists;
                             }
                         }
 
                         // Also check design preview images
-                        foreach (var design in character.Designs ?? Enumerable.Empty<CharacterDesign>())
+                        foreach (var design in character.Data.Designs ?? Enumerable.Empty<CharacterDesign>())
                         {
                             if (!string.IsNullOrEmpty(design.PreviewImagePath))
                             {

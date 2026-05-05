@@ -2,31 +2,32 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Ipc;
 
 namespace SimpleCharacterSelectPlugin
 {
     /// <summary>
     /// IPC Provider for Simple Character Select to allow other plugins to interact with character switching
     /// </summary>
-    public class IPCProvider : IDisposable
+    public class SCSIPCProvider : IDisposable
     {
         private readonly Plugin plugin;
         private readonly IDalamudPluginInterface pluginInterface;
         
         // IPC Providers
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<string[]> getCharacterListProvider;
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<string> getCurrentCharacterProvider;
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<string, string[]> getCharacterDesignsProvider;
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<string, bool> switchToCharacterProvider;
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<string, string, bool> switchToCharacterDesignProvider;
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<bool> getQuickSwitchVisibilityProvider;
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<bool> toggleQuickSwitchProvider;
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<string, string, object> onCharacterChangedProvider;
+        private readonly ICallGateProvider<string[]> getCharacterListProvider;
+        private readonly ICallGateProvider<string> getCurrentCharacterProvider;
+        private readonly ICallGateProvider<string, string[]> getCharacterDesignsProvider;
+        private readonly ICallGateProvider<string, bool> switchToCharacterProvider;
+        private readonly ICallGateProvider<string, string, bool> switchToCharacterDesignProvider;
+        private readonly ICallGateProvider<bool> getQuickSwitchVisibilityProvider;
+        private readonly ICallGateProvider<bool> toggleQuickSwitchProvider;
+        private readonly ICallGateProvider<string, string, object> onCharacterChangedProvider;
         
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<int> getCharacterCountProvider;
-        private readonly Dalamud.Plugin.Ipc.ICallGateProvider<List<(string, bool, string?)>> getCharactersProvider;
+        private readonly ICallGateProvider<int> getCharacterCountProvider;
+        private readonly ICallGateProvider<List<(string, bool, string?)>> getCharactersProvider;
 
-        public IPCProvider(Plugin plugin, IDalamudPluginInterface pluginInterface)
+        public SCSIPCProvider(Plugin plugin, IDalamudPluginInterface pluginInterface)
         {
             this.plugin = plugin;
             this.pluginInterface = pluginInterface;
@@ -69,7 +70,7 @@ namespace SimpleCharacterSelectPlugin
         /// </summary>
         private string[] GetCharacterList()
         {
-            return plugin.Characters.Select(c => c.Name).ToArray();
+            return plugin.Characters.Select(c => c.Data.Name).ToArray();
         }
 
         /// <summary>
@@ -77,7 +78,7 @@ namespace SimpleCharacterSelectPlugin
         /// </summary>
         private string GetCurrentCharacter()
         {
-            return plugin.activeCharacter?.Name ?? "";
+            return plugin.PlayerCharacter.activeCharacter?.Data.Name ?? "";
         }
 
         /// <summary>
@@ -85,11 +86,11 @@ namespace SimpleCharacterSelectPlugin
         /// </summary>
         private string[] GetCharacterDesigns(string characterName)
         {
-            var character = plugin.Characters.FirstOrDefault(c => c.Name == characterName);
+            var character = plugin.Characters.FirstOrDefault(c => c.Data.Name == characterName);
             if (character == null)
                 return Array.Empty<string>();
             
-            return character.Designs.Select(d => d.Name).ToArray();
+            return character.Data.Designs.Select(d => d.Name).ToArray();
         }
 
         /// <summary>
@@ -97,7 +98,7 @@ namespace SimpleCharacterSelectPlugin
         /// </summary>
         private bool SwitchToCharacter(string characterName)
         {
-            var character = plugin.Characters.FirstOrDefault(c => c.Name == characterName);
+            var character = plugin.Characters.FirstOrDefault(c => c.Data.Name == characterName);
             if (character == null)
                 return false;
             
@@ -118,11 +119,11 @@ namespace SimpleCharacterSelectPlugin
         /// </summary>
         private bool SwitchToCharacterDesign(string characterName, string designName)
         {
-            var character = plugin.Characters.FirstOrDefault(c => c.Name == characterName);
+            var character = plugin.Characters.FirstOrDefault(c => c.Data.Name == characterName);
             if (character == null)
                 return false;
             
-            var designIndex = character.Designs.FindIndex(d => d.Name == designName);
+            var designIndex = character.Data.Designs.FindIndex(d => d.Name == designName);
             if (designIndex == -1)
                 return false;
             
@@ -188,15 +189,15 @@ namespace SimpleCharacterSelectPlugin
             var result = new List<(string, bool, string?)>();
             
             Plugin.Log.Info($"[IPC] GetCharacters called. Total characters: {plugin.Characters.Count}");
-            Plugin.Log.Info($"[IPC] Active character: {plugin.activeCharacter?.Name ?? "None"}");
+            Plugin.Log.Info($"[IPC] Active character: {plugin.PlayerCharacter.activeCharacter?.Data.Name ?? "None"}");
             
             foreach (var character in plugin.Characters)
             {
-                bool isActive = plugin.activeCharacter?.Name == character.Name;
+                bool isActive = plugin.PlayerCharacter.activeCharacter?.Data.Name == character.Data.Name;
                 string? currentDesign = null;
                 
-                Plugin.Log.Info($"[IPC] Character: {character.Name}, Active: {isActive}");
-                result.Add((character.Name, isActive, currentDesign));
+                Plugin.Log.Info($"[IPC] Character: {character.Data.Name}, Active: {isActive}");
+                result.Add((character.Data.Name, isActive, currentDesign));
             }
             
             Plugin.Log.Info($"[IPC] GetCharacters returning {result.Count} characters");

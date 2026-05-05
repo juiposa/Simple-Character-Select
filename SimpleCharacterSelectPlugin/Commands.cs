@@ -7,6 +7,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using SimpleCharacterSelectPlugin.Managers;
+using SimpleCharacterSelectPlugin.Models;
 using SimpleCharacterSelectPlugin.Windows;
 
 namespace SimpleCharacterSelectPlugin;
@@ -18,12 +19,16 @@ public class Commands
     private Plugin plugin;
     private ICommandManager commandManager;
     private IChatGui chatGui;
+    private IPluginLog log;
+    private Configuration config;
 
-    public Commands(Plugin plugin, ICommandManager commandManager, IChatGui chatGui)
+    public Commands(Plugin plugin, ICommandManager commandManager, IChatGui chatGui, IPluginLog log, Configuration config)
     {   
         this.plugin = plugin;
         this.commandManager = commandManager;
         this.chatGui = chatGui;
+        this.log = log;
+        this.config = config;
     }
 
     public void AddCommands()
@@ -229,6 +234,33 @@ public class Commands
         commandManager.RemoveHandler("/spose");
         commandManager.RemoveHandler("/gallery");
         commandManager.RemoveHandler("/selectrevert");
+    }
+    
+    public void SaveAfterCommand(Character character, string designName)
+    {
+        config.LastUsedCharacterKey = character.Data.Name;
+
+        if (!string.IsNullOrEmpty(designName))
+        {
+            config.LastUsedDesignCharacterKey = character.Data.Name;
+            config.LastUsedDesignByCharacter[character.Data.Name] = designName;
+            log.Debug($"[MacroTracker] Saved last design {designName} for {character.Data.Name}");
+        }
+        else
+        {
+            config.LastUsedDesignCharacterKey = null;
+            config.LastUsedDesignByCharacter.Remove(character.Data.Name);
+            log.Debug($"[MacroTracker] Cleared design for {character.Data.Name}");
+        }
+
+        try
+        {
+            config.Save();
+        }
+        catch (Exception ex)
+        {
+            log.Error($"Failed to save configuration: {ex.Message}");
+        }
     }
 
     /// <summary>

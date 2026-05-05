@@ -9,6 +9,8 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.ImGuiSeStringRenderer;
+using SimpleCharacterSelectPlugin.Managers;
+using SimpleCharacterSelectPlugin.Models;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 using SimpleCharacterSelectPlugin.Windows.Utils;
 using SeString = Dalamud.Game.Text.SeStringHandling.SeString;
@@ -24,39 +26,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         // Form state
         public bool IsEditWindowOpen { get; private set; } = false;
+        private Character currentCharacter;
         private int selectedCharacterIndex = -1;
         private bool isSecretMode = false;
         private bool isAdvancedModeCharacter = false;
         private string? pendingImagePath = null;
-
-        // Edit fields
-        private string editedCharacterName = "";
-        private string originalCharacterName = ""; // Track original name for warning resolution
-        private string editedCharacterMacros = "";
-        private string? editedCharacterImagePath = null;
-        private string nameValidationError = "";
-        private Vector3 editedCharacterColor = new Vector3(1.0f, 1.0f, 1.0f);
-        private string editedCharacterPenumbra = "";
-        private string editedCharacterGlamourer = "";
-        private string editedCharacterCustomize = "";
-        private string editedCharacterTag = "";
-        private string editedCharacterAutomation = "";
-        private string editedCharacterMoodlePreset = "";
-        private int? editedCharacterGearset = null;
-        private bool editedCharacterExcludeFromNameSync = false;
-        private string editedCharacterAlias = "";
-
-        // Honorific fields
-        private string editedCharacterHonorificTitle = "";
-        private string editedCharacterHonorificPrefix = "Prefix";
-        private string editedCharacterHonorificSuffix = "Suffix";
-        private Vector3 editedCharacterHonorificColor = new Vector3(1.0f, 1.0f, 1.0f);
-        private Vector3 editedCharacterHonorificGlow = new Vector3(1.0f, 1.0f, 1.0f);
-        private Vector3? editedCharacterHonorificColor3 = null;  // Second colour for two-colour gradient
-        private int? editedCharacterHonorificGradientSet = null;
-        private string? editedCharacterHonorificAnimationStyle = null;
+        private bool noErrors = true;
 
         // Temp fields for live updates
+        // TODO refactor
         private string tempHonorificTitle = "";
         private string tempHonorificPrefix = "Prefix";
         private string tempHonorificSuffix = "Suffix";
@@ -132,53 +110,24 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             this.uiStyles = uiStyles;
         }
 
+        public void CloseAddCharacterWindow()
+        {
+            plugin.WindowState.IsAddCharacterWindowOpen = false;
+        }
+
         public void Dispose()
         {
         }
 
         public void Draw()
         {
-            if (!plugin.IsAddCharacterWindowOpen && !IsEditWindowOpen)
-                return;
-
             var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier);
-
-            // Check if Conflict Resolution is enabled and determine secret mode
-            if (plugin.Configuration.EnableConflictResolution)
-            {
-                // Check if plugin.IsSecretMode is set (from Ctrl+Shift+Edit or Add)
-                if (plugin.IsSecretMode && !isSecretMode)
-                {
-                    isSecretMode = true;
-                    plugin.IsSecretMode = false; // Reset the flag
-                }
-                
-                // For editing existing characters, check if they already have secret mode data
-                if (IsEditWindowOpen && selectedCharacterIndex >= 0 && selectedCharacterIndex < plugin.Characters.Count)
-                {
-                    var character = plugin.Characters[selectedCharacterIndex];
-                    bool hasSecretModeData = character.SecretModState != null || 
-                                           (character.Designs?.Any(d => d.SecretModState != null) == true);
-                    
-                    if (hasSecretModeData && !isSecretMode)
-                    {
-                        isSecretMode = true;
-                    }
-                }
-                
-                if (!IsEditWindowOpen && isSecretMode)
-                {
-                    plugin.NewCharacterMacros = (isSecretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro();
-                }
-            }
 
             uiStyles.PushFormStyle();
 
             try
             {
                 float baseLines = 26f;
-                if (isAdvancedModeCharacter)
-                    baseLines += 6f;
 
                 float maxContentHeight = ImGui.GetTextLineHeightWithSpacing() * baseLines;
                 float availableHeight = ImGui.GetContentRegionAvail().Y - ImGui.GetFrameHeightWithSpacing() * 2.5f;
@@ -199,73 +148,54 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             float labelWidth = 130 * scale;
             float inputWidth = 250 * scale;
             float inputOffset = 10 * scale;
-
-            string tempName = IsEditWindowOpen ? editedCharacterName : plugin.NewCharacterName;
-            string tempMacros = IsEditWindowOpen ? editedCharacterMacros : plugin.NewCharacterMacros;
-            string? imagePath = IsEditWindowOpen ? editedCharacterImagePath : plugin.NewCharacterImagePath;
-            string tempPenumbra = IsEditWindowOpen ? editedCharacterPenumbra : plugin.NewPenumbraCollection;
-            string tempGlamourer = IsEditWindowOpen ? editedCharacterGlamourer : plugin.NewGlamourerDesign;
-            string tempCustomize = IsEditWindowOpen ? editedCharacterCustomize : plugin.NewCustomizeProfile;
-            Vector3 tempColor = IsEditWindowOpen ? editedCharacterColor : plugin.NewCharacterColor;
-            string tempTag = IsEditWindowOpen ? editedCharacterTag : plugin.NewCharacterTag;
+            
+            string tempName = currentCharacter.Data.Name;
+            string tempPenumbra = currentCharacter.Data.PenumbraCollection;
+            string tempGlamourer = currentCharacter.Data.GlamourerDesign;
+            Vector3 tempColor = currentCharacter.Data.NameplateColor;
+            string tempTag = currentCharacter.Data.Tag;
+            Honorific tempHonorific = currentCharacter.Data.Honorific;
 
             // Character Name
             DrawFormField("Character Name*", labelWidth, inputWidth, inputOffset, () =>
             {
-                // Show red border if there's a validation error
-                if (!string.IsNullOrEmpty(nameValidationError))
+                ImGui.InputText("##CharacterName", ref tempName, 50);
+                plugin.WindowState.CharacterNameFieldPos = ImGui.GetItemRectMin();
+                plugin.WindowState.CharacterNameFieldSize = ImGui.GetItemRectSize();
+
+                // Validate name on change
+                SCSError? err = CharacterManager.ValidateName(tempName, plugin.Characters);
+                if (err != null)
                 {
+                    noErrors = false;
                     ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(1.0f, 0.0f, 0.0f, 1.0f));
                     ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 2.0f);
                 }
                 
-                ImGui.InputText("##CharacterName", ref tempName, 50);
-                plugin.CharacterNameFieldPos = ImGui.GetItemRectMin();
-                plugin.CharacterNameFieldSize = ImGui.GetItemRectSize();
-
-                if (!string.IsNullOrEmpty(nameValidationError))
+                if (err != null)
                 {
                     ImGui.PopStyleColor();
                     ImGui.PopStyleVar();
                     
                     // Show error message
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.3f, 0.3f, 1.0f));
-                    ImGui.TextWrapped(nameValidationError);
+                    ImGui.TextWrapped(err.Message);
                     ImGui.PopStyleColor();
+                    return;
                 }
-
-                if (IsEditWindowOpen) editedCharacterName = tempName;
-                else plugin.NewCharacterName = tempName;
-
-                // Validate name on change
-                ValidateCharacterName(tempName);
-            }, "Enter your OC's name or nickname for profile here.", scale,
-            // Name Sync exclusion checkbox - after tooltip, only show if Name Sync sharing is enabled
-            plugin.Configuration.AllowOthersToSeeMyCSName ? () =>
-            {
-                ImGui.SameLine();
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 4 * scale); // Small gap
-                bool tempExclude = IsEditWindowOpen ? editedCharacterExcludeFromNameSync : false;
-                if (ImGui.Checkbox("Exclude from Name Sync", ref tempExclude))
-                {
-                    if (IsEditWindowOpen) editedCharacterExcludeFromNameSync = tempExclude;
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip("When checked, Name Sync won't apply to this character.");
-                }
-            } : null);
+                currentCharacter.Data.Name = tempName;
+                noErrors = true;
+            }, "Enter your OC's name or nickname for profile here.", scale, null);
 
             // Character Alias field - only show when Name Sync is enabled
             if (plugin.Configuration.EnableNameReplacement || plugin.Configuration.EnableSharedNameReplacement)
             {
-                string tempAlias = IsEditWindowOpen ? editedCharacterAlias : plugin.NewCharacterAlias;
+                string tempAlias = currentCharacter.Data.Alias;
                 DrawFormField("Character Alias", labelWidth, inputWidth, inputOffset, () =>
                 {
                     ImGui.InputTextWithHint("##CharacterAlias", "Leave empty to use Character Name", ref tempAlias, 100);
 
-                    if (IsEditWindowOpen) editedCharacterAlias = tempAlias;
-                    else plugin.NewCharacterAlias = tempAlias;
+                    currentCharacter.Data.Alias = tempAlias;
                 }, "Optional alias used for Name Sync.\nIf set, this name is displayed instead of Character Name.\nLeave empty to use the Character Name above.", scale);
             }
 
@@ -276,8 +206,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 ImGui.InputTextWithHint("##Tags", "e.g. Casual, Battle, Beach", ref tempTag, 100);
 
-                if (IsEditWindowOpen) editedCharacterTag = tempTag;
-                else plugin.NewCharacterTag = tempTag;
+                currentCharacter.Data.Tag = tempTag;
             }, "You can assign multiple tags by separating them with commas.\nExamples: Casual, Favourites, Seasonal", scale);
 
             ImGui.Separator();
@@ -287,8 +216,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 ImGui.ColorEdit3("##NameplateColor", ref tempColor);
 
-                if (IsEditWindowOpen) editedCharacterColor = tempColor;
-                else plugin.NewCharacterColor = tempColor;
+                currentCharacter.Data.NameplateColor = tempColor;
             }, "Affects your character's nameplate under their profile picture in Simple Character Select.", scale);
 
             ImGui.Separator();
@@ -298,44 +226,19 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 var penumbraOptions = plugin.IntegrationListProvider?.GetPenumbraCollections() ?? Array.Empty<string>();
                 var currentPenumbra = plugin.IntegrationListProvider?.GetCurrentPenumbraCollection();
-                string oldValue = tempPenumbra;
 
                 if (AutocompleteCombo.Draw("##PenumbraCollection", ref tempPenumbra, penumbraOptions, inputWidth, "Select collection...", currentActive: currentPenumbra))
                 {
-                    plugin.PenumbraFieldPos = ImGui.GetItemRectMin();
-                    plugin.PenumbraFieldSize = ImGui.GetItemRectSize();
+                    plugin.WindowState.PenumbraFieldPos = ImGui.GetItemRectMin();
+                    plugin.WindowState.PenumbraFieldSize = ImGui.GetItemRectSize();
 
-                    if (IsEditWindowOpen)
-                    {
-                        editedCharacterPenumbra = tempPenumbra;
-                        if (isAdvancedModeCharacter)
-                        {
-                            UpdateAdvancedMacroPenumbra(tempPenumbra);
-                        }
-                        else
-                        {
-                            editedCharacterMacros = GenerateMacro();
-                        }
-                    }
-                    else
-                    {
-                        plugin.NewPenumbraCollection = tempPenumbra;
-                        if (isAdvancedModeCharacter)
-                        {
-                            UpdateAdvancedMacroPenumbra(tempPenumbra);
-                            plugin.NewCharacterMacros = advancedCharacterMacroText;
-                        }
-                        else
-                        {
-                            plugin.NewCharacterMacros = (isSecretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro();
-                        }
-                    }
+                    currentCharacter.Data.PenumbraCollection = tempPenumbra;
                 }
                 else
                 {
                     // Still track position even when not changed
-                    plugin.PenumbraFieldPos = ImGui.GetItemRectMin();
-                    plugin.PenumbraFieldSize = ImGui.GetItemRectSize();
+                    plugin.WindowState.PenumbraFieldPos = ImGui.GetItemRectMin();
+                    plugin.WindowState.PenumbraFieldSize = ImGui.GetItemRectSize();
                 }
             }, "Select the Penumbra collection for this character. Right-click to clear.", scale);
 
@@ -345,44 +248,19 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             DrawFormField("Glamourer Design*", labelWidth, inputWidth, inputOffset, () =>
             {
                 var glamourerOptions = plugin.IntegrationListProvider?.GetGlamourerDesigns() ?? Array.Empty<string>();
-                string oldValue = tempGlamourer;
 
                 if (AutocompleteCombo.Draw("##GlamourerDesign", ref tempGlamourer, glamourerOptions, inputWidth, "Select design..."))
                 {
-                    plugin.GlamourerFieldPos = ImGui.GetItemRectMin();
-                    plugin.GlamourerFieldSize = ImGui.GetItemRectSize();
+                    plugin.WindowState.GlamourerFieldPos = ImGui.GetItemRectMin();
+                    plugin.WindowState.GlamourerFieldSize = ImGui.GetItemRectSize();
 
-                    if (IsEditWindowOpen)
-                    {
-                        editedCharacterGlamourer = tempGlamourer;
-                        if (isAdvancedModeCharacter)
-                        {
-                            UpdateAdvancedMacroGlamourer(oldValue, tempGlamourer);
-                        }
-                        else
-                        {
-                            editedCharacterMacros = GenerateMacro();
-                        }
-                    }
-                    else
-                    {
-                        plugin.NewGlamourerDesign = tempGlamourer;
-                        if (isAdvancedModeCharacter)
-                        {
-                            UpdateAdvancedMacroGlamourer(oldValue, tempGlamourer);
-                            plugin.NewCharacterMacros = advancedCharacterMacroText;
-                        }
-                        else
-                        {
-                            plugin.NewCharacterMacros = (isSecretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro();
-                        }
-                    }
+                    currentCharacter.Data.GlamourerDesign = tempGlamourer;
                 }
                 else
                 {
                     // Still track position even when not changed
-                    plugin.GlamourerFieldPos = ImGui.GetItemRectMin();
-                    plugin.GlamourerFieldSize = ImGui.GetItemRectSize();
+                    plugin.WindowState.GlamourerFieldPos = ImGui.GetItemRectMin();
+                    plugin.WindowState.GlamourerFieldSize = ImGui.GetItemRectSize();
                 }
             }, "Select the Glamourer design for this character. Right-click to clear.\nYou can add additional designs later.", scale);
 
@@ -422,10 +300,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             DrawImageSelection(scale);
             ImGui.Separator();
 
-            // Advanced Mode Toggle
-            DrawAdvancedModeSection(scale);
-            ImGui.Separator();
-
             // Buttons!
             DrawActionButtons(scale);
         }
@@ -462,7 +336,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         
         private void DrawAutomationField(float labelWidth, float inputWidth, float inputOffset, float scale)
         {
-            string tempCharacterAutomation = IsEditWindowOpen ? editedCharacterAutomation : plugin.NewCharacterAutomation;
+            string tempCharacterAutomation = currentCharacter.Data.CharacterAutomation;
 
             DrawFormField("Glam. Automation", labelWidth, inputWidth, inputOffset, () =>
             {
@@ -470,38 +344,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SetNextItemWidth(inputWidth);
                 if (ImGui.InputText("##Glam.Automation", ref tempCharacterAutomation, 100))
                 {
-                    if (IsEditWindowOpen)
-                    {
-                        editedCharacterAutomation = tempCharacterAutomation;
-                        if (isAdvancedModeCharacter)
-                        {
-                            UpdateAdvancedMacroAutomation(tempCharacterAutomation);
-                        }
-                        else
-                        {
-                            editedCharacterMacros = GenerateMacro();
-                        }
-                    }
-                    else
-                    {
-                        plugin.NewCharacterAutomation = tempCharacterAutomation;
-                        if (isAdvancedModeCharacter)
-                        {
-                            UpdateAdvancedMacroAutomation(tempCharacterAutomation);
-                            plugin.NewCharacterMacros = advancedCharacterMacroText;
-                        }
-                        else
-                        {
-                            plugin.NewCharacterMacros = (isSecretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro();
-                        }
-                    }
+                    currentCharacter.Data.CharacterAutomation = tempCharacterAutomation;
                 }
             }, "Enter the name of a Glamourer Automation for this character.\nMust match the automation name EXACTLY as shown in Glamourer.\nDesign-level automations override this if both are set.", scale);
         }
 
         private void DrawCustomizeField(float labelWidth, float inputWidth, float inputOffset, float scale)
         {
-            string tempCustomize = IsEditWindowOpen ? editedCharacterCustomize : plugin.NewCustomizeProfile;
+            string tempCustomize = currentCharacter.Data.CustomizeProfile;
 
             DrawFormField("Customize+ Profile", labelWidth, inputWidth, inputOffset, () =>
             {
@@ -510,31 +360,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 if (AutocompleteCombo.Draw("##CustomizeProfile", ref tempCustomize, customizeOptions, inputWidth, "Select profile...", currentActive: currentCustomize))
                 {
-                    if (IsEditWindowOpen)
-                    {
-                        editedCharacterCustomize = tempCustomize;
-                        if (isAdvancedModeCharacter)
-                        {
-                            UpdateAdvancedMacroCustomize(tempCustomize);
-                        }
-                        else
-                        {
-                            editedCharacterMacros = GenerateMacro();
-                        }
-                    }
-                    else
-                    {
-                        plugin.NewCustomizeProfile = tempCustomize;
-                        if (isAdvancedModeCharacter)
-                        {
-                            UpdateAdvancedMacroCustomize(tempCustomize);
-                            plugin.NewCharacterMacros = advancedCharacterMacroText;
-                        }
-                        else
-                        {
-                            plugin.NewCharacterMacros = (isSecretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro();
-                        }
-                    }
+                    currentCharacter.Data.CustomizeProfile = tempCustomize;
                 }
             }, "Select the Customize+ profile for this character. Right-click to clear.", scale);
         }
@@ -601,28 +427,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             if (changed)
             {
-                UpdateHonorificData();
-
-                // Always update advanced macro when in advanced mode
-                if (isAdvancedModeCharacter)
-                {
-                    UpdateAdvancedMacroHonorific();
-                    if (!IsEditWindowOpen)
-                    {
-                        plugin.NewCharacterMacros = advancedCharacterMacroText;
-                    }
-                }
-                else
-                {
-                    if (IsEditWindowOpen)
-                    {
-                        editedCharacterMacros = GenerateMacro();
-                    }
-                    else
-                    {
-                        plugin.NewCharacterMacros = (isSecretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro();
-                    }
-                }
+                UpdateHonorificData(currentCharacter);
             }
         }
 
@@ -848,30 +653,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 if (AutocompleteCombo.Draw("##MoodlePreset", ref tempMoodlePreset, moodleOptions, inputWidth, "Select preset..."))
                 {
-                    if (IsEditWindowOpen)
-                        editedCharacterMoodlePreset = tempMoodlePreset;
-                    else
-                        plugin.NewCharacterMoodlePreset = tempMoodlePreset;
-
-                    if (isAdvancedModeCharacter)
-                    {
-                        UpdateAdvancedMacroMoodle(tempMoodlePreset);
-                        if (!IsEditWindowOpen)
-                        {
-                            plugin.NewCharacterMacros = advancedCharacterMacroText;
-                        }
-                    }
-                    else
-                    {
-                        if (IsEditWindowOpen)
-                        {
-                            editedCharacterMacros = GenerateMacro();
-                        }
-                        else
-                        {
-                            plugin.NewCharacterMacros = (isSecretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro();
-                        }
-                    }
+                    currentCharacter.Data.MoodlePreset = tempMoodlePreset;
                 }
             }, "Select the Moodle preset for this character. Right-click to clear.", scale);
         }
@@ -886,7 +668,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             string[] poseOptions = { "None", "0", "1", "2", "3", "4", "5", "6" };
             byte storedIndex = IsEditWindowOpen
-                ? plugin.Characters[selectedCharacterIndex].IdlePoseIndex
+                ? plugin.Characters[selectedCharacterIndex].Data.IdlePoseIndex
                 : plugin.NewCharacterIdlePoseIndex;
 
             int dropdownIndex = storedIndex == 7 ? 0 : storedIndex + 1;
@@ -900,36 +682,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     {
                         byte newIndex = (byte)(i == 0 ? 7 : i - 1);
                         byte currentIndex = IsEditWindowOpen
-                            ? plugin.Characters[selectedCharacterIndex].IdlePoseIndex
+                            ? plugin.Characters[selectedCharacterIndex].Data.IdlePoseIndex
                             : plugin.NewCharacterIdlePoseIndex;
 
                         if (currentIndex != newIndex)
                         {
-                            if (IsEditWindowOpen)
-                                plugin.Characters[selectedCharacterIndex].IdlePoseIndex = newIndex;
-                            else
-                                plugin.NewCharacterIdlePoseIndex = newIndex;
-
-                            if (isAdvancedModeCharacter)
-                            {
-                                UpdateAdvancedMacroIdlePose(newIndex);
-                                if (!IsEditWindowOpen)
-                                {
-                                    plugin.NewCharacterMacros = advancedCharacterMacroText;
-                                }
-                            }
-                            else
-                            {
-                                if (IsEditWindowOpen)
-                                {
-                                    editedCharacterMacros = GenerateMacro();
-                                }
-                                else
-                                {
-                                    plugin.NewCharacterMacros = (isSecretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro();
-                                }
-                            }
+                            currentCharacter.Data.IdlePoseIndex = newIndex;
                         }
+                        
                     }
                     if (selected) ImGui.SetItemDefaultFocus();
                 }
@@ -951,7 +711,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.EndTooltip();
             }
         }
-
+        
+        // TODO
         private void DrawGearsetField(float labelWidth, float inputWidth, float inputOffset, float scale)
         {
             ImGui.SetCursorPosX(10 * scale);
@@ -964,7 +725,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             //var gearsets = plugin.GetPlayerGearsets();
 
             // Get current value
-            int? currentGearset = IsEditWindowOpen ? editedCharacterGearset : plugin.NewCharacterGearset;
+            int? currentGearset = currentCharacter.Data.AssignedGearset;
 
             // Build display text for current selection
             string currentDisplay = "None";
@@ -986,10 +747,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // "None" option
                 if (ImGui.Selectable("None", !currentGearset.HasValue))
                 {
-                    if (IsEditWindowOpen)
-                        editedCharacterGearset = null;
-                    else
-                        plugin.NewCharacterGearset = null;
+                    currentCharacter.Data.AssignedGearset = null;
                 }
                 if (!currentGearset.HasValue)
                     ImGui.SetItemDefaultFocus();
@@ -1052,10 +810,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 lock (this)
                 {
-                    if (IsEditWindowOpen)
-                        editedCharacterImagePath = pendingImagePath;
-                    else
-                        plugin.NewCharacterImagePath = pendingImagePath;
+                    currentCharacter.Data.ImagePath = pendingImagePath;
 
                     pendingImagePath = null;
                 }
@@ -1070,7 +825,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string pluginDirectory = plugin.PluginDirectory;
             string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
 
-            string? imagePath = IsEditWindowOpen ? editedCharacterImagePath : plugin.NewCharacterImagePath;
+            string? imagePath = currentCharacter.Data.ImagePath;
             string finalImagePath = !string.IsNullOrEmpty(imagePath) && File.Exists(imagePath)
                 ? imagePath
                 : defaultImagePath;
@@ -1123,90 +878,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
         }
 
-        private void DrawAdvancedModeSection(float scale)
-        {
-            if (ImGui.Button(isAdvancedModeCharacter ? "Exit Advanced Mode" : "Advanced Mode", new Vector2(0, 25 * scale)))
-            {
-                isAdvancedModeCharacter = !isAdvancedModeCharacter;
-
-                // Update the character's advanced mode flag
-                if (IsEditWindowOpen && selectedCharacterIndex >= 0 && selectedCharacterIndex < plugin.Characters.Count)
-                {
-                    plugin.Characters[selectedCharacterIndex].IsAdvancedMode = isAdvancedModeCharacter;
-                    plugin.SaveConfiguration();
-                }
-
-                if (isAdvancedModeCharacter)
-                {
-                    // When entering advanced mode, use existing macro if available, otherwise generate
-                    if (IsEditWindowOpen)
-                    {
-                        advancedCharacterMacroText = !string.IsNullOrWhiteSpace(editedCharacterMacros)
-                            ? editedCharacterMacros
-                            : GenerateMacro();
-                    }
-                    else
-                    {
-                        advancedCharacterMacroText = !string.IsNullOrWhiteSpace(plugin.NewCharacterMacros)
-                            ? plugin.NewCharacterMacros
-                            : ((isSecretMode && !plugin.Configuration.EnableConflictResolution) ? GenerateSecretMacro() : GenerateMacro());
-                        plugin.NewCharacterMacros = advancedCharacterMacroText;
-                    }
-                }
-                else
-                {
-                    // When exiting advanced mode, preserve the current macro state
-                    if (IsEditWindowOpen)
-                    {
-                        editedCharacterMacros = advancedCharacterMacroText;
-                    }
-                    else
-                    {
-                        plugin.NewCharacterMacros = advancedCharacterMacroText;
-                    }
-                }
-            }
-
-            // Tooltip
-            ImGui.SameLine();
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (5 * scale));
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.Text("\uf05a");
-            ImGui.PopFont();
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.BeginTooltip();
-                ImGui.PushTextWrapPos(300 * scale);
-                ImGui.TextUnformatted("⚠️ Do not touch this unless you know what you're doing.");
-                ImGui.PopTextWrapPos();
-                ImGui.EndTooltip();
-            }
-
-            // Advanced mode editor
-            if (isAdvancedModeCharacter)
-            {
-                ImGui.Text("Edit Macro Manually:");
-
-                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.1f, 0.1f, 0.1f, 0.9f));
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
-
-                ImGui.InputTextMultiline("##AdvancedCharacterMacro", ref advancedCharacterMacroText, 2000,
-                    new Vector2(500 * scale, 150 * scale), ImGuiInputTextFlags.AllowTabInput);
-
-                ImGui.PopStyleColor(2);
-
-                // Real-time sync when user types in advanced mode
-                if (!IsEditWindowOpen)
-                {
-                    plugin.NewCharacterMacros = advancedCharacterMacroText;
-                }
-                else
-                {
-                    editedCharacterMacros = advancedCharacterMacroText;
-                }
-            }
-        }
         private float GetSafeScale(float baseScale)
         {
             return Math.Clamp(baseScale, 0.3f, 5.0f); // Prevent extreme scaling
@@ -1214,14 +885,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void DrawActionButtons(float scale)
         {
-            string tempName = IsEditWindowOpen ? editedCharacterName : plugin.NewCharacterName;
-            string tempPenumbra = IsEditWindowOpen ? editedCharacterPenumbra : plugin.NewPenumbraCollection;
-            string tempGlamourer = IsEditWindowOpen ? editedCharacterGlamourer : plugin.NewGlamourerDesign;
+            string tempName = currentCharacter.Data.Name;
+            string tempPenumbra = currentCharacter.Data.PenumbraCollection;
+            string tempGlamourer = currentCharacter.Data.GlamourerDesign;
 
             bool canSaveCharacter = !string.IsNullOrWhiteSpace(tempName) &&
                                    !string.IsNullOrWhiteSpace(tempPenumbra) &&
                                    !string.IsNullOrWhiteSpace(tempGlamourer) &&
-                                   string.IsNullOrEmpty(nameValidationError);
+                                   noErrors;
 
             uiStyles.PushDarkButtonStyle(scale);
 
@@ -1230,30 +901,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             if (ImGui.Button(IsEditWindowOpen ? "Save Changes" : "Save Character", new Vector2(0, 30 * scale)))
             {
-                if (IsEditWindowOpen)
-                {
-                    SaveEditedCharacter();
-                }
-                else
-                {
-                    string finalMacro;
-                    if (isAdvancedModeCharacter)
-                    {
-                        finalMacro = advancedCharacterMacroText;
-                    }
-                    else
-                    {
-                        finalMacro = plugin.NewCharacterMacros;
-                    }
-
-                    plugin.SaveNewCharacter(finalMacro);
-                }
-
+                CharacterManager.SaveCharacter(selectedCharacterIndex, currentCharacter, plugin.Configuration, plugin.Logger);
                 CloseForm();
             }
 
-            plugin.SaveButtonPos = ImGui.GetItemRectMin();
-            plugin.SaveButtonSize = ImGui.GetItemRectSize();
+            plugin.WindowState.SaveButtonPos = ImGui.GetItemRectMin();
+            plugin.WindowState.SaveButtonSize = ImGui.GetItemRectSize();
 
             if (!canSaveCharacter)
                 ImGui.EndDisabled();
@@ -1268,268 +921,16 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             uiStyles.PopDarkButtonStyle();
         }
 
-        // Advanced mode update methods
-        private void UpdateAdvancedMacroPenumbra(string collection)
-        {
-            advancedCharacterMacroText = PatchMacroLine(
-                advancedCharacterMacroText,
-                "/penumbra collection",
-                $"/penumbra collection individual | {collection} | self"
-            );
-
-            advancedCharacterMacroText = UpdateCollectionInLines(
-                advancedCharacterMacroText,
-                "/penumbra bulktag disable",
-                collection
-            );
-
-            advancedCharacterMacroText = UpdateCollectionInLines(
-                advancedCharacterMacroText,
-                "/penumbra bulktag enable",
-                collection
-            );
-        }
-
-        private void UpdateAdvancedMacroGlamourer(string oldGlamourer, string newGlamourer)
-        {
-            var lines = advancedCharacterMacroText.Split('\n').ToList();
-
-            // Find and replace the main glamour apply line (not "no clothes")
-            bool foundExistingLine = false;
-            for (int i = 0; i < lines.Count; i++)
-            {
-                var line = lines[i].TrimStart();
-                if (line.StartsWith("/glamour apply", StringComparison.OrdinalIgnoreCase) &&
-                    !line.Contains("no clothes", StringComparison.OrdinalIgnoreCase))
-                {
-                    lines[i] = $"/glamour apply {newGlamourer} | self";
-                    foundExistingLine = true;
-                    break;
-                }
-            }
-
-            // Update bulktag enable line if it exists (for secret mode....shhh! how can it stay a secret if I keep mentioning it??)
-            for (int i = 0; i < lines.Count; i++)
-            {
-                var line = lines[i].TrimStart();
-                if (line.StartsWith("/penumbra bulktag enable", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = line.Split('|');
-                    if (parts.Length >= 2)
-                    {
-                        var collection = parts[0].Replace("/penumbra bulktag enable", "").Trim();
-                        lines[i] = $"/penumbra bulktag enable {collection} | {newGlamourer}";
-                    }
-                    break;
-                }
-            }
-
-            if (!foundExistingLine && !string.IsNullOrWhiteSpace(newGlamourer))
-            {
-                var insertPos = GetProperInsertPosition(lines, "/glamour apply");
-                lines.Insert(insertPos, $"/glamour apply {newGlamourer} | self");
-            }
-
-            advancedCharacterMacroText = string.Join("\n", lines);
-        }
-
-        private void UpdateAdvancedMacroAutomation(string automation)
-        {
-            var line = string.IsNullOrWhiteSpace(automation)
-                ? "/glamour automation enable None"
-                : $"/glamour automation enable {automation}";
-
-            advancedCharacterMacroText = PatchMacroLine(
-                advancedCharacterMacroText,
-                "/glamour automation enable",
-                line
-            );
-        }
-
-        private void UpdateAdvancedMacroCustomize(string customize)
-        {
-            advancedCharacterMacroText = PatchMacroLine(
-                advancedCharacterMacroText,
-                "/customize profile disable",
-                "/customize profile disable <me>"
-            );
-
-            if (!string.IsNullOrWhiteSpace(customize))
-            {
-                advancedCharacterMacroText = PatchMacroLine(
-                    advancedCharacterMacroText,
-                    "/customize profile enable",
-                    $"/customize profile enable <me>, {customize}"
-                );
-            }
-            else
-            {
-                advancedCharacterMacroText = string.Join("\n",
-                    advancedCharacterMacroText
-                        .Split('\n')
-                        .Where(l => !l.TrimStart().StartsWith("/customize profile enable"))
-                );
-            }
-        }
-
-        private void UpdateAdvancedMacroHonorific()
-        {
-            var lines = advancedCharacterMacroText.Split('\n').ToList();
-
-            var clearIdx = lines.FindIndex(l =>
-                l.TrimStart().StartsWith("/honorific force clear", StringComparison.OrdinalIgnoreCase));
-
-            if (clearIdx < 0)
-            {
-                var insertPos = GetProperInsertPosition(lines, "/honorific force clear");
-                lines.Insert(insertPos, "/honorific force clear | silent");
-                clearIdx = insertPos;
-            }
-            else
-            {
-                // Update existing clear line to include silent
-                if (!lines[clearIdx].Contains("silent", StringComparison.OrdinalIgnoreCase))
-                {
-                    lines[clearIdx] = "/honorific force clear | silent";
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(tempHonorificTitle))
-            {
-                var c = tempHonorificColor;
-                var g = tempHonorificGlow;
-                var c3 = tempHonorificColor3;
-                string colorHex = $"#{(int)(c.X * 255):X2}{(int)(c.Y * 255):X2}{(int)(c.Z * 255):X2}";
-                string glowHex = $"#{(int)(g.X * 255):X2}{(int)(g.Y * 255):X2}{(int)(g.Z * 255):X2}";
-                string color3Hex = $"#{(int)(c3.X * 255):X2}{(int)(c3.Y * 255):X2}{(int)(c3.Z * 255):X2}";
-
-                string gradientPart = "";
-                if (tempHonorificGradientSet.HasValue && !string.IsNullOrEmpty(tempHonorificAnimationStyle))
-                {
-                    if (tempHonorificGradientSet.Value == -1)
-                    {
-                        // Two-colour gradient: include Color3 in the command
-                        gradientPart = $" | {color3Hex} | +-1/{tempHonorificAnimationStyle}";
-                    }
-                    else
-                    {
-                        gradientPart = $" | +{tempHonorificGradientSet.Value}/{tempHonorificAnimationStyle}";
-                    }
-                }
-
-                string setLine = $"/honorific force set {tempHonorificTitle} | {tempHonorificPrefix} | {colorHex} | {glowHex}{gradientPart} | silent";
-
-                var setIdx = lines.FindIndex(l =>
-                    l.TrimStart().StartsWith("/honorific force set", StringComparison.OrdinalIgnoreCase));
-
-                if (setIdx >= 0)
-                {
-                    lines[setIdx] = setLine;
-                }
-                else
-                {
-                    lines.Insert(clearIdx + 1, setLine);
-                }
-            }
-            else
-            {
-                lines.RemoveAll(l => l.TrimStart().StartsWith("/honorific force set", StringComparison.OrdinalIgnoreCase));
-            }
-
-            advancedCharacterMacroText = string.Join("\n", lines);
-        }
-
-
-        private void UpdateAdvancedMacroMoodle(string preset)
-        {
-            var lines = advancedCharacterMacroText.Split('\n').ToList();
-
-            var removeIdx = lines.FindIndex(l =>
-                l.TrimStart().StartsWith("/moodle remove self preset all", StringComparison.OrdinalIgnoreCase));
-
-            if (removeIdx < 0)
-            {
-                var insertPos = GetProperInsertPosition(lines, "/moodle remove");
-                lines.Insert(insertPos, "/moodle remove self preset all");
-                removeIdx = insertPos;
-            }
-
-            if (!string.IsNullOrWhiteSpace(preset))
-            {
-                string applyLine = $"/moodle apply self preset \"{preset}\"";
-                var applyIdx = lines.FindIndex(l =>
-                    l.TrimStart().StartsWith("/moodle apply self preset", StringComparison.OrdinalIgnoreCase));
-
-                if (applyIdx >= 0)
-                {
-                    lines[applyIdx] = applyLine;
-                }
-                else
-                {
-                    lines.Insert(removeIdx + 1, applyLine);
-                }
-            }
-            else
-            {
-                lines.RemoveAll(l => l.TrimStart().StartsWith("/moodle apply self preset", StringComparison.OrdinalIgnoreCase));
-            }
-
-            advancedCharacterMacroText = string.Join("\n", lines);
-        }
-
-        private void UpdateAdvancedMacroIdlePose(byte poseIndex)
-        {
-            var lines = advancedCharacterMacroText.Split('\n').ToList();
-
-            if (poseIndex != 7)
-            {
-                string sidleLine = $"/sidle {poseIndex}";
-                var sidleIdx = lines.FindIndex(l =>
-                    l.TrimStart().StartsWith("/sidle", StringComparison.OrdinalIgnoreCase));
-
-                if (sidleIdx >= 0)
-                {
-                    lines[sidleIdx] = sidleLine;
-                }
-                else
-                {
-                    var insertPos = GetProperInsertPosition(lines, "/sidle");
-                    lines.Insert(insertPos, sidleLine);
-                }
-            }
-            else
-            {
-                // Remove any existing sidle line when pose is "None"
-                lines.RemoveAll(l => l.TrimStart().StartsWith("/sidle", StringComparison.OrdinalIgnoreCase));
-            }
-
-            advancedCharacterMacroText = string.Join("\n", lines);
-        }
-
-        private void UpdateHonorificData()
-        {
-            if (IsEditWindowOpen)
-            {
-                editedCharacterHonorificTitle = tempHonorificTitle;
-                editedCharacterHonorificPrefix = tempHonorificPrefix;
-                editedCharacterHonorificSuffix = tempHonorificSuffix;
-                editedCharacterHonorificColor = tempHonorificColor;
-                editedCharacterHonorificGlow = tempHonorificGlow;
-                editedCharacterHonorificColor3 = tempHonorificGradientSet == -1 ? tempHonorificColor3 : null;
-                editedCharacterHonorificGradientSet = tempHonorificGradientSet;
-                editedCharacterHonorificAnimationStyle = tempHonorificAnimationStyle;
-            }
-            else
-            {
-                plugin.NewCharacterHonorificTitle = tempHonorificTitle;
-                plugin.NewCharacterHonorificPrefix = tempHonorificPrefix;
-                plugin.NewCharacterHonorificSuffix = tempHonorificSuffix;
-                plugin.NewCharacterHonorificColor = tempHonorificColor;
-                plugin.NewCharacterHonorificGlow = tempHonorificGlow;
-                plugin.NewCharacterHonorificColor3 = tempHonorificGradientSet == -1 ? tempHonorificColor3 : null;
-                plugin.NewCharacterHonorificGradientSet = tempHonorificGradientSet;
-                plugin.NewCharacterHonorificAnimationStyle = tempHonorificAnimationStyle;
-            }
+        private void UpdateHonorificData(Character character)
+        {   
+            character.Data.Honorific.Title = tempHonorificTitle;
+            character.Data.Honorific.Prefix = tempHonorificPrefix;
+            character.Data.Honorific.Suffix = tempHonorificSuffix;
+            character.Data.Honorific.Color = tempHonorificColor;
+            character.Data.Honorific.Glow = tempHonorificGlow;
+            character.Data.Honorific.Color3 = tempHonorificGradientSet == -1 ? tempHonorificColor3 : null;;
+            character.Data.Honorific.GradientSet = tempHonorificGradientSet;
+            character.Data.Honorific.AnimationStyle = tempHonorificAnimationStyle;
         }
 
         /// <summary>
@@ -1799,181 +1200,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             return lines.Count;
         }
-
-        private string UpdateCollectionInLines(string existing, string prefix, string newCollection)
-        {
-            var lines = existing.Split('\n').Select(line =>
-            {
-                var trimmed = line.TrimStart();
-                if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    var rest = trimmed.Substring(prefix.Length).TrimStart();
-                    var afterCollection = rest.IndexOf('|') >= 0
-                        ? rest.Substring(rest.IndexOf('|'))
-                        : rest.Substring(rest.IndexOf(' '));
-                    return $"{prefix} {newCollection} {afterCollection}";
-                }
-                return line;
-            });
-            return string.Join("\n", lines);
-        }
-
-        private string GenerateMacro()
-        {
-            string penumbra = IsEditWindowOpen ? editedCharacterPenumbra : plugin.NewPenumbraCollection;
-            string glamourer = IsEditWindowOpen ? editedCharacterGlamourer : plugin.NewGlamourerDesign;
-            string customize = IsEditWindowOpen ? editedCharacterCustomize : plugin.NewCustomizeProfile;
-            string honorificTitle = IsEditWindowOpen ? editedCharacterHonorificTitle : plugin.NewCharacterHonorificTitle;
-            string honorificPrefix = IsEditWindowOpen ? editedCharacterHonorificPrefix : plugin.NewCharacterHonorificPrefix;
-            Vector3 honorificColor = IsEditWindowOpen ? editedCharacterHonorificColor : plugin.NewCharacterHonorificColor;
-            Vector3 honorificGlow = IsEditWindowOpen ? editedCharacterHonorificGlow : plugin.NewCharacterHonorificGlow;
-            string automation = IsEditWindowOpen ? editedCharacterAutomation : plugin.NewCharacterAutomation;
-            string moodlePreset = IsEditWindowOpen ? editedCharacterMoodlePreset : plugin.NewCharacterMoodlePreset;
-            int idlePose = IsEditWindowOpen ? plugin.Characters[selectedCharacterIndex].IdlePoseIndex : plugin.NewCharacterIdlePoseIndex;
-
-            if (string.IsNullOrWhiteSpace(penumbra) || string.IsNullOrWhiteSpace(glamourer))
-                return "/penumbra redraw self";
-
-            string macro = $"/penumbra collection individual | {penumbra} | self\n";
-            macro += $"/glamour apply {glamourer} | self\n";
-
-            if (plugin.Configuration.EnableAutomations)
-            {
-                if (string.IsNullOrWhiteSpace(automation))
-                    macro += "/glamour automation enable None\n";
-                else
-                    macro += $"/glamour automation enable {automation}\n";
-            }
-
-            macro += "/customize profile disable <me>\n";
-            if (!string.IsNullOrWhiteSpace(customize))
-                macro += $"/customize profile enable <me>, {customize}\n";
-
-            macro += "/honorific force clear | silent\n";
-            if (!string.IsNullOrWhiteSpace(honorificTitle))
-            {
-                string colorHex = $"#{(int)(honorificColor.X * 255):X2}{(int)(honorificColor.Y * 255):X2}{(int)(honorificColor.Z * 255):X2}";
-                string glowHex = $"#{(int)(honorificGlow.X * 255):X2}{(int)(honorificGlow.Y * 255):X2}{(int)(honorificGlow.Z * 255):X2}";
-                int? gradientSet = IsEditWindowOpen ? editedCharacterHonorificGradientSet : plugin.NewCharacterHonorificGradientSet;
-                string? animStyle = IsEditWindowOpen ? editedCharacterHonorificAnimationStyle : plugin.NewCharacterHonorificAnimationStyle;
-                Vector3? color3 = IsEditWindowOpen ? editedCharacterHonorificColor3 : plugin.NewCharacterHonorificColor3;
-
-                string gradientPart = "";
-                if (gradientSet.HasValue && !string.IsNullOrEmpty(animStyle))
-                {
-                    if (gradientSet.Value == -1 && color3.HasValue)
-                    {
-                        // Two-colour gradient: include Color3 in the command
-                        string color3Hex = $"#{(int)(color3.Value.X * 255):X2}{(int)(color3.Value.Y * 255):X2}{(int)(color3.Value.Z * 255):X2}";
-                        gradientPart = $" | {color3Hex} | +-1/{animStyle}";
-                    }
-                    else
-                    {
-                        gradientPart = $" | +{gradientSet.Value}/{animStyle}";
-                    }
-                }
-
-                macro += $"/honorific force set {honorificTitle} | {honorificPrefix} | {colorHex} | {glowHex}{gradientPart} | silent\n";
-            }
-
-            macro += "/moodle remove self preset all\n";
-            if (!string.IsNullOrWhiteSpace(moodlePreset))
-                macro += $"/moodle apply self preset \"{moodlePreset}\"\n";
-
-            if (idlePose != 7)
-                macro += $"/sidle {idlePose}\n";
-
-            macro += "/penumbra redraw self";
-
-            return macro;
-        }
-
-        private string GenerateSecretMacro()
-        {
-            string penumbra = IsEditWindowOpen ? editedCharacterPenumbra : plugin.NewPenumbraCollection;
-            string glamourer = IsEditWindowOpen ? editedCharacterGlamourer : plugin.NewGlamourerDesign;
-            string customize = IsEditWindowOpen ? editedCharacterCustomize : plugin.NewCustomizeProfile;
-            string honorTitle = IsEditWindowOpen ? editedCharacterHonorificTitle : plugin.NewCharacterHonorificTitle;
-            string honorPref = IsEditWindowOpen ? editedCharacterHonorificPrefix : plugin.NewCharacterHonorificPrefix;
-            Vector3 honorColor = IsEditWindowOpen ? editedCharacterHonorificColor : plugin.NewCharacterHonorificColor;
-            Vector3 honorGlow = IsEditWindowOpen ? editedCharacterHonorificGlow : plugin.NewCharacterHonorificGlow;
-            Vector3? honorColor3 =
-                IsEditWindowOpen ? editedCharacterHonorificColor3 : plugin.NewCharacterHonorificColor3;
-            int? honorGradientSet = IsEditWindowOpen
-                ? editedCharacterHonorificGradientSet
-                : plugin.NewCharacterHonorificGradientSet;
-            string? honorAnimStyle = IsEditWindowOpen
-                ? editedCharacterHonorificAnimationStyle
-                : plugin.NewCharacterHonorificAnimationStyle;
-            string moodlePreset = IsEditWindowOpen ? editedCharacterMoodlePreset : plugin.NewCharacterMoodlePreset;
-            int idlePose = IsEditWindowOpen
-                ? plugin.Characters[selectedCharacterIndex].IdlePoseIndex
-                : plugin.NewCharacterIdlePoseIndex;
-
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"/penumbra collection individual | {penumbra} | self");
-            sb.AppendLine($"/penumbra bulktag disable {penumbra} | gear");
-            sb.AppendLine($"/penumbra bulktag disable {penumbra} | hair");
-            sb.AppendLine($"/penumbra bulktag enable {penumbra} | {glamourer}");
-            sb.AppendLine("/glamour apply no clothes | self");
-            sb.AppendLine($"/glamour apply {glamourer} | self");
-
-            if (plugin.Configuration.EnableAutomations)
-            {
-                string automation = IsEditWindowOpen ? editedCharacterAutomation : plugin.NewCharacterAutomation;
-                if (string.IsNullOrWhiteSpace(automation))
-                    sb.AppendLine("/glamour automation enable None");
-                else
-                    sb.AppendLine($"/glamour automation enable {automation}");
-            }
-
-            sb.AppendLine("/customize profile disable <me>");
-            if (!string.IsNullOrWhiteSpace(customize))
-                sb.AppendLine($"/customize profile enable <me>, {customize}");
-
-            sb.AppendLine("/honorific force clear | silent");
-            if (!string.IsNullOrWhiteSpace(honorTitle))
-            {
-                var colorHex =
-                    $"#{(int)(honorColor.X * 255):X2}{(int)(honorColor.Y * 255):X2}{(int)(honorColor.Z * 255):X2}";
-                var glowHex =
-                    $"#{(int)(honorGlow.X * 255):X2}{(int)(honorGlow.Y * 255):X2}{(int)(honorGlow.Z * 255):X2}";
-
-                string gradientPart = "";
-                if (honorGradientSet.HasValue && !string.IsNullOrEmpty(honorAnimStyle))
-                {
-                    if (honorGradientSet.Value == -1 && honorColor3.HasValue)
-                    {
-                        // Two-colour gradient: include Color3 in the command
-                        var color3Hex =
-                            $"#{(int)(honorColor3.Value.X * 255):X2}{(int)(honorColor3.Value.Y * 255):X2}{(int)(honorColor3.Value.Z * 255):X2}";
-                        gradientPart = $" | {color3Hex} | +-1/{honorAnimStyle}";
-                    }
-                    else
-                    {
-                        gradientPart = $" | +{honorGradientSet.Value}/{honorAnimStyle}";
-                    }
-                }
-
-                sb.AppendLine(
-                    $"/honorific force set {honorTitle} | {honorPref} | {colorHex} | {glowHex}{gradientPart} | silent");
-            }
-
-            sb.AppendLine("/moodle remove self preset all");
-            if (!string.IsNullOrWhiteSpace(moodlePreset))
-                sb.AppendLine($"/moodle apply self preset \"{moodlePreset}\"");
-
-            if (idlePose != 7)
-                sb.AppendLine($"/sidle {idlePose}");
-
-            sb.Append("/penumbra redraw self");
-            return sb.ToString();
-        }
-
+        
         private void CloseForm()
         {
             IsEditWindowOpen = false;
-            plugin.CloseAddCharacterWindow();
+            CloseAddCharacterWindow();
             
             isSecretMode = false;
             isAdvancedModeCharacter = false;
@@ -1982,160 +1213,13 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         public void ResetFields()
         {
-            plugin.NewCharacterName = "";
-            plugin.NewCharacterAlias = "";
-            plugin.NewCharacterColor = new Vector3(1.0f, 1.0f, 1.0f);
-            plugin.NewPenumbraCollection = "";
-            plugin.NewGlamourerDesign = "";
-            plugin.NewCharacterAutomation = "";
-            plugin.NewCustomizeProfile = "";
-            plugin.NewCharacterImagePath = null;
-            plugin.NewCharacterDesigns.Clear();
-            plugin.NewCharacterHonorificTitle = "";
-            plugin.NewCharacterHonorificPrefix = "Prefix";
-            plugin.NewCharacterHonorificSuffix = "Suffix";
-            plugin.NewCharacterHonorificColor = new Vector3(1.0f, 1.0f, 1.0f);
-            plugin.NewCharacterHonorificGlow = new Vector3(1.0f, 1.0f, 1.0f);
-            plugin.NewCharacterHonorificColor3 = null;
-            plugin.NewCharacterHonorificGradientSet = null;
-            plugin.NewCharacterHonorificAnimationStyle = null;
-            plugin.NewCharacterMoodlePreset = "";
-            plugin.NewCharacterIdlePoseIndex = 7;
-            plugin.NewCharacterIsAdvancedMode = false;
-            // Reset local temp fields
-            tempHonorificTitle = "";
-            tempHonorificPrefix = "Prefix";
-            tempHonorificSuffix = "Suffix";
-            tempHonorificColor = new Vector3(1.0f, 1.0f, 1.0f);
-            tempHonorificGlow = new Vector3(1.0f, 1.0f, 1.0f);
-            tempHonorificColor3 = new Vector3(0.5f, 0.5f, 1.0f);
-            tempHonorificGradientSet = null;
-            tempHonorificAnimationStyle = null;
-            tempMoodlePreset = "";
-
-            // Reset edit fields
-            editedCharacterName = "";
-            editedCharacterMacros = "";
-            editedCharacterImagePath = null;
-            editedCharacterColor = new Vector3(1.0f, 1.0f, 1.0f);
-            editedCharacterPenumbra = "";
-            editedCharacterGlamourer = "";
-            editedCharacterCustomize = "";
-            editedCharacterTag = "";
-            editedCharacterAutomation = "";
-            editedCharacterMoodlePreset = "";
-            editedCharacterGearset = null;
-            editedCharacterExcludeFromNameSync = false;
-            editedCharacterAlias = "";
-            editedCharacterHonorificTitle = "";
-            editedCharacterHonorificPrefix = "Prefix";
-            editedCharacterHonorificSuffix = "Suffix";
-            editedCharacterHonorificColor = new Vector3(1.0f, 1.0f, 1.0f);
-            editedCharacterHonorificGlow = new Vector3(1.0f, 1.0f, 1.0f);
-            editedCharacterHonorificColor3 = null;
-            editedCharacterHonorificGradientSet = null;
-            editedCharacterHonorificAnimationStyle = null;
-
-            advancedCharacterMacroText = "";
-
-            // Only regenerate macro if not in advanced mode
-            if (!isAdvancedModeCharacter)
-            {
-                plugin.NewCharacterMacros = GenerateMacro();
-            }
+            currentCharacter.ResetEdits();
         }
 
-        private void SaveEditedCharacter()
+        public void InitCreateCharacterWindow()
         {
-            if (selectedCharacterIndex < 0 || selectedCharacterIndex >= plugin.Characters.Count)
-                return;
-
-            var character = plugin.Characters[selectedCharacterIndex];
-
-            character.Name = editedCharacterName;
-            character.Tags = string.IsNullOrWhiteSpace(editedCharacterTag)
-                ? new List<string>()
-                : editedCharacterTag.Split(',').Select(f => f.Trim()).ToList();
-            character.PenumbraCollection = editedCharacterPenumbra;
-            character.GlamourerDesign = editedCharacterGlamourer;
-            character.CustomizeProfile = editedCharacterCustomize;
-            character.NameplateColor = editedCharacterColor;
-            character.CharacterAutomation = editedCharacterAutomation;
-            character.HonorificTitle = editedCharacterHonorificTitle;
-            character.HonorificPrefix = editedCharacterHonorificPrefix;
-            character.HonorificSuffix = editedCharacterHonorificSuffix;
-            character.HonorificColor = editedCharacterHonorificColor;
-            character.HonorificGlow = editedCharacterHonorificGlow;
-            character.HonorificColor3 = editedCharacterHonorificColor3;
-            character.HonorificGradientSet = editedCharacterHonorificGradientSet;
-            character.HonorificAnimationStyle = editedCharacterHonorificAnimationStyle;
-            character.MoodlePreset = editedCharacterMoodlePreset;
-            character.AssignedGearset = editedCharacterGearset;
-            character.ExcludeFromNameSync = editedCharacterExcludeFromNameSync;
-            character.Alias = string.IsNullOrWhiteSpace(editedCharacterAlias) ? null : editedCharacterAlias;
-
-            character.Macros = isAdvancedModeCharacter ? advancedCharacterMacroText : editedCharacterMacros;
-
-            if (!string.IsNullOrEmpty(editedCharacterImagePath))
-            {
-                character.ImagePath = editedCharacterImagePath;
-            }
-
-            // Note: SecretModState is handled directly in the SecretModeModWindow callback
-            // and doesn't need to be copied here since it's already persisted to the character object
-
-            plugin.SaveConfiguration();
-
-            // Check if name changed and user has an active warning
-            if (!string.IsNullOrEmpty(editedCharacterName) &&
-                editedCharacterName != originalCharacterName &&
-                plugin.ActiveNameWarning != null)
-            {
-                // Fire and forget - check name change for warning resolution
-                _ = CheckNameChangeForWarningAsync(editedCharacterName);
-            }
-        }
-
-        private async System.Threading.Tasks.Task CheckNameChangeForWarningAsync(string newName)
-        {
-            try
-            {
-                // var result = await plugin.CheckNameChangeForWarning(newName);
-                //
-                // if (result.HasWarning && !string.IsNullOrEmpty(result.Message))
-                // {
-                //     // Show feedback in chat
-                //     Plugin.Framework.RunOnTick(() =>
-                //     {
-                //         if (result.Resolved)
-                //         {
-                //             // Green success message
-                //             var msg = new DalamudSeStringBuilder()
-                //                 .AddText("[")
-                //                 .AddGreen("SCS", true)
-                //                 .AddText("] ")
-                //                 .AddGreen(result.Message, false)
-                //                 .Build();
-                //             Plugin.ChatGui.Print(msg);
-                //         }
-                //         else if (result.PendingReview)
-                //         {
-                //             // Yellow pending message
-                //             var msg = new DalamudSeStringBuilder()
-                //                 .AddText("[")
-                //                 .AddYellow("SCS", true)
-                //                 .AddText("] ")
-                //                 .AddYellow(result.Message, false)
-                //                 .Build();
-                //             Plugin.ChatGui.Print(msg);
-                //         }
-                //     });
-                // }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"[CharacterForm] Error checking name change: {ex.Message}");
-            }
+            currentCharacter = new Character();
+            IsEditWindowOpen = false;
         }
 
         public void OpenEditCharacterWindow(int index)
@@ -2145,93 +1229,28 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             selectedCharacterIndex = index;
             var character = plugin.Characters[index];
-
-            string pluginDirectory = plugin.PluginDirectory;
-            string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
-
-            editedCharacterName = character.Name;
-            originalCharacterName = character.Name; // Store original for warning resolution check
-            editedCharacterPenumbra = character.PenumbraCollection;
-            editedCharacterGlamourer = character.GlamourerDesign;
-            editedCharacterCustomize = character.CustomizeProfile ?? "";
-            editedCharacterColor = character.NameplateColor;
-
-            editedCharacterMacros = character.Macros;
-
-            editedCharacterImagePath = !string.IsNullOrEmpty(character.ImagePath) ? character.ImagePath : defaultImagePath;
-            editedCharacterTag = character.Tags != null && character.Tags.Count > 0
-                ? string.Join(", ", character.Tags)
-                : "";
-
-            editedCharacterHonorificTitle = character.HonorificTitle ?? "";
-            editedCharacterHonorificPrefix = character.HonorificPrefix ?? "Prefix";
-            editedCharacterHonorificSuffix = character.HonorificSuffix ?? "Suffix";
-            editedCharacterHonorificColor = character.HonorificColor;
-            editedCharacterHonorificGlow = character.HonorificGlow;
-            editedCharacterHonorificColor3 = character.HonorificColor3;
-            editedCharacterHonorificGradientSet = character.HonorificGradientSet;
-            editedCharacterHonorificAnimationStyle = character.HonorificAnimationStyle;
-            editedCharacterMoodlePreset = character.MoodlePreset ?? "";
-            editedCharacterGearset = character.AssignedGearset;
-            editedCharacterExcludeFromNameSync = character.ExcludeFromNameSync;
-            editedCharacterAlias = character.Alias ?? "";
-
-            string safeAutomation = character.CharacterAutomation == "None" ? "" : character.CharacterAutomation ?? "";
-            editedCharacterAutomation = safeAutomation;
-
-            // Copy to temp fields
-            tempHonorificTitle = editedCharacterHonorificTitle;
-            tempHonorificPrefix = editedCharacterHonorificPrefix;
-            tempHonorificSuffix = editedCharacterHonorificSuffix;
-            tempHonorificColor = editedCharacterHonorificColor;
-            tempHonorificGlow = editedCharacterHonorificGlow;
-            tempHonorificColor3 = editedCharacterHonorificColor3 ?? new Vector3(0.5f, 0.5f, 1.0f);
-            tempHonorificGradientSet = editedCharacterHonorificGradientSet;
-            tempHonorificAnimationStyle = editedCharacterHonorificAnimationStyle;
-            tempMoodlePreset = editedCharacterMoodlePreset;
-
-            if (isAdvancedModeCharacter)
-            {
-                advancedCharacterMacroText = character.Macros;
-            }
-            // Restore advanced mode state
-            isAdvancedModeCharacter = character.IsAdvancedMode;
-
-            if (isAdvancedModeCharacter)
-            {
-                advancedCharacterMacroText = character.Macros;
-            }
+            currentCharacter = character;
+            
+            OpenCharacterWindow(character);
+            
             IsEditWindowOpen = true;
         }
 
-        private void ValidateCharacterName(string name)
+        public void OpenCharacterWindow(Character character)
         {
-            nameValidationError = "";
+            string pluginDirectory = plugin.PluginDirectory;
+            string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
             
-            if (string.IsNullOrWhiteSpace(name))
-                return;
-
-            // Check if name already exists
-            bool nameExists;
-            if (IsEditWindowOpen && selectedCharacterIndex >= 0 && selectedCharacterIndex < plugin.Characters.Count)
-            {
-                // When editing, exclude the current character from the check
-                var currentCharName = plugin.Characters[selectedCharacterIndex].Name;
-                nameExists = plugin.Characters.Any(c => 
-                    !c.Name.Equals(currentCharName, StringComparison.OrdinalIgnoreCase) && 
-                    c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            }
-            else
-            {
-                // When creating new, check all characters
-                nameExists = plugin.Characters.Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (nameExists)
-            {
-                nameValidationError = "You already have a character with this name. Please choose a different name. " +
-                                    "Try adding a number or variation (e.g., Name 2, Name Alt, etc.)";
-            }
+            // Copy to temp fields
+            tempHonorificTitle = character.Data.Honorific.Title;
+            tempHonorificPrefix = character.Data.Honorific.Prefix;
+            tempHonorificSuffix = character.Data.Honorific.Suffix;
+            tempHonorificColor = character.Data.Honorific.Color;
+            tempHonorificGlow = character.Data.Honorific.Glow;
+            tempHonorificColor3 = character.Data.Honorific.Color3 ?? new Vector3(0.5f, 0.5f, 1.0f);
+            tempHonorificGradientSet = character.Data.Honorific.GradientSet;
+            tempHonorificAnimationStyle = character.Data.Honorific.AnimationStyle;
+            tempMoodlePreset = character.Data.MoodlePreset;
         }
     }
 }

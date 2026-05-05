@@ -13,14 +13,16 @@ public class PoseManager
     private readonly IFramework framework;
     private readonly IChatGui chatGui;
     private readonly ICommandManager commandManager;
+    private readonly IObjectTable objectTable;
     private readonly Plugin plugin;
 
-    public PoseManager(IClientState clientState, IFramework framework, IChatGui chatGui, ICommandManager commandManager, Plugin plugin)
+    public PoseManager(IClientState clientState, IFramework framework, IChatGui chatGui, ICommandManager commandManager, IObjectTable objectTable, Plugin plugin)
     {
         this.clientState = clientState;
         this.framework = framework;
         this.chatGui = chatGui;
         this.commandManager = commandManager;
+        this.objectTable = objectTable;
         this.plugin = plugin;
 
         framework.Update += OnFrameworkUpdate;
@@ -79,42 +81,6 @@ public class PoseManager
                 Plugin.Log.Debug($"[ApplyPose] Not in correct state for {type}, only updating memory");
             }
         }
-
-        // Save to config
-        switch (type)
-        {
-            case EmoteController.PoseType.Idle:
-                plugin.Configuration.DefaultPoses.Idle = index;
-                plugin.Configuration.LastIdlePoseAppliedByPlugin = index;
-                plugin.lastSeenIdlePose = index;
-                plugin.suppressIdleSaveForFrames = 60; // longer block
-                Plugin.Log.Debug($"[ApplyPose] Idle pose set to {index} and suppressed for 60 frames.");
-                break;
-
-            case EmoteController.PoseType.Sit:
-                plugin.Configuration.DefaultPoses.Sit = index;
-                plugin.lastSeenSitPose = index;
-                plugin.suppressSitSaveForFrames = 60;
-                Plugin.Log.Debug($"[ApplyPose] Sit pose set to {index} and suppressed for 60 frames.");
-                break;
-
-            case EmoteController.PoseType.GroundSit:
-                plugin.Configuration.DefaultPoses.GroundSit = index;
-                plugin.lastSeenGroundSitPose = index;
-                plugin.suppressGroundSitSaveForFrames = 60;
-                Plugin.Log.Debug($"[ApplyPose] Ground Sit pose set to {index} and suppressed for 60 frames.");
-                break;
-
-            case EmoteController.PoseType.Doze:
-                plugin.Configuration.DefaultPoses.Doze = index;
-                plugin.lastSeenDozePose = index;
-                plugin.suppressDozeSaveForFrames = 60;
-                Plugin.Log.Debug($"[ApplyPose] Doze pose set to {index} and suppressed for 60 frames.");
-                break;
-        }
-
-        // This makes the change persist!
-        plugin.Configuration.Save();
     }
 
     private void StartApplyPoseTask(EmoteController.PoseType type, byte index, IntPtr characterAddress)
@@ -172,6 +138,38 @@ public class PoseManager
         else
         {
             Plugin.Log.Info($"[ApplyPoseViaCommand] Successfully synced pose to {targetIndex}");
+        }
+    }
+
+    private void ApplyIdle(int idleIndex)
+    {
+        if (idleIndex == -1)
+        {
+            // /select idle - check current pose
+            if (objectTable.LocalPlayer != null)
+            {
+                unsafe
+                {
+                    var charPtr = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)objectTable.LocalPlayer.Address;
+                    var currentIdle = charPtr->EmoteController.CPoseState;
+        
+                    chatGui.Print($"[SCS] Current idle pose: {currentIdle} (range: 0-6)");
+                }
+            }
+            else
+            {
+                chatGui.PrintError("[SCS] You must be logged in to check idle pose.");
+            }
+        }
+        else if (idleIndex < 7)
+        {
+            // /select idle <0-6> - set pose
+            ApplyPose(EmoteController.PoseType.Idle, Convert.ToByte(idleIndex));
+            GameCommandManager.ExecuteMacro("/penumbra redraw self");
+        }
+        else
+        {
+            chatGui.PrintError("[SCS] Usage: /select idle [0-6]");
         }
     }
 

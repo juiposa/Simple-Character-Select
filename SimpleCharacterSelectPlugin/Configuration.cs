@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Serialization;
+using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin
 {
@@ -97,24 +98,11 @@ namespace SimpleCharacterSelectPlugin
         public CustomThemeConfig CustomTheme { get; set; } = new();
         public List<ThemePreset> ThemePresets { get; set; } = new();
         public string? ActivePresetName { get; set; } = null;
-
-        // Legacy (use SelectedTheme)
-        [Obsolete("Use SelectedTheme instead")]
-        public bool UseSeasonalTheme { get; set; } = false;
         
         public HashSet<string> FavoriteGalleryProfiles { get; set; } = new();
         public HashSet<string> LikedGalleryProfiles { get; set; } = new();
-        public bool ShowRecentlyActiveStatus { get; set; } = true;
-        public bool HasSeenTutorial { get; set; } = false;
         public bool HasSeenPage2Surprise { get; set; } = false;
-        public bool TutorialActive { get; set; } = false;
-        public int CurrentTutorialStep { get; set; } = 0;
-        public bool ShowTutorialOnStartup { get; set; } = true;
         public Dictionary<uint, uint> GearsetJobMapping { get; set; } = new();
-        public uint? LastUsedGearset { get; set; } = null;
-        public string? GalleryMainCharacter { get; set; } = null;
-        public bool EnableGalleryAutoRefresh { get; set; } = true;
-        public int GalleryAutoRefreshSeconds { get; set; } = 30;
         [DefaultValue(false)]
         public bool RandomSelectionFavoritesOnly { get; set; } = false;
         [DefaultValue(true)]
@@ -456,10 +444,7 @@ namespace SimpleCharacterSelectPlugin
     public static class FeatureKeys
     {
         public const string CustomTheme = "CustomTheme_v2.1";
-        public const string NameSync = "NameSync_v2.1";
-        public const string ExpandedRPProfile = "ExpandedRPProfile_v2.1";
         public const string JobAssignments = "JobAssignments_v2.1";
         public const string Honorific = "Honorific_v2.1";
-        public const string FeaturesGuide = "FeaturesGuide_v2.1";
     }
 }

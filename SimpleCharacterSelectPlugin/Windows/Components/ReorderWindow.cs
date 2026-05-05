@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using SimpleCharacterSelectPlugin.Models;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 
 namespace SimpleCharacterSelectPlugin.Windows.Components
@@ -257,13 +258,13 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.GetForegroundDrawList().AddRectFilled(ghostMin, ghostMax, ghostBgColor, 6f * scale);
                 
                 // Ghost border
-                var ghostBorderColor = ImGui.GetColorU32(new Vector4(character.NameplateColor, ghostAlpha));
+                var ghostBorderColor = ImGui.GetColorU32(new Vector4(character.Data.NameplateColor, ghostAlpha));
                 ImGui.GetForegroundDrawList().AddRect(ghostMin, ghostMax, ghostBorderColor, 6f * scale, ImDrawFlags.None, 2f);
                 
                 // Ghost character image
-                if (!string.IsNullOrEmpty(character.ImagePath) && File.Exists(character.ImagePath))
+                if (!string.IsNullOrEmpty(character.Data.ImagePath) && File.Exists(character.Data.ImagePath))
                 {
-                    var texture = Plugin.TextureProvider.GetFromFile(character.ImagePath).GetWrapOrDefault();
+                    var texture = Plugin.TextureProvider.GetFromFile(character.Data.ImagePath).GetWrapOrDefault();
                     if (texture != null)
                     {
                         var ghostImageSize = iconSize * 0.8f; // Slightly smaller
@@ -285,8 +286,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 var ghostTextPos = ghostMin + new Vector2(iconSize + 16 * scale, 12 * scale);
                 ImGui.GetForegroundDrawList().AddText(
                     ghostTextPos,
-                    ImGui.GetColorU32(new Vector4(character.NameplateColor, ghostAlpha)),
-                    character.Name
+                    ImGui.GetColorU32(new Vector4(character.Data.NameplateColor, ghostAlpha)),
+                    character.Data.Name
                 );
             }
 
@@ -303,9 +304,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Character image
             float imageMargin = 8 * scale;
-            if (!string.IsNullOrEmpty(character.ImagePath) && File.Exists(character.ImagePath))
+            if (!string.IsNullOrEmpty(character.Data.ImagePath) && File.Exists(character.Data.ImagePath))
             {
-                var texture = Plugin.TextureProvider.GetFromFile(character.ImagePath).GetWrapOrDefault();
+                var texture = Plugin.TextureProvider.GetFromFile(character.Data.ImagePath).GetWrapOrDefault();
                 if (texture != null)
                 {
                     // Calculate image dimensions
@@ -335,7 +336,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     // Add glowing border around image based on character colour
                     var imageMin = cursorStart + new Vector2(imageMargin, imageMargin);
                     var imageMax = imageMin + new Vector2(iconSize, iconSize);
-                    uiStyles.DrawGlowingBorder(imageMin, imageMax, character.NameplateColor, 0.6f, isHovered);
+                    uiStyles.DrawGlowingBorder(imageMin, imageMax, character.Data.NameplateColor, 0.6f, isHovered);
                 }
             }
 
@@ -344,8 +345,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetCursorScreenPos(cursorStart + new Vector2(textStartX, imageMargin));
 
             // Character name with colour
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(character.NameplateColor, 1f));
-            ImGui.Text(character.Name);
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(character.Data.NameplateColor, 1f));
+            ImGui.Text(character.Data.Name);
             ImGui.PopStyleColor();
 
             // Character details
@@ -353,17 +354,17 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetCursorScreenPos(cursorStart + new Vector2(textStartX, imageMargin + lineHeight + (4 * scale)));
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1f));
 
-            string details = $"Designs: {character.Designs.Count}";
-            if (character.Tags != null && character.Tags.Count > 0)
+            string details = $"Designs: {character.Data.Designs.Count}";
+            if (character.Data.Tags != null && character.Data.Tags.Count > 0)
             {
-                details += $" | Tags: {string.Join(", ", character.Tags.Take(2))}{(character.Tags.Count > 2 ? "..." : "")}";
+                details += $" | Tags: {string.Join(", ", character.Data.Tags.Take(2))}{(character.Data.Tags.Count > 2 ? "..." : "")}";
             }
 
             ImGui.Text(details);
             ImGui.PopStyleColor();
 
             // Favourite star
-            if (character.IsFavorite)
+            if (character.Data.IsFavorite)
             {
                 float rowWidth = ImGui.GetContentRegionAvail().X;
                 ImGui.SetCursorScreenPos(rowMin + new Vector2(rowWidth - (30 * scale), imageMargin));
@@ -438,7 +439,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Update sort orders
             for (int i = 0; i < reorderBuffer.Count; i++)
             {
-                reorderBuffer[i].SortOrder = i;
+                reorderBuffer[i].Data.SortOrder = i;
             }
 
             plugin.Characters.Clear();

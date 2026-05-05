@@ -201,8 +201,8 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         public override void Draw()
         {
-            plugin.MainWindowPos = ImGui.GetWindowPos();
-            plugin.MainWindowSize = ImGui.GetWindowSize();
+            plugin.WindowState.MainWindowPos = ImGui.GetWindowPos();
+            plugin.WindowState.MainWindowSize = ImGui.GetWindowSize();
 
             float deltaTime = ImGui.GetIO().DeltaTime;
 
@@ -297,7 +297,7 @@ namespace SimpleCharacterSelectPlugin.Windows
         {
             var totalScale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
 
-            if (plugin.IsAddCharacterWindowOpen || characterForm.IsEditWindowOpen)
+            if (plugin.WindowState.IsAddCharacterWindowOpen || characterForm.IsEditWindowOpen)
             {
                 characterForm.Draw();
             }
@@ -336,10 +336,10 @@ namespace SimpleCharacterSelectPlugin.Windows
 
             if (uiStyles.IconButton("\uf013", "Settings"))
             {
-                plugin.IsSettingsOpen = !plugin.IsSettingsOpen;
+                plugin.WindowState.IsSettingsOpen = !plugin.WindowState.IsSettingsOpen;
             }
-            plugin.SettingsButtonPos = ImGui.GetItemRectMin();
-            plugin.SettingsButtonSize = ImGui.GetItemRectSize();
+            plugin.WindowState.SettingsButtonPos = ImGui.GetItemRectMin();
+            plugin.WindowState.SettingsButtonSize = ImGui.GetItemRectSize();
 
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup))
             {
@@ -359,8 +359,8 @@ namespace SimpleCharacterSelectPlugin.Windows
 
             if (ImGui.Button("Quick Switch"))
                 plugin.QuickSwitchWindow.IsOpen = !plugin.QuickSwitchWindow.IsOpen;
-            plugin.QuickSwitchButtonPos = ImGui.GetItemRectMin();
-            plugin.QuickSwitchButtonSize = ImGui.GetItemRectSize();
+            plugin.WindowState.QuickSwitchButtonPos = ImGui.GetItemRectMin();
+            plugin.WindowState.QuickSwitchButtonSize = ImGui.GetItemRectSize();
 
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup))
             {
@@ -388,6 +388,11 @@ namespace SimpleCharacterSelectPlugin.Windows
         }
 
         public void OpenEditCharacterWindow(int index) => characterForm.OpenEditCharacterWindow(index);
+        public void OpenAddCharacterWindow()
+        {
+            characterForm.InitCreateCharacterWindow();
+            plugin.WindowState.IsAddCharacterWindowOpen = true;
+        }
         public void OpenDesignPanel(int characterIndex) => designPanel.Open(characterIndex);
         public void CloseDesignPanel() => designPanel.Close();
         public void SortCharacters() => characterGrid.SortCharacters();
@@ -395,7 +400,7 @@ namespace SimpleCharacterSelectPlugin.Windows
         /// <summary>Opens the settings panel and navigates to a specific section.</summary>
         public void SwitchToSettingsSection(string sectionName)
         {
-            plugin.IsSettingsOpen = true;
+            plugin.WindowState.IsSettingsOpen = true;
             settingsPanel.ExpandSection(sectionName);
         }
     }

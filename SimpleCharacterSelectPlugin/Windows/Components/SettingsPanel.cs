@@ -28,12 +28,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private bool honorificSettingsOpen = false;
         private bool mainCharacterSettingsOpen = false;
         private bool dialogueSettingsOpen = false;
-        private bool nameSyncSettingsOpen = false;
         private bool characterAssignmentSettingsOpen = false;
         private bool jobAssignmentSettingsOpen = false;
         private bool conflictResolutionSettingsOpen = false;
         private bool backupSettingsOpen = false;
-        private bool communitySettingsOpen = false;
         private string? pendingExpandSection = null; // Section to force-expand on next draw
         private int selectedBlockedUserIndex = -1;
         private string newRealCharacterBuffer = "";
@@ -103,7 +101,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         public void Draw()
         {
-            if (!plugin.IsSettingsOpen)
+            if (!plugin.WindowState.IsSettingsOpen)
                 return;
 
             // Calculate dynamic height based on expanded sections
@@ -171,13 +169,13 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetNextWindowPos(centerPos, ImGuiCond.FirstUseEver);
             ImGui.SetNextWindowSize(new Vector2(windowWidth, windowHeight), ImGuiCond.Always);
 
-            bool isSettingsOpen = plugin.IsSettingsOpen;
+            bool isSettingsOpen = plugin.WindowState.IsSettingsOpen;
             var windowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar;
 
             if (ImGui.Begin("Simple Character Select Settings", ref isSettingsOpen, windowFlags))
             {
                 if (!isSettingsOpen)
-                    plugin.IsSettingsOpen = false;
+                    plugin.WindowState.IsSettingsOpen = false;
 
                 ApplyFixedStyles(totalScale);
 
@@ -341,10 +339,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Profile Image Scale
             DrawFixedSetting("Profile Image Scale:", labelWidth, inputWidth, () =>
             {
-                float tempScale = plugin.ProfileImageScale;
+                float tempScale = plugin.WindowState.ProfileImageScale;
                 if (ImGui.SliderFloat("##ProfileImageScale", ref tempScale, 0.5f, 2.0f, "%.1f"))
                 {
-                    plugin.ProfileImageScale = tempScale;
+                    plugin.WindowState.ProfileImageScale = tempScale;
                     plugin.SaveConfiguration();
                     // Force MainWindow layout invalidation
                     mainWindow.InvalidateLayout();
@@ -356,11 +354,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Profiles Per Row
             DrawFixedSetting("Profiles Per Row:", labelWidth, inputWidth * 0.5f, () =>
             {
-                int tempColumns = plugin.ProfileColumns;
+                int tempColumns = plugin.WindowState.ProfileColumns;
                 if (ImGui.InputInt("##ProfilesPerRow", ref tempColumns, 1, 1))
                 {
                     tempColumns = Math.Clamp(tempColumns, 1, 6);
-                    plugin.ProfileColumns = tempColumns;
+                    plugin.WindowState.ProfileColumns = tempColumns;
                     plugin.SaveConfiguration();
                     // Force MainWindow layout invalidation
                     mainWindow.InvalidateLayout();
@@ -372,10 +370,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Profile Spacing
             DrawFixedSetting("Profile Spacing:", labelWidth, inputWidth, () =>
             {
-                float tempSpacing = plugin.ProfileSpacing;
+                float tempSpacing = plugin.WindowState.ProfileSpacing;
                 if (ImGui.SliderFloat("##ProfileSpacing", ref tempSpacing, 0.0f, 50.0f, "%.1f"))
                 {
-                    plugin.ProfileSpacing = tempSpacing;
+                    plugin.WindowState.ProfileSpacing = tempSpacing;
                     plugin.SaveConfiguration();
                     // Force MainWindow layout invalidation
                     mainWindow.InvalidateLayout();
@@ -454,45 +452,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.PopStyleColor();
 
             ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-
-            // Animated Gradients - supporter acknowledgment
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.9f, 1.0f));
-            ImGui.Text("Animated Gradients");
-            ImGui.PopStyleColor();
-            ImGui.Spacing();
-
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.8f, 1.0f));
-            ImGui.TextWrapped("The animated gradient feature (Wave, Pulse, Static) in Honorific titles was created by Caraxi. If you'd like to use these features, please consider supporting their work.");
-            ImGui.PopStyleColor();
-            ImGui.Spacing();
-
-            ImGui.Spacing();
-
-            // Supporter acknowledgment checkbox
-            bool hasAcknowledged = plugin.Configuration.HasAcknowledgedHonorificSupport;
-            if (ImGui.Checkbox("I have supported Caraxi (enable animated gradients)", ref hasAcknowledged))
-            {
-                plugin.Configuration.HasAcknowledgedHonorificSupport = hasAcknowledged;
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("Check this box to enable animated gradient features (Wave, Pulse, Static) in character Honorific titles.\nThis is an honor-based system - please support the developer if you use these features.");
-
-            if (!hasAcknowledged)
-            {
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.65f, 1.0f));
-                ImGui.TextWrapped("Animated gradients are currently disabled. Enable the checkbox above to use Wave, Pulse, and Static title animations.");
-                ImGui.PopStyleColor();
-            }
-            else
-            {
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.9f, 0.5f, 1.0f));
-                ImGui.Text("Animated gradients enabled. Thank you for supporting Caraxi!");
-                ImGui.PopStyleColor();
-            }
-
-            ImGui.Spacing();
         }
 
         private void DrawAutomationSettings()
@@ -509,7 +468,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.Configuration.EnableAutomations = automationToggle;
                 UpdateAutomationSettings(automationToggle);
             }
-            DrawTooltip("Enable support for Glamourer Automations in Characters & Designs.\n\nWhen enabled, you'll be able to assign an Automation to each character & design.\nCharacters & Designs without automations will require a fallback Automation in Glamourer named: \"None\"\nYou also must enter your in-game character name in Glamourer next to \"Any World\" and Set to Character.");
+            DrawTooltip("Enable support for Glamourer Automations in Characters & Designs.\n\nWhen enabled, you'll be able to assign an Automation to each character & design.\nCharacters & Designs without automations will require a fallback Automation in Glamourer named: \"None\"\nYou also must enter your in-game character name in Glamourer next to \"Any World\" and Set to character.Data.");
 
             ImGui.Spacing();
         }
@@ -645,60 +604,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             ImGui.Spacing();
             ImGui.Separator();
-            ImGui.Spacing();
-
-            // Blocked Users List
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.9f, 1.0f));
-            ImGui.Text($"Blocked Users ({plugin.Configuration.BlockedCSUsers.Count})");
-            ImGui.PopStyleColor();
-            ImGui.Spacing();
-
-            if (plugin.Configuration.BlockedCSUsers.Count > 0)
-            {
-                var listHeight = Math.Min(150f, plugin.Configuration.BlockedCSUsers.Count * 25f + 10f) * totalScale;
-                if (ImGui.BeginChild("##BlockedUsersList", new Vector2(-1, listHeight), true))
-                {
-                    var blockedList = plugin.Configuration.BlockedCSUsers.ToList();
-                    for (int i = 0; i < blockedList.Count; i++)
-                    {
-                        var blockedUser = blockedList[i];
-                        bool selected = selectedBlockedUserIndex == i;
-
-                        if (ImGui.Selectable($"{blockedUser}##blocked_{i}", ref selected))
-                        {
-                            selectedBlockedUserIndex = selected ? i : -1;
-                        }
-
-                        // Double-click to unblock
-                        if (ImGui.IsItemHovered() && ImGui.IsMouseDoubleClicked(0))
-                        {
-                            plugin.Configuration.BlockedCSUsers.Remove(blockedUser);
-                            plugin.Configuration.Save();
-                            selectedBlockedUserIndex = -1;
-                        }
-                    }
-                }
-                ImGui.EndChild();
-
-                // Unblock button
-                if (selectedBlockedUserIndex >= 0 && selectedBlockedUserIndex < plugin.Configuration.BlockedCSUsers.Count)
-                {
-                    var blockedList = plugin.Configuration.BlockedCSUsers.ToList();
-                    if (ImGui.Button("Unblock Selected", new Vector2(150f * totalScale, 0)))
-                    {
-                        plugin.Configuration.BlockedCSUsers.Remove(blockedList[selectedBlockedUserIndex]);
-                        plugin.Configuration.Save();
-                        selectedBlockedUserIndex = -1;
-                    }
-                    DrawTooltip("Remove the selected user from your block list.\nYou can also double-click a user to unblock them.");
-                }
-            }
-            else
-            {
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1f));
-                ImGui.Text("No blocked users");
-                ImGui.PopStyleColor();
-            }
 
             ImGui.Spacing();
         }
@@ -819,7 +724,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                             for (int c = 0; c < characters.Count; c++)
                             {
                                 var character = characters[c];
-                                bool isInGroup = group.CharacterNames.Contains(character.Name);
+                                bool isInGroup = group.CharacterNames.Contains(character.Data.Name);
 
                                 // Start new row for even indices
                                 if (c % 2 == 1)
@@ -829,16 +734,16 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                                 ImGui.PushID($"Char_{c}");
                                 ImGui.SetNextItemWidth(colWidth);
-                                if (ImGui.Checkbox(character.Name.Length > 20 ? character.Name.Substring(0, 17) + "..." : character.Name, ref isInGroup))
+                                if (ImGui.Checkbox(character.Data.Name.Length > 20 ? character.Data.Name.Substring(0, 17) + "..." : character.Data.Name, ref isInGroup))
                                 {
-                                    if (isInGroup && !group.CharacterNames.Contains(character.Name))
-                                        group.CharacterNames.Add(character.Name);
+                                    if (isInGroup && !group.CharacterNames.Contains(character.Data.Name))
+                                        group.CharacterNames.Add(character.Data.Name);
                                     else if (!isInGroup)
-                                        group.CharacterNames.Remove(character.Name);
+                                        group.CharacterNames.Remove(character.Data.Name);
                                     plugin.Configuration.Save();
                                 }
-                                if (character.Name.Length > 20)
-                                    DrawTooltip(character.Name);
+                                if (character.Data.Name.Length > 20)
+                                    DrawTooltip(character.Data.Name);
                                 ImGui.PopID();
                             }
                         }
@@ -905,10 +810,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                     foreach (var character in plugin.Characters)
                     {
-                        bool isSelected = character.Name == currentMainChar;
-                        if (ImGui.Selectable(character.Name, isSelected))
+                        bool isSelected = character.Data.Name == currentMainChar;
+                        if (ImGui.Selectable(character.Data.Name, isSelected))
                         {
-                            plugin.Configuration.MainCharacterName = character.Name;
+                            plugin.Configuration.MainCharacterName = character.Data.Name;
                             plugin.Configuration.Save();
                         }
 
@@ -917,17 +822,17 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     }
                     ImGui.EndCombo();
                 }
-                DrawTooltip("Select which character should be designated as your main character.\nThe main character will be marked with a crown icon and can be set to auto-apply exclusively on login.");
+                DrawTooltip("Select which character should be designated as your main character.Data.\nThe main character will be marked with a crown icon and can be set to auto-apply exclusively on login.");
             });
 
             // Status display
             if (!string.IsNullOrEmpty(plugin.Configuration.MainCharacterName))
             {
-                var mainCharacter = plugin.Characters.FirstOrDefault(c => c.Name == plugin.Configuration.MainCharacterName);
+                var mainCharacter = plugin.Characters.FirstOrDefault(c => c.Data.Name == plugin.Configuration.MainCharacterName);
                 if (mainCharacter != null)
                 {
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.9f, 0.7f, 1f));
-                    ImGui.Text($"Current Main: {mainCharacter.Name}");
+                    ImGui.Text($"Current Main: {mainCharacter.Data.Name}");
                     ImGui.PopStyleColor();
                 }
                 else
@@ -997,7 +902,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 plugin.Configuration.Save();
             }
-            DrawTooltip("Replaces NPC dialogue text to use your SCS Character's name and pronouns instead of your game character.\nRequires an active SCS character with RP Profile data.");
+            DrawTooltip("Replaces NPC dialogue text to use your SCS Character's name and pronouns instead of your game character.Data.\nRequires an active SCS character with RP Profile data.");
 
             if (plugin.Configuration.EnableDialogueIntegration)
             {
@@ -1081,7 +986,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // Preview with proper styling
                 ImGui.Spacing();
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f));
-                var characterName = plugin.Characters.FirstOrDefault()?.Name ?? "Warrior of Light";
+                var characterName = plugin.Characters.FirstOrDefault()?.Data.Name ?? "Warrior of Light";
                 ImGui.Text($"Preview: \"Sir {characterName}\" -> \"{plugin.Configuration.GetGenderNeutralFormalTitle()} {characterName}\"");
                 ImGui.PopStyleColor();
 
@@ -1303,14 +1208,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     ImGui.Separator();
 
                     // Add SCS characters
-                    foreach (var character in plugin.Configuration.Characters.OrderBy(c => c.Name))
+                    foreach (var character in plugin.Configuration.Characters.OrderBy(c => c.Data.Name))
                     {
-                        bool isSelected = character.Name == editingAssignmentValue;
-                        if (ImGui.Selectable(character.Name, isSelected))
+                        bool isSelected = character.Data.Name == editingAssignmentValue;
+                        if (ImGui.Selectable(character.Data.Name, isSelected))
                         {
-                            if (editingAssignmentValue != character.Name)
+                            if (editingAssignmentValue != character.Data.Name)
                             {
-                                editingAssignmentValue = character.Name;
+                                editingAssignmentValue = character.Data.Name;
                                 editingAssignmentUseDesign = false;
                                 editingAssignmentDesignBuffer = "";
                             }
@@ -1322,8 +1227,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 }
 
                 // Design selection (only show if a valid character is selected)
-                var editSelectedChar = plugin.Configuration.Characters.FirstOrDefault(c => c.Name == editingAssignmentValue);
-                if (editSelectedChar != null && editSelectedChar.Designs.Any())
+                var editSelectedChar = plugin.Configuration.Characters.FirstOrDefault(c => c.Data.Name == editingAssignmentValue);
+                if (editSelectedChar != null && editSelectedChar.Data.Designs.Any())
                 {
                     ImGui.Spacing();
                     if (ImGui.Checkbox("Use specific design##Edit", ref editingAssignmentUseDesign))
@@ -1337,7 +1242,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         ImGui.SetNextItemWidth(300f);
                         if (ImGui.BeginCombo("##EditDesign", string.IsNullOrEmpty(editingAssignmentDesignBuffer) ? "Select Design" : editingAssignmentDesignBuffer))
                         {
-                            foreach (var design in editSelectedChar.Designs.OrderBy(d => d.Name))
+                            foreach (var design in editSelectedChar.Data.Designs.OrderBy(d => d.Name))
                             {
                                 bool isSelected = design.Name == editingAssignmentDesignBuffer;
                                 if (ImGui.Selectable(design.Name, isSelected))
@@ -1475,11 +1380,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // Add all SCS characters
                 foreach (var character in plugin.Characters)
                 {
-                    if (ImGui.Selectable(character.Name, character.Name == newCSCharacter))
+                    if (ImGui.Selectable(character.Data.Name, character.Data.Name == newCSCharacter))
                     {
-                        if (newCSCharacterBuffer != character.Name)
+                        if (newCSCharacterBuffer != character.Data.Name)
                         {
-                            newCSCharacterBuffer = character.Name;
+                            newCSCharacterBuffer = character.Data.Name;
                             newAssignmentUseDesign = false;
                             newAssignmentDesignBuffer = "";
                         }
@@ -1487,11 +1392,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 }
                 ImGui.EndCombo();
             }
-            DrawTooltip("Choose which SCS character should auto-apply for this in-game character.\nSelect 'None' to prevent any auto-application for this character.");
+            DrawTooltip("Choose which SCS character should auto-apply for this in-game character.Data.\nSelect 'None' to prevent any auto-application for this character.Data.");
 
             // Design selection (only show if a valid character is selected)
-            var newSelectedChar = plugin.Characters.FirstOrDefault(c => c.Name == newCSCharacterBuffer);
-            if (newSelectedChar != null && newSelectedChar.Designs.Any())
+            var newSelectedChar = plugin.Characters.FirstOrDefault(c => c.Data.Name == newCSCharacterBuffer);
+            if (newSelectedChar != null && newSelectedChar.Data.Designs.Any())
             {
                 ImGui.Spacing();
                 if (ImGui.Checkbox("Use specific design##New", ref newAssignmentUseDesign))
@@ -1505,7 +1410,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     ImGui.SetNextItemWidth(300f);
                     if (ImGui.BeginCombo("##NewDesign", string.IsNullOrEmpty(newAssignmentDesignBuffer) ? "Select Design" : newAssignmentDesignBuffer))
                     {
-                        foreach (var design in newSelectedChar.Designs.OrderBy(d => d.Name))
+                        foreach (var design in newSelectedChar.Data.Designs.OrderBy(d => d.Name))
                         {
                             bool isSelected = design.Name == newAssignmentDesignBuffer;
                             if (ImGui.Selectable(design.Name, isSelected))
@@ -1806,7 +1711,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Spacing();
 
             // Character selection
-            var characterNames = plugin.Characters.Select(c => c.Name).ToArray();
+            var characterNames = plugin.Characters.Select(c => c.Data.Name).ToArray();
             if (characterNames.Length == 0)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.4f, 1.0f));
@@ -1834,14 +1739,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Design selection (optional)
             var selectedCharacter = plugin.Characters.ElementAtOrDefault(newJobAssignmentCharacterIndex);
-            if (selectedCharacter != null && selectedCharacter.Designs.Count > 0)
+            if (selectedCharacter != null && selectedCharacter.Data.Designs.Count > 0)
             {
                 ImGui.Checkbox("Use specific design", ref newJobAssignmentUseDesign);
-                DrawTooltip("If checked, apply a specific design. Otherwise, just apply the character.");
+                DrawTooltip("If checked, apply a specific design. Otherwise, just apply the character.Data.");
 
                 if (newJobAssignmentUseDesign)
                 {
-                    var designNames = selectedCharacter.Designs.Select(d => d.Name).ToArray();
+                    var designNames = selectedCharacter.Data.Designs.Select(d => d.Name).ToArray();
                     ImGui.Text("Design:");
                     ImGui.SameLine();
                     ImGui.SetNextItemWidth(200f);
@@ -1879,19 +1784,19 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 string value;
                 if (newJobAssignmentUseDesign && selectedCharacter != null)
                 {
-                    var design = selectedCharacter.Designs.ElementAtOrDefault(newJobAssignmentDesignIndex);
+                    var design = selectedCharacter.Data.Designs.ElementAtOrDefault(newJobAssignmentDesignIndex);
                     if (design != null)
                     {
-                        value = $"Design:{selectedCharacter.Name}:{design.Name}";
+                        value = $"Design:{selectedCharacter.Data.Name}:{design.Name}";
                     }
                     else
                     {
-                        value = $"Character:{selectedCharacter.Name}";
+                        value = $"Character:{selectedCharacter.Data.Name}";
                     }
                 }
                 else if (selectedCharacter != null)
                 {
-                    value = $"Character:{selectedCharacter.Name}";
+                    value = $"Character:{selectedCharacter.Data.Name}";
                 }
                 else
                 {
@@ -1935,11 +1840,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 if (!enableAutomations)
                 {
-                    character.CharacterAutomation = string.Empty;
+                    character.Data.CharacterAutomation = string.Empty;
                 }
-                else if (string.IsNullOrWhiteSpace(character.CharacterAutomation))
+                else if (string.IsNullOrWhiteSpace(character.Data.CharacterAutomation))
                 {
-                    character.CharacterAutomation = "None";
+                    character.Data.CharacterAutomation = "None";
                 }
             }
 
@@ -1948,7 +1853,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // Remove automation lines from all macros
                 foreach (var character in plugin.Characters)
                 {
-                    foreach (var design in character.Designs)
+                    foreach (var design in character.Data.Designs)
                     {
                         string macro = design.IsAdvancedMode ? design.AdvancedMacro : design.Macro;
                         if (string.IsNullOrWhiteSpace(macro))
@@ -1974,17 +1879,17 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 foreach (var character in plugin.Characters)
                 {
-                    if (string.IsNullOrWhiteSpace(character.Macros))
+                    if (string.IsNullOrWhiteSpace(character.Data.Macros))
                         continue;
 
-                    var cleaned = string.Join("\n", character.Macros
+                    var cleaned = string.Join("\n", character.Data.Macros
                         .Split('\n')
                         .Where(line => !line.TrimStart().StartsWith("/glamour automation enable", StringComparison.OrdinalIgnoreCase))
                         .Select(line => line.TrimEnd()));
 
-                    if (cleaned != character.Macros)
+                    if (cleaned != character.Data.Macros)
                     {
-                        character.Macros = cleaned;
+                        character.Data.Macros = cleaned;
                         changed = true;
                     }
                 }
@@ -1994,13 +1899,13 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // Re-add automation lines
                 foreach (var character in plugin.Characters)
                 {
-                    foreach (var design in character.Designs)
+                    foreach (var design in character.Data.Designs)
                     {
                         string macro = design.IsAdvancedMode ? design.AdvancedMacro : design.Macro;
                         if (string.IsNullOrWhiteSpace(macro))
                             continue;
 
-                        string updated = Plugin.SanitizeDesignMacro(macro, design, character, true);
+                        string updated = GameCommandManager.SanitizeDesignMacro(macro, design, character, true);
 
                         if (design.IsAdvancedMode && updated != design.AdvancedMacro)
                         {
@@ -2017,10 +1922,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 foreach (var character in plugin.Characters)
                 {
-                    string updated = Plugin.SanitizeMacro(character.Macros, character);
-                    if (updated != character.Macros)
+                    string updated = GameCommandManager.SanitizeMacro(character.Data.Macros, character);
+                    if (updated != character.Data.Macros)
                     {
-                        character.Macros = updated;
+                        character.Data.Macros = updated;
                         changed = true;
                     }
                 }
@@ -3307,12 +3212,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             honorificSettingsOpen = false;
             mainCharacterSettingsOpen = false;
             dialogueSettingsOpen = false;
-            nameSyncSettingsOpen = false;
             characterAssignmentSettingsOpen = false;
             jobAssignmentSettingsOpen = false;
             conflictResolutionSettingsOpen = false;
             backupSettingsOpen = false;
-            communitySettingsOpen = false;
 
             // Then expand the requested section
             switch (sectionName)
@@ -3335,24 +3238,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 case "Immersive Dialogue":
                     dialogueSettingsOpen = true;
                     break;
-                case "Name Sync":
-                    nameSyncSettingsOpen = true;
-                    break;
                 case "Character Assignments":
                     characterAssignmentSettingsOpen = true;
                     break;
                 case "Job Assignments":
                     jobAssignmentSettingsOpen = true;
                     break;
-                case "Conflict Resolution":
-                    conflictResolutionSettingsOpen = true;
-                    break;
                 case "Backup & Restore":
                     backupSettingsOpen = true;
-                    break;
-                case "Community & Moderation":
-                    // Redirect to Behavior Settings where this content now lives
-                    behaviorSettingsOpen = true;
                     break;
                 default:
                     Plugin.Log.Warning($"[SettingsPanel] Unknown section name: {sectionName}");

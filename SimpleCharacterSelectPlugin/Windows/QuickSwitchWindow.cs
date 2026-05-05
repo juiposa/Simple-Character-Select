@@ -9,6 +9,7 @@ using Dalamud.Interface.Utility;
 using System.Collections.Generic;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 using SimpleCharacterSelectPlugin;
+using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin.Windows
 {
@@ -104,11 +105,11 @@ namespace SimpleCharacterSelectPlugin.Windows
                     var character = plugin.Characters[i];
                     bool isSelected = (tempCharacterIndex == i);
 
-                    if (ImGui.Selectable(character.Name, isSelected))
+                    if (ImGui.Selectable(character.Data.Name, isSelected))
                     {
                         tempCharacterIndex = i;
 
-                        if (character.Designs.Count > 0)
+                        if (character.Data.Designs.Count > 0)
                         {
                             var sortedDesigns = GetSortedDesigns(character);
                             if (sortedDesigns.Count > 0)
@@ -262,7 +263,7 @@ namespace SimpleCharacterSelectPlugin.Windows
             }
         }
 
-        /// <summary>Initialises dropdown selections from last used character.</summary>
+        /// <summary>Initialises dropdown selections from last used character.Data.</summary>
         private void InitializeLastUsedSelection()
         {
             try
@@ -278,19 +279,19 @@ namespace SimpleCharacterSelectPlugin.Windows
                     if (plugin.Configuration.LastUsedCharacterByPlayer.TryGetValue(fullKey, out var lastUsedKey))
                     {
                         var character = plugin.Characters.FirstOrDefault(c =>
-                            $"{c.Name}@{worldName}" == lastUsedKey);
+                            $"{c.Data.Name}@{worldName}" == lastUsedKey);
 
                         if (character != null)
                         {
                             selectedCharacterIndex = plugin.Characters.IndexOf(character);
-                            Plugin.Log.Debug($"[QuickSwitch] Found last used character: {character.Name} at index {selectedCharacterIndex}");
+                            Plugin.Log.Debug($"[QuickSwitch] Found last used character: {character.Data.Name} at index {selectedCharacterIndex}");
 
-                            if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Name, out var lastDesignName))
+                            if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Data.Name, out var lastDesignName))
                             {
-                                var design = character.Designs.FirstOrDefault(d => d.Name == lastDesignName);
+                                var design = character.Data.Designs.FirstOrDefault(d => d.Name == lastDesignName);
                                 if (design != null)
                                 {
-                                    selectedDesignIndex = character.Designs.IndexOf(design);
+                                    selectedDesignIndex = character.Data.Designs.IndexOf(design);
                                     lastTrackedDesignName = lastDesignName;
                                     Plugin.Log.Debug($"[QuickSwitch] Found last used design: {lastDesignName} at index {selectedDesignIndex}");
                                 }
@@ -302,18 +303,18 @@ namespace SimpleCharacterSelectPlugin.Windows
 
                 if (!string.IsNullOrEmpty(plugin.Configuration.LastUsedCharacterKey))
                 {
-                    var character = plugin.Characters.FirstOrDefault(c => c.Name == plugin.Configuration.LastUsedCharacterKey);
+                    var character = plugin.Characters.FirstOrDefault(c => c.Data.Name == plugin.Configuration.LastUsedCharacterKey);
                     if (character != null)
                     {
                         selectedCharacterIndex = plugin.Characters.IndexOf(character);
-                        Plugin.Log.Debug($"[QuickSwitch] Found global last used character: {character.Name} at index {selectedCharacterIndex}");
+                        Plugin.Log.Debug($"[QuickSwitch] Found global last used character: {character.Data.Name} at index {selectedCharacterIndex}");
 
-                        if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Name, out var lastDesignName))
+                        if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Data.Name, out var lastDesignName))
                         {
-                            var design = character.Designs.FirstOrDefault(d => d.Name == lastDesignName);
+                            var design = character.Data.Designs.FirstOrDefault(d => d.Name == lastDesignName);
                             if (design != null)
                             {
-                                selectedDesignIndex = character.Designs.IndexOf(design);
+                                selectedDesignIndex = character.Data.Designs.IndexOf(design);
                                 lastTrackedDesignName = lastDesignName;
                                 Plugin.Log.Debug($"[QuickSwitch] Found last used design for global character: {lastDesignName} at index {selectedDesignIndex}");
                             }
@@ -324,11 +325,11 @@ namespace SimpleCharacterSelectPlugin.Windows
 
                 if (!string.IsNullOrEmpty(plugin.Configuration.MainCharacterName))
                 {
-                    var mainCharacter = plugin.Characters.FirstOrDefault(c => c.Name == plugin.Configuration.MainCharacterName);
+                    var mainCharacter = plugin.Characters.FirstOrDefault(c => c.Data.Name == plugin.Configuration.MainCharacterName);
                     if (mainCharacter != null)
                     {
                         selectedCharacterIndex = plugin.Characters.IndexOf(mainCharacter);
-                        Plugin.Log.Debug($"[QuickSwitch] Defaulting to main character: {mainCharacter.Name} at index {selectedCharacterIndex}");
+                        Plugin.Log.Debug($"[QuickSwitch] Defaulting to main character: {mainCharacter.Data.Name} at index {selectedCharacterIndex}");
                         return;
                     }
                 }
@@ -336,7 +337,7 @@ namespace SimpleCharacterSelectPlugin.Windows
                 if (plugin.Characters.Count > 0)
                 {
                     selectedCharacterIndex = 0;
-                    Plugin.Log.Debug($"[QuickSwitch] Defaulting to first character: {plugin.Characters[0].Name}");
+                    Plugin.Log.Debug($"[QuickSwitch] Defaulting to first character: {plugin.Characters[0].Data.Name}");
                 }
 
                 Plugin.Log.Debug($"[QuickSwitch] Final selection - Character: {selectedCharacterIndex}, Design: {selectedDesignIndex}");
@@ -363,24 +364,24 @@ namespace SimpleCharacterSelectPlugin.Windows
             {
                 selectedCharacterIndex = index;
 
-                if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Name, out var lastDesignName))
+                if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Data.Name, out var lastDesignName))
                 {
-                    var design = character.Designs.FirstOrDefault(d => d.Name == lastDesignName);
-                    selectedDesignIndex = design != null ? character.Designs.IndexOf(design) : -1;
+                    var design = character.Data.Designs.FirstOrDefault(d => d.Name == lastDesignName);
+                    selectedDesignIndex = design != null ? character.Data.Designs.IndexOf(design) : -1;
                 }
                 else
                 {
                     selectedDesignIndex = -1;
                 }
 
-                Plugin.Log.Debug($"[QuickSwitch] Updated selection to character: {character.Name} (index {selectedCharacterIndex})");
+                Plugin.Log.Debug($"[QuickSwitch] Updated selection to character: {character.Data.Name} (index {selectedCharacterIndex})");
             }
         }
 
         private List<CharacterDesign> GetSortedDesigns(Character character)
         {
             var sortIndex = plugin.Configuration.CurrentDesignSortIndex;
-            var designs = character.Designs.ToList();
+            var designs = character.Data.Designs.ToList();
             
             // 0=Favorites, 1=Alphabetical, 2=Recent, 3=Oldest, 4=Manual
             if (sortIndex == 4) // Manual
@@ -413,25 +414,25 @@ namespace SimpleCharacterSelectPlugin.Windows
         
         private int GetOriginalIndex(Character character, CharacterDesign design)
         {
-            return character.Designs.FindIndex(d => d.Id == design.Id);
+            return character.Data.Designs.FindIndex(d => d.Id == design.Id);
         }
 
         private Vector4 GetNameplateColor(Character character)
         {
-            return new Vector4(character.NameplateColor.X, character.NameplateColor.Y, character.NameplateColor.Z, 1.0f);
+            return new Vector4(character.Data.NameplateColor.X, character.Data.NameplateColor.Y, character.Data.NameplateColor.Z, 1.0f);
         }
 
         private string GetSelectedCharacterName()
         {
             return (selectedCharacterIndex >= 0 && selectedCharacterIndex < plugin.Characters.Count)
-                ? plugin.Characters[selectedCharacterIndex].Name
+                ? plugin.Characters[selectedCharacterIndex].Data.Name
                 : "Select Character";
         }
 
         private string GetSelectedDesignName(Character character)
         {
-            return (selectedDesignIndex >= 0 && selectedDesignIndex < character.Designs.Count)
-                ? character.Designs[selectedDesignIndex].Name
+            return (selectedDesignIndex >= 0 && selectedDesignIndex < character.Data.Designs.Count)
+                ? character.Data.Designs[selectedDesignIndex].Name
                 : "Select Design";
         }
 
@@ -449,11 +450,11 @@ namespace SimpleCharacterSelectPlugin.Windows
             var character = plugin.Characters[selectedCharacterIndex];
             plugin.ApplyProfile(character, selectedDesignIndex);
 
-            bool shouldRestoreCharacterIdle = character.IdlePoseIndex < 7;
+            bool shouldRestoreCharacterIdle = character.Data.IdlePoseIndex < 7;
 
-            if (selectedDesignIndex >= 0 && selectedDesignIndex < character.Designs.Count)
+            if (selectedDesignIndex >= 0 && selectedDesignIndex < character.Data.Designs.Count)
             {
-                var design = character.Designs[selectedDesignIndex];
+                var design = character.Data.Designs[selectedDesignIndex];
                 var macro = design.IsAdvancedMode ? design.AdvancedMacro : design.Macro;
 
                 bool designHasSidle = !string.IsNullOrEmpty(macro) &&
@@ -465,10 +466,8 @@ namespace SimpleCharacterSelectPlugin.Windows
                     Plugin.Log.Debug("[QuickSwitch] Skipping character idle restoration - design contains /sidle command");
                 }
             }
-
-            if (shouldRestoreCharacterIdle)
-                plugin.PoseRestorer.RestorePosesFor(character);
-            else if (character.IdlePoseIndex >= 7)
+            
+            else if (character.Data.IdlePoseIndex >= 7)
                 Plugin.Log.Debug("[QuickSwitch] Skipping idle pose restore — IdlePoseIndex is None.");
         }
 
@@ -487,19 +486,19 @@ namespace SimpleCharacterSelectPlugin.Windows
             }
 
             var targetInfo = new { ObjectIndex = target.ObjectIndex, ObjectKind = target.ObjectKind, Name = target.Name?.ToString() ?? "Unknown" };
-            var designIndex = selectedDesignIndex >= 0 && selectedDesignIndex < character.Designs.Count ? selectedDesignIndex : -1;
+            var designIndex = selectedDesignIndex >= 0 && selectedDesignIndex < character.Data.Designs.Count ? selectedDesignIndex : -1;
 
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await plugin.ApplyToTarget(character, -1);
-                    Plugin.Log.Information($"[QuickSwitch] Applied character {character.Name} to target: {targetInfo.Name}");
+                    Plugin.Log.Information($"[QuickSwitch] Applied character {character.Data.Name} to target: {targetInfo.Name}");
 
                     if (designIndex >= 0)
                     {
                         await plugin.ApplyToTarget(character, designIndex);
-                        Plugin.Log.Information($"[QuickSwitch] Applied design '{character.Designs[designIndex].Name}' to target: {targetInfo.Name}");
+                        Plugin.Log.Information($"[QuickSwitch] Applied design '{character.Data.Designs[designIndex].Name}' to target: {targetInfo.Name}");
                     }
                 }
                 catch (Exception ex)
@@ -511,24 +510,24 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         private void RevertToCurrentPlayerCharacter()
         {
-            if (plugin.activeCharacter != null)
+            if (plugin.PlayerCharacter.activeCharacter != null)
             {
-                var matchingCharacterIndex = plugin.Characters.FindIndex(c => c.Name == plugin.activeCharacter.Name);
+                var matchingCharacterIndex = plugin.Characters.FindIndex(c => c.Data.Name == plugin.PlayerCharacter.activeCharacter.Data.Name);
                 if (matchingCharacterIndex >= 0)
                 {
                     selectedCharacterIndex = matchingCharacterIndex;
 
-                    if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(plugin.activeCharacter.Name, out var lastDesignName))
+                    if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(plugin.PlayerCharacter.activeCharacter.Data.Name, out var lastDesignName))
                     {
                         var character = plugin.Characters[matchingCharacterIndex];
-                        var designIndex = character.Designs.FindIndex(d => d.Name.Equals(lastDesignName, StringComparison.OrdinalIgnoreCase));
+                        var designIndex = character.Data.Designs.FindIndex(d => d.Name.Equals(lastDesignName, StringComparison.OrdinalIgnoreCase));
                         selectedDesignIndex = designIndex >= 0 ? designIndex : -1;
-                        Plugin.Log.Information($"[QuickSwitch] Reverted to active character: {plugin.activeCharacter.Name} with design: {(designIndex >= 0 ? lastDesignName : "None")}");
+                        Plugin.Log.Information($"[QuickSwitch] Reverted to active character: {plugin.PlayerCharacter.activeCharacter.Data.Name} with design: {(designIndex >= 0 ? lastDesignName : "None")}");
                     }
                     else
                     {
                         selectedDesignIndex = -1;
-                        Plugin.Log.Information($"[QuickSwitch] Reverted to active character: {plugin.activeCharacter.Name} (no design)");
+                        Plugin.Log.Information($"[QuickSwitch] Reverted to active character: {plugin.PlayerCharacter.activeCharacter.Data.Name} (no design)");
                     }
 
                     userIsInteracting = false;
@@ -541,7 +540,7 @@ namespace SimpleCharacterSelectPlugin.Windows
                 selectedCharacterIndex = 0;
                 selectedDesignIndex = -1;
                 userIsInteracting = false;
-                Plugin.Log.Information($"[QuickSwitch] No active character found, reverted to first character: {plugin.Characters[0].Name}");
+                Plugin.Log.Information($"[QuickSwitch] No active character found, reverted to first character: {plugin.Characters[0].Data.Name}");
             }
         }
 
@@ -563,15 +562,15 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         private void UpdateSelectedDesignFromConfig(Character character)
         {
-            if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Name, out var lastUsedDesignName))
+            if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Data.Name, out var lastUsedDesignName))
             {
                 if (lastUsedDesignName != lastTrackedDesignName)
                 {
                     userIsInteracting = false;
                     lastTrackedDesignName = lastUsedDesignName;
 
-                    var activeDesign = character.Designs.FirstOrDefault(d => d.Name.Equals(lastUsedDesignName, StringComparison.OrdinalIgnoreCase));
-                    selectedDesignIndex = activeDesign != null ? character.Designs.IndexOf(activeDesign) : -1;
+                    var activeDesign = character.Data.Designs.FirstOrDefault(d => d.Name.Equals(lastUsedDesignName, StringComparison.OrdinalIgnoreCase));
+                    selectedDesignIndex = activeDesign != null ? character.Data.Designs.IndexOf(activeDesign) : -1;
                 }
             }
             else
