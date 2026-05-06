@@ -1,24 +1,10 @@
 # **Simple Character Select**    
-Create, save, switch between custom character setups.
-Applies Penumbra collections, Glamourer designs, Customize+ profiles, Honorifics, Moodles, and Idle animations.  
+Simple and straightfoward plugin to create, save, and switch between OCs
 
----
-## **Installation**  
-🔹 TBD
----
----
-## **Discord**  
-🔹 TBD
----
+
+## Installation  
+- Add the following to your repositories in Dalamud and search for Simple Character Select
+  - **https://raw.githubusercontent.com/juiposa/Simple-Character-Select/refs/heads/main/Releases/repo.json**
 
 ## **Commands**  
-
-🔹 /simpleselect - Open main window
-
-🔹 /simpleselect [CharacterName] - Apply character
-
-🔹 /simpleselect [CharacterName] [DesignName] - Apply specific design
-
-🔹 /sviewrp [target] - View RP profiles
-
-🔹 /sgallery - Opens the Gallery
+- `/scs` - opens the main plugin window

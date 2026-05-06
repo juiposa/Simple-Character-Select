@@ -41,19 +41,7 @@ public class Commands
         {
             HelpMessage = "Opens the Simple Character Select UI"
         });
-        commandManager.AddHandler("/scsswitch", new CommandInfo(OnQuickSwitchCommand)
-        {
-            HelpMessage = "Opens the Quick Character Switcher UI."
-        });
-        
-        commandManager.AddHandler("/scs", new CommandInfo(OnSelectCommand)
-        {
-            HelpMessage = "Use /select <Character Name> [Design Name] to apply a profile, /select random for random selection, /select jobchange on|off to toggle reapply on job change, /select idle to check current idle pose, /select mods to open Mod Manager, or /select save [CR] to save current look as design."
-        });
-        commandManager.AddHandler("/scsrevert", new CommandInfo((_, _) => RevertAllChanges())
-        {
-            HelpMessage = "Reverts all SCS changes (Glamourer, Honorific, Moodles, Customize+, Penumbra collection)"
-        });
+        // TODO switch and revert
     }
     
     private void OnCommand(string command, string args)
@@ -75,118 +63,118 @@ public class Commands
     
     private void OnSelectCommand(string command, string args)
     {
-        if (string.IsNullOrWhiteSpace(args))
-        {
-            chatGui.PrintError("todo error");
-            return;
-        }
-
-        // Handle random selection
-        if (args.Trim().StartsWith("random", StringComparison.OrdinalIgnoreCase))
-        {
-            var randomArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (randomArgs.Length == 1)
-            {
-                // /select random - random character and design
-                //SelectRandomCharacterAndDesign();
-                //TODO random
-            }
-            else if (randomArgs.Length >= 2)
-            {
-                // Could be /select random GROUPNAME or /select random CHARACTER
-                var targetName = string.Join(" ", randomArgs.Skip(1));
-
-                // Check if it's a group name first
-                //var group = Configuration.RandomGroups.FirstOrDefault(g =>
-                //    g.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase));
-
-                // if (group != null)
-                // {
-                //     // /select random GROUPNAME - random from group
-                //     //SelectRandomFromGroup(group);
-                // }
-                // else
-                // {
-                //     // /select random CHARACTER - random design only from specific character
-                //     //SelectRandomDesignOnly(targetName);
-                // }
-            }
-            return;
-        }
-
-        // Handle jobchange on/off subcommand
-        if (args.Trim().StartsWith("jobchange", StringComparison.OrdinalIgnoreCase))
-        {
-            var jobchangeArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (jobchangeArgs.Length == 2)
-            {
-                string setting = jobchangeArgs[1].ToLower();
-                // if (setting == "on")
-                // {
-                //     Configuration.ReapplyDesignOnJobChange = true;
-                //     Configuration.Save();
-                //     ChatGui.Print("[Simple Character Select] Reapply design on job change: Enabled");
-                //     return;
-                // }
-                // else if (setting == "off")
-                // {
-                //     Configuration.ReapplyDesignOnJobChange = false;
-                //     Configuration.Save();
-                //     ChatGui.Print("[Simple Character Select] Reapply design on job change: Disabled");
-                //     return;
-                // }
-            }
-            chatGui.PrintError("[Simple Character Select] Usage: /select jobchange on|off");
-            return;
-        }
-
-        // Handle idle subcommand - /select idle [0-6]
-        if (args.Trim().StartsWith("idle", StringComparison.OrdinalIgnoreCase))
-        {
-            // var idleArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            // if (idleArgs.Length == 1)
-            // {
-            //     // /select idle - check current pose
-            //     if (ObjectTable.LocalPlayer != null)
-            //     {
-            //         unsafe
-            //         {
-            //             var charPtr = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)ObjectTable.LocalPlayer.Address;
-            //             var currentIdle = charPtr->EmoteController.CPoseState;
-            //
-            //             ChatGui.Print($"[SCS] Current idle pose: {currentIdle} (range: 0-6)");
-            //         }
-            //     }
-            //     else
-            //     {
-            //         ChatGui.PrintError("[SCS] You must be logged in to check idle pose.");
-            //     }
-            // }
-            // else if (idleArgs.Length >= 2 && byte.TryParse(idleArgs[1], out var poseIndex))
-            // {
-            //     // /select idle <0-6> - set pose
-            //     PoseManager.ApplyPose(EmoteController.PoseType.Idle, poseIndex);
-            //     ExecuteMacro("/penumbra redraw self");
-            // }
-            // else
-            // {
-            //     ChatGui.PrintError("[SCS] Usage: /select idle [0-6]");
-            // }
-            return;
-        }
-        
-        // Handle save subcommand
-        if (args.Trim().StartsWith("save", StringComparison.OrdinalIgnoreCase))
-        {
-            //HandleSaveCommand(args);
-            return;
-        }
-
-        // Rest of the existing method remains the same...
-        var matches = Regex.Matches(args, "\"([^\"]+)\"|\\S+")
-            .Cast<Match>()
-            .Select(m => m.Groups[1].Success ? m.Groups[1].Value : m.Value)
-            .ToArray();
+        // if (string.IsNullOrWhiteSpace(args))
+        // {
+        //     chatGui.PrintError("todo error");
+        //     return;
+        // }
+        //
+        // // Handle random selection
+        // if (args.Trim().StartsWith("random", StringComparison.OrdinalIgnoreCase))
+        // {
+        //     var randomArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        //     if (randomArgs.Length == 1)
+        //     {
+        //         // /select random - random character and design
+        //         //SelectRandomCharacterAndDesign();
+        //         //TODO random
+        //     }
+        //     else if (randomArgs.Length >= 2)
+        //     {
+        //         // Could be /select random GROUPNAME or /select random CHARACTER
+        //         var targetName = string.Join(" ", randomArgs.Skip(1));
+        //
+        //         // Check if it's a group name first
+        //         //var group = Configuration.RandomGroups.FirstOrDefault(g =>
+        //         //    g.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase));
+        //
+        //         // if (group != null)
+        //         // {
+        //         //     // /select random GROUPNAME - random from group
+        //         //     //SelectRandomFromGroup(group);
+        //         // }
+        //         // else
+        //         // {
+        //         //     // /select random CHARACTER - random design only from specific character
+        //         //     //SelectRandomDesignOnly(targetName);
+        //         // }
+        //     }
+        //     return;
+        // }
+        //
+        // // Handle jobchange on/off subcommand
+        // if (args.Trim().StartsWith("jobchange", StringComparison.OrdinalIgnoreCase))
+        // {
+        //     var jobchangeArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        //     if (jobchangeArgs.Length == 2)
+        //     {
+        //         string setting = jobchangeArgs[1].ToLower();
+        //         // if (setting == "on")
+        //         // {
+        //         //     Configuration.ReapplyDesignOnJobChange = true;
+        //         //     Configuration.Save();
+        //         //     ChatGui.Print("[Simple Character Select] Reapply design on job change: Enabled");
+        //         //     return;
+        //         // }
+        //         // else if (setting == "off")
+        //         // {
+        //         //     Configuration.ReapplyDesignOnJobChange = false;
+        //         //     Configuration.Save();
+        //         //     ChatGui.Print("[Simple Character Select] Reapply design on job change: Disabled");
+        //         //     return;
+        //         // }
+        //     }
+        //     chatGui.PrintError("[Simple Character Select] Usage: /select jobchange on|off");
+        //     return;
+        // }
+        //
+        // // Handle idle subcommand - /select idle [0-6]
+        // if (args.Trim().StartsWith("idle", StringComparison.OrdinalIgnoreCase))
+        // {
+        //     // var idleArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        //     // if (idleArgs.Length == 1)
+        //     // {
+        //     //     // /select idle - check current pose
+        //     //     if (ObjectTable.LocalPlayer != null)
+        //     //     {
+        //     //         unsafe
+        //     //         {
+        //     //             var charPtr = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)ObjectTable.LocalPlayer.Address;
+        //     //             var currentIdle = charPtr->EmoteController.CPoseState;
+        //     //
+        //     //             ChatGui.Print($"[SCS] Current idle pose: {currentIdle} (range: 0-6)");
+        //     //         }
+        //     //     }
+        //     //     else
+        //     //     {
+        //     //         ChatGui.PrintError("[SCS] You must be logged in to check idle pose.");
+        //     //     }
+        //     // }
+        //     // else if (idleArgs.Length >= 2 && byte.TryParse(idleArgs[1], out var poseIndex))
+        //     // {
+        //     //     // /select idle <0-6> - set pose
+        //     //     PoseManager.ApplyPose(EmoteController.PoseType.Idle, poseIndex);
+        //     //     ExecuteMacro("/penumbra redraw self");
+        //     // }
+        //     // else
+        //     // {
+        //     //     ChatGui.PrintError("[SCS] Usage: /select idle [0-6]");
+        //     // }
+        //     return;
+        // }
+        //
+        // // Handle save subcommand
+        // if (args.Trim().StartsWith("save", StringComparison.OrdinalIgnoreCase))
+        // {
+        //     //HandleSaveCommand(args);
+        //     return;
+        // }
+        //
+        // // Rest of the existing method remains the same...
+        // var matches = Regex.Matches(args, "\"([^\"]+)\"|\\S+")
+        //     .Cast<Match>()
+        //     .Select(m => m.Groups[1].Success ? m.Groups[1].Value : m.Value)
+        //     .ToArray();
 
         // if (matches.Length < 1)
         // {
@@ -231,9 +219,6 @@ public class Commands
     {
         commandManager.RemoveHandler(CommandName);
         commandManager.RemoveHandler(CommandNameShort);
-        commandManager.RemoveHandler("/spose");
-        commandManager.RemoveHandler("/gallery");
-        commandManager.RemoveHandler("/selectrevert");
     }
     
     public void SaveAfterCommand(Character character, string designName)

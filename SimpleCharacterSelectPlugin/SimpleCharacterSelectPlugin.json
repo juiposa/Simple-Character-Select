@@ -1,17 +1,21 @@
 {
   "Author": "Juiposa",
   "Name": "Simple Character Select",
-  "InternalName": "SimpleSelectPlugin",
-  "AssemblyVersion": "0.0.1",
+  "InternalName": "SimpleCharacterSelectPlugin",
+  "AssemblyVersion": "0.0.2",
   "Description": "Character Select Simplified",
   "ApplicableVersion": "any",
-  "Tags": ["character", "select", "ocs", "rp", "roleplay"],
+  "Tags": ["character", "select", "ocs"],
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "LoadPriority": 0,
-  "Punchline": "Swap between your OCs with a single click",
+  "IconUrl": "",
+  "Punchline": "Simplified character selecting, no fluff",
   "AcceptsFeedback": true,
-  "IconUrl": ""
+  "IsTestingExclusive": "False",
+  "DownloadLinkInstall": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.2/SimpleCharacterSelectPlugin.zip",
+  "DownloadLinkTesting": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.2/SimpleCharacterSelectPlugin.zip",
+  "DownloadLinkUpdate": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.2/SimpleCharacterSelectPlugin.zip"
 }
