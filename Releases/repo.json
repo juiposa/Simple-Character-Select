@@ -16,8 +16,8 @@
     "Punchline": "Simplified character selecting, no fluff",
     "AcceptsFeedback": true,
     "IsTestingExclusive": "False",
-    "DownloadLinkInstall": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.2/SimpleCharacterSelectPlugin.zip",
-    "DownloadLinkTesting": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.2/SimpleCharacterSelectPlugin.zip",
-    "DownloadLinkUpdate": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.2/SimpleCharacterSelectPlugin.zip"
+    "DownloadLinkInstall": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.3/SimpleCharacterSelectPlugin.zip",
+    "DownloadLinkTesting": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.3/SimpleCharacterSelectPlugin.zip",
+    "DownloadLinkUpdate": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.3/SimpleCharacterSelectPlugin.zip"
   }
 ]
