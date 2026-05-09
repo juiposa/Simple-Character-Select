@@ -257,7 +257,6 @@ public static class GameCommandManager
             }
         }
 
-        // For non-Advanced Mode characters, do full sanitization
         AddOrReplace("/customize profile disable <me>");
         AddOrReplace("/honorific force clear", "/honorific force clear | silent");
         AddOrReplace("/moodle remove self preset all");
@@ -379,7 +378,7 @@ public static class GameCommandManager
                 }
             }
 
-            macro += $"/honorific force set {h.Title} | {h.Title} | {colorHex} | {glowHex}{gradientPart} | silent\n";
+            macro += $"/honorific force set {h.Title} | {colorHex} | {glowHex}{gradientPart} | silent\n";
         }
 
         macro += "/moodle remove self preset all\n";

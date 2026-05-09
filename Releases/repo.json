@@ -3,7 +3,7 @@
     "Author": "Juiposa",
     "Name": "Simple Character Select",
     "InternalName": "SimpleCharacterSelectPlugin",
-    "AssemblyVersion": "0.0.2.0",
+    "AssemblyVersion": "0.0.3.0",
     "Description": "Character Select Simplified",
     "ApplicableVersion": "any",
     "Tags": ["character", "select", "ocs"],
