@@ -234,17 +234,8 @@ namespace SimpleCharacterSelectPlugin
             FileBrowserWindow.SetConfiguration(Configuration);
             WindowSystem.AddWindow(FileBrowserWindow);
 
-            // Guard against retroactive page 2 surprise for existing users
-            if (!Configuration.HasSeenPage2Surprise && Configuration.Characters.Count >= 41)
-            {
-                Configuration.HasSeenPage2Surprise = true;
-                SaveConfiguration();
-            }
-
             // Initialize IPC provider for other plugins
             ipcProvider = new SCSIPCProvider(this, PluginInterface);
-            
-            MigrateBackgroundImageNames();
 
             // Restore Main Window state if enabled
             if (Configuration.RememberMainWindowState && Configuration.IsMainWindowOpen)
@@ -389,17 +380,17 @@ namespace SimpleCharacterSelectPlugin
                 string fullKey = $"{localName}@{worldName}";
                 string newProfileKey = $"{character.Data.Name}@{worldName}";
 
-                // Remove all old entries for this player
-                var toRemove = ActiveProfilesByPlayerName
-                    .Where(kvp => kvp.Key.StartsWith($"{localName}@{worldName}", StringComparison.OrdinalIgnoreCase))
-                    .Select(kvp => kvp.Key)
-                    .ToList();
-
-                foreach (var oldKey in toRemove)
-                    ActiveProfilesByPlayerName.Remove(oldKey);
-
-                // Register key
-                ActiveProfilesByPlayerName[fullKey] = character.Data.Name;
+                // // Remove all old entries for this player
+                // var toRemove = ActiveProfilesByPlayerName TODO
+                //     .Where(kvp => kvp.Key.StartsWith($"{localName}@{worldName}", StringComparison.OrdinalIgnoreCase))
+                //     .Select(kvp => kvp.Key)
+                //     .ToList();
+                //
+                // foreach (var oldKey in toRemove)
+                //     ActiveProfilesByPlayerName.Remove(oldKey);
+                //
+                // // Register key
+                // ActiveProfilesByPlayerName[fullKey] = character.Data.Name;
                 string pluginCharacterKey = $"{character.Data.Name}@{worldName}"; // plugin character identity
                 character.Data.LastInGameName = $"{localName}@{worldName}";        // who is currently logged in
 
@@ -461,17 +452,17 @@ namespace SimpleCharacterSelectPlugin
             }
 
 
-            // Apply poses immediately
-            if (character.Data.IdlePoseIndex < 7)
-            {
-                PoseManager.ApplyPose(PoseType.Idle, character.Data.IdlePoseIndex);
-                Configuration.LastIdlePoseAppliedByPlugin = character.Data.IdlePoseIndex;
-                Configuration.Save();
-            }
-            else
-            {
-                Plugin.Log.Debug("[ApplyProfile] Skipping idle pose apply because it is set to None.");
-            }
+            // Apply poses immediately TODO
+            // if (character.Data.IdlePoseIndex < 7)
+            // {
+            //     PoseManager.ApplyPose(PoseType.Idle, character.Data.IdlePoseIndex);
+            //     Configuration.LastIdlePoseAppliedByPlugin = character.Data.IdlePoseIndex;
+            //     Configuration.Save();
+            // }
+            // else
+            // {
+            //     Plugin.Log.Debug("[ApplyProfile] Skipping idle pose apply because it is set to None.");
+            // }
 
             this.QuickSwitchWindow.UpdateSelectionFromCharacter(character);
 
@@ -842,16 +833,8 @@ namespace SimpleCharacterSelectPlugin
             // Add Glamourer apply if we have it
             if (!string.IsNullOrEmpty(design.GlamourerDesign))
             {
-                if (useConflictResolution && Configuration.EnableConflictResolution)
-                {
-                    // Use Glamourer apply with design name for conflict resolution
-                    macroLines.Add($"/glamourer apply \"{design.Name}\" to self");
-                }
-                else
-                {
-                    // Use standard Glamourer apply
-                    macroLines.Add($"/glamourer apply \"{design.Name}\" to self");
-                }
+                // Use standard Glamourer apply
+                macroLines.Add($"/glamourer apply \"{design.Name}\" to self");
             }
 
             // Add Customize+ apply if we have it
@@ -1016,25 +999,12 @@ namespace SimpleCharacterSelectPlugin
                 string fullKey = $"{localName}@{worldName}"; // Who is logged in
                 string pluginCharacterKey = $"{character.Data.Name}@{worldName}"; // SCS character identity
 
-                ActiveProfilesByPlayerName[fullKey] = character.Data.Name;
-
                 // Track which physical character last used this profile
                 character.Data.LastInGameName = fullKey;
 
                 // This is the key logic: player -> selected plugin character
                 Configuration.LastUsedCharacterByPlayer[fullKey] = pluginCharacterKey;
                 Configuration.LastUsedCharacterKey = character.Data.Name;
-
-                // Write the session info file so the plugin remembers the last applied character name
-                try
-                {
-                    File.WriteAllText(SessionInfoPath, character.Data.Name);
-                    Plugin.Log.Debug($"[ApplyProfile] Wrote session_info.txt = {character.Data.Name}");
-                }
-                catch (Exception ex)
-                {
-                    Plugin.Log.Warning($"[SetActiveCharacter] Failed to write session_info.txt: {ex.Message}");
-                }
 
                 try
                 {
@@ -1768,21 +1738,11 @@ namespace SimpleCharacterSelectPlugin
 
             // Set active character for Name Sync
             PlayerCharacter.activeCharacter = selectedCharacter;
-
-            // Update ActiveProfilesByPlayerName for GetActiveCharacter() (used by name sync)
-            if (ObjectTable.LocalPlayer != null)
-            {
-                string localName = ObjectTable.LocalPlayer.Name.TextValue;
-                string worldName = ObjectTable.LocalPlayer.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-                ActiveProfilesByPlayerName[fullKey] = selectedCharacter.Data.Name;
-                selectedCharacter.Data.LastInGameName = fullKey;
-            }
             
             if (selectedCharacter.Data.IdlePoseIndex < 7)
             {
                 PoseManager.ApplyPose(PoseType.Idle, selectedCharacter.Data.IdlePoseIndex);
-                Configuration.LastIdlePoseAppliedByPlugin = selectedCharacter.Data.IdlePoseIndex;
+                //Configuration.LastIdlePoseAppliedByPlugin = selectedCharacter.Data.IdlePoseIndex; TODO
                 Configuration.Save();
             }
 
@@ -1822,7 +1782,7 @@ namespace SimpleCharacterSelectPlugin
                 string localName = ObjectTable.LocalPlayer.Name.TextValue;
                 string worldName = ObjectTable.LocalPlayer.HomeWorld.Value.Name.ToString();
                 string fullKey = $"{localName}@{worldName}";
-                ActiveProfilesByPlayerName[fullKey] = character.Data.Name;
+                //ActiveProfilesByPlayerName[fullKey] = character.Data.Name; TODO
                 character.Data.LastInGameName = fullKey;
             }
 
@@ -1886,16 +1846,6 @@ namespace SimpleCharacterSelectPlugin
             // Set active character for Name Sync
             PlayerCharacter.activeCharacter = selectedCharacter;
 
-            // Update ActiveProfilesByPlayerName for GetActiveCharacter() (used by name sync)
-            if (ObjectTable.LocalPlayer != null)
-            {
-                string localName = ObjectTable.LocalPlayer.Name.TextValue;
-                string worldName = ObjectTable.LocalPlayer.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-                ActiveProfilesByPlayerName[fullKey] = selectedCharacter.Data.Name;
-                selectedCharacter.Data.LastInGameName = fullKey;
-            }
-
             // Get available designs - respect favorites setting
             var availableDesigns = Configuration.RandomSelectionFavoritesOnly
                 ? selectedCharacter.Data.Designs.Where(d => d.IsFavorite).ToList()
@@ -1953,61 +1903,6 @@ namespace SimpleCharacterSelectPlugin
             catch (Exception ex)
             {
                 Log.Error($"Error getting targeted player name: {ex.Message}");
-            }
-
-            return null;
-        }
-        private void MigrateBackgroundImageNames()
-        {
-            bool configChanged = false;
-
-            foreach (var character in Configuration.Characters)
-            {
-                if (!string.IsNullOrEmpty(character.Data.BackgroundImage))
-                {
-                    string oldName = character.Data.BackgroundImage;
-                    string newName = oldName;
-
-                    // Convert PNG to JPG
-                    if (oldName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                    {
-                        newName = oldName.Substring(0, oldName.Length - 4) + ".jpg";
-                    }
-                    // Add .jpg if no extension
-                    else if (!oldName.Contains("."))
-                    {
-                        newName = oldName + ".jpg";
-                    }
-
-                    if (newName != oldName)
-                    {
-                        character.Data.BackgroundImage = newName;
-                        configChanged = true;
-                        Log.Info($"Migrated background: {oldName} -> {newName}");
-                    }
-                }
-            }
-
-            if (configChanged)
-            {
-                SaveConfiguration();
-                Log.Info("Background migration completed and saved");
-            }
-        }
-
-        public Character? GetActiveCharacter()
-        {
-            if (ObjectTable.LocalPlayer?.HomeWorld.IsValid != true)
-                return null;
-
-            string localName = ObjectTable.LocalPlayer.Name.TextValue;
-            string worldName = ObjectTable.LocalPlayer.HomeWorld.Value.Name.ToString();
-            string fullKey = $"{localName}@{worldName}";
-
-            // Find which SCS character is currently active for this physical character
-            if (ActiveProfilesByPlayerName.TryGetValue(fullKey, out var activeCharacterName))
-            {
-                return Characters.FirstOrDefault(c => c.Data.Name == activeCharacterName);
             }
 
             return null;

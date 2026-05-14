@@ -55,11 +55,6 @@ namespace SimpleCharacterSelectPlugin.Windows
             characterGrid.PreWarmCacheAsync();
         }
 
-        public override void PreDraw()
-        {
-            uiStyles.PushCustomWindowBgIfNeeded();
-        }
-
         public override void PostDraw()
         {
             uiStyles.PopCustomWindowBgIfNeeded();
@@ -77,126 +72,6 @@ namespace SimpleCharacterSelectPlugin.Windows
             designPanel?.Dispose();
             settingsPanel?.Dispose();
             reorderWindow?.Dispose();
-        }
-
-        /// <summary>Draws custom background image in current child window.</summary>
-        private void DrawCustomBackgroundInChild()
-        {
-            var config = plugin.Configuration.CustomTheme;
-            if (string.IsNullOrEmpty(config.BackgroundImagePath))
-                return;
-
-            if (!File.Exists(config.BackgroundImagePath))
-                return;
-
-            var texture = Plugin.TextureProvider
-                .GetFromFile(config.BackgroundImagePath)
-                .GetWrapOrDefault();
-
-            var childPos = ImGui.GetWindowPos();
-            var childSize = ImGui.GetWindowSize();
-            var drawList = ImGui.GetWindowDrawList();
-
-            if (texture == null)
-                return;
-
-            if (_lastLoggedBackgroundPath != config.BackgroundImagePath)
-            {
-                Plugin.Log.Info($"[CustomBG] Loaded! Size: {texture.Width}x{texture.Height}");
-                _lastLoggedBackgroundPath = config.BackgroundImagePath;
-            }
-
-            // Calculate base image size (cover, maintain aspect ratio)
-            var imageAspect = (float)texture.Width / texture.Height;
-            var windowAspect = childSize.X / childSize.Y;
-
-            Vector2 baseImageSize;
-
-            if (imageAspect > windowAspect)
-            {
-                baseImageSize.Y = childSize.Y;
-                baseImageSize.X = childSize.Y * imageAspect;
-            }
-            else
-            {
-                baseImageSize.X = childSize.X;
-                baseImageSize.Y = childSize.X / imageAspect;
-            }
-
-            // Zoom
-            var zoom = Math.Clamp(config.BackgroundImageZoom, 0.5f, 3.0f);
-            var imageSize = baseImageSize * zoom;
-
-            var centeredOffset = (childSize - imageSize) / 2;
-
-            // User offset
-            var userOffsetX = config.BackgroundImageOffsetX * (imageSize.X - childSize.X) * 0.5f;
-            var userOffsetY = config.BackgroundImageOffsetY * (imageSize.Y - childSize.Y) * 0.5f;
-            var finalOffset = centeredOffset + new Vector2(userOffsetX, userOffsetY);
-
-            var tintColor = new Vector4(1, 1, 1, config.BackgroundImageOpacity);
-
-            drawList.PushClipRect(childPos, childPos + childSize, true);
-
-            drawList.AddImage(
-                texture.Handle,
-                childPos + finalOffset,
-                childPos + finalOffset + imageSize,
-                Vector2.Zero,
-                Vector2.One,
-                ImGui.ColorConvertFloat4ToU32(tintColor)
-            );
-
-            drawList.PopClipRect();
-        }
-
-        /// <summary>Draws hearts.jpg background in current child window for Valentine's theme.</summary>
-        private void DrawValentinesBackgroundInChild()
-        {
-            var heartsPath = Path.Combine(plugin.PluginDirectory, "Assets", "hearts.jpg");
-            if (!File.Exists(heartsPath))
-                return;
-
-            var texture = Plugin.TextureProvider
-                .GetFromFile(heartsPath)
-                .GetWrapOrDefault();
-
-            if (texture == null)
-                return;
-
-            var childPos = ImGui.GetWindowPos();
-            var childSize = ImGui.GetWindowSize();
-            var drawList = ImGui.GetWindowDrawList();
-
-            // Cover the child window, maintaining aspect ratio
-            var imageAspect = (float)texture.Width / texture.Height;
-            var windowAspect = childSize.X / childSize.Y;
-
-            Vector2 imageSize;
-            if (imageAspect > windowAspect)
-            {
-                imageSize.Y = childSize.Y;
-                imageSize.X = childSize.Y * imageAspect;
-            }
-            else
-            {
-                imageSize.X = childSize.X;
-                imageSize.Y = childSize.X / imageAspect;
-            }
-
-            var offset = (childSize - imageSize) / 2;
-            var tintColor = new Vector4(1, 1, 1, 0.5f);
-
-            drawList.PushClipRect(childPos, childPos + childSize, true);
-            drawList.AddImage(
-                texture.Handle,
-                childPos + offset,
-                childPos + offset + imageSize,
-                Vector2.Zero,
-                Vector2.One,
-                ImGui.ColorConvertFloat4ToU32(tintColor)
-            );
-            drawList.PopClipRect();
         }
 
         public override void Draw()
@@ -395,14 +270,6 @@ namespace SimpleCharacterSelectPlugin.Windows
             plugin.WindowState.IsAddCharacterWindowOpen = true;
         }
         public void OpenDesignPanel(int characterIndex) => designPanel.Open(characterIndex);
-        public void CloseDesignPanel() => designPanel.Close();
         public void SortCharacters() => characterGrid.SortCharacters();
-
-        /// <summary>Opens the settings panel and navigates to a specific section.</summary>
-        public void SwitchToSettingsSection(string sectionName)
-        {
-            plugin.WindowState.IsSettingsOpen = true;
-            settingsPanel.ExpandSection(sectionName);
-        }
     }
 }

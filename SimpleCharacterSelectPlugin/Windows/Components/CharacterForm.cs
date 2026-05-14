@@ -187,18 +187,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 noErrors = true;
             }, "Enter your OC's name or nickname for profile here.", scale, null);
 
-            // Character Alias field - only show when Name Sync is enabled
-            if (plugin.Configuration.EnableNameReplacement || plugin.Configuration.EnableSharedNameReplacement)
-            {
-                string tempAlias = currentCharacter.Data.Alias;
-                DrawFormField("Character Alias", labelWidth, inputWidth, inputOffset, () =>
-                {
-                    ImGui.InputTextWithHint("##CharacterAlias", "Leave empty to use Character Name", ref tempAlias, 100);
-
-                    currentCharacter.Data.Alias = tempAlias;
-                }, "Optional alias used for Name Sync.\nIf set, this name is displayed instead of Character Name.\nLeave empty to use the Character Name above.", scale);
-            }
-
             ImGui.Separator();
 
             // Character Tags
@@ -499,110 +487,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     tempHonorificAnimationStyle = null;
                     modified = true;
                     ImGui.CloseCurrentPopup();
-                }
-
-                ImGui.Separator();
-
-                // Gate animated gradients behind supporter acknowledgment
-                if (plugin.Configuration.HasAcknowledgedHonorificSupport)
-                {
-                    // Nested combo for gradient selection (like Honorific)
-                    string gradientLabel = tempHonorificGradientSet.HasValue
-                        ? (tempHonorificGradientSet.Value == -1 ? "Two Colour Gradient" : GradientPresetNames[tempHonorificGradientSet.Value])
-                        : "Select Gradient...";
-
-                    ImGui.SetNextItemWidth(popupWidth);
-                    if (ImGui.BeginCombo("##GradientSelect", gradientLabel, ImGuiComboFlags.HeightLargest))
-                    {
-                        // Tab bar for animation styles
-                        if (ImGui.BeginTabBar("##GradAnimTabs"))
-                        {
-                            foreach (var animStyle in new[] { "Wave", "Pulse", "Static" })
-                            {
-                                if (ImGui.BeginTabItem(animStyle))
-                                {
-                                    // Child region for scrolling
-                                    float childHeight = Math.Min(180 * scale, (GradientPresetNames.Length + 1) * ImGui.GetTextLineHeightWithSpacing());
-                                    if (ImGui.BeginChild($"##Presets{animStyle}", new Vector2(popupWidth - 16 * scale, childHeight)))
-                                    {
-                                        var drawList = ImGui.GetWindowDrawList();
-
-                                        // Two Colour Gradient option at top
-                                        bool isTwoColourSelected = tempHonorificGradientSet == -1 && tempHonorificAnimationStyle == animStyle;
-                                        if (ImGui.Selectable("Two Colour Gradient", isTwoColourSelected, ImGuiSelectableFlags.DontClosePopups))
-                                        {
-                                            tempHonorificGradientSet = -1;
-                                            tempHonorificAnimationStyle = animStyle;
-                                            modified = true;
-                                            ImGui.CloseCurrentPopup();  // Close inner combo only
-                                        }
-
-                                        // Preset gradients
-                                        for (int i = 0; i < GradientPresetNames.Length; i++)
-                                        {
-                                            bool isSelected = tempHonorificGradientSet == i && tempHonorificAnimationStyle == animStyle;
-
-                                            var selectableSize = new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetTextLineHeightWithSpacing());
-                                            var cursorPos = ImGui.GetCursorScreenPos();
-
-                                            if (ImGui.Selectable($"##Preset{animStyle}{i}", isSelected, ImGuiSelectableFlags.DontClosePopups, selectableSize))
-                                            {
-                                                tempHonorificGradientSet = i;
-                                                tempHonorificAnimationStyle = animStyle;
-                                                modified = true;
-                                                ImGui.CloseCurrentPopup();
-                                            }
-
-                                            // Draw the preset name with animated gradient effect
-                                            var textPos = cursorPos + ImGui.GetStyle().FramePadding;
-                                            DrawGradientTextForPicker(drawList, textPos, GradientPresetNames[i], i, animStyle);
-                                        }
-                                    }
-                                    ImGui.EndChild();
-                                    ImGui.EndTabItem();
-                                }
-                            }
-                            ImGui.EndTabBar();
-                        }
-                        ImGui.EndCombo();
-                    }
-
-                    // Show animated preview of selected gradient (below the combo, still in popup)
-                    if (tempHonorificGradientSet.HasValue)
-                    {
-                        var previewText = tempHonorificGradientSet.Value == -1
-                            ? "Two Colour Gradient"
-                            : GradientPresetNames[tempHonorificGradientSet.Value];
-
-                        var previewPos = ImGui.GetCursorScreenPos();
-                        var drawList = ImGui.GetWindowDrawList();
-
-                        // Reserve space and draw preview
-                        ImGui.Dummy(new Vector2(popupWidth, ImGui.GetTextLineHeightWithSpacing()));
-                        DrawGradientTextForPicker(drawList, previewPos, previewText,
-                            tempHonorificGradientSet.Value, tempHonorificAnimationStyle ?? "Wave");
-                    }
-
-                    // Two colour pickers (shown below combo when two-colour is selected)
-                    if (tempHonorificGradientSet == -1)
-                    {
-                        if (ImGui.ColorEdit3("##TwoColour1", ref tempHonorificGlow, ImGuiColorEditFlags.NoInputs))
-                        {
-                            modified = true;
-                        }
-                        ImGui.SameLine();
-                        if (ImGui.ColorEdit3("Colours##TwoColour2", ref tempHonorificColor3, ImGuiColorEditFlags.NoInputs))
-                        {
-                            modified = true;
-                        }
-                    }
-                }
-                else
-                {
-                    // Show message when supporter acknowledgment not enabled
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.65f, 1.0f));
-                    ImGui.TextWrapped("Enable in Settings > Visual Settings to use animated gradients.");
-                    ImGui.PopStyleColor();
                 }
 
                 ImGui.EndPopup();

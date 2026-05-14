@@ -1105,20 +1105,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Switch gearset if assigned at character level
             if (plugin.Configuration.EnableGearsetAssignments && character.Data.AssignedGearset.HasValue)
             {
-                //plugin.SwitchToGearset(character.Data.AssignedGearset.Value);
+                //plugin.SwitchToGearset(character.Data.AssignedGearset.Value); TODO
             }
 
             plugin.SetActiveCharacter(character);
-
-            // Check if we should upload to server
-            if (Plugin.ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
-            {
-                string localName = player.Name.TextValue;
-                string worldName = player.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-                
-                Plugin.Log.Info($"[CharacterGrid] ⚠ Skipped upload for {character.Data.Name} (NeverShare)");
-            }
+            
             plugin.QuickSwitchWindow.UpdateSelectionFromCharacter(character);
         }
         
