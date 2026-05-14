@@ -139,12 +139,7 @@ namespace SimpleCharacterSelectPlugin
         // Track when we've applied an assignment for this specific character
         private string? assignmentAppliedForCharacter = null;
         
-        private static readonly Dictionary<string, string> ActiveProfilesByPlayerName = new();
-        public string NewCharacterTag { get; set; } = "";
-        public List<string> KnownTags => Configuration.KnownTags;
-        public string NewCharacterAutomation { get; set; } = "";
-        public int? NewCharacterGearset { get; set; } = null;
-        public byte LastIdlePoseAppliedByPlugin { get; set; } = 255;
+
         
         private DateTime pluginInitTime = DateTime.Now;
         
@@ -441,74 +436,6 @@ namespace SimpleCharacterSelectPlugin
                 ? FilterToKnownIntegrationCommands(character.Data.Macros)
                 : character.Data.Macros;
             GameCommandManager.ExecuteMacro(characterMacro, character, null);
-
-            // Apply Secret Mode state - first character-level, then design-specific
-            if (designIndex >= 0 && designIndex < character.Data.Designs.Count)
-            {
-                var design = character.Data.Designs[designIndex];
-                
-                // Apply design-specific mod options if they exist
-                if (design.ModOptionSettings != null && design.ModOptionSettings.Any())
-                {
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            // Get current collection TODO
-                            var (success, collectionId, collectionName) = PenumbraIntegration.GetCurrentCollection();
-                            if (success)
-                            {
-
-                            }
-                            else
-                            {
-                                Log.Warning("Could not get current collection to apply mod options");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Error($"Error applying mod options for design: {ex}");
-                        }
-                    });
-                }
-                
-                // Apply the design's macro (use advanced macro for CR mode)
-                // If this is a same-character design switch, only run known integration commands
-                string macroText = design.IsAdvancedMode ? design.AdvancedMacro : design.Macro;
-                if (isSameCharacterDesignSwitch)
-                {
-                    macroText = FilterToKnownIntegrationCommands(macroText);
-                }
-                GameCommandManager.ExecuteMacro(macroText, character, design.Name);
-
-                // Fallback: If macro is empty but design has stored fields, apply them via IPC
-                // This handles cases where designs have IsAdvancedMode=true but empty macros
-                if (string.IsNullOrWhiteSpace(macroText))
-                {
-                    Log.Debug($"[ApplyProfile] Design '{design.Name}' has empty macro, attempting IPC fallback");
-
-                    // Apply Glamourer design via IPC if set
-                    if (!string.IsNullOrWhiteSpace(design.GlamourerDesign))
-                    {
-                        ApplyGlamourerDesignByName(design.GlamourerDesign);
-                    }
-
-                    // Apply Customize+ profile via IPC if set
-                    if (!string.IsNullOrWhiteSpace(design.CustomizePlusProfile))
-                    {
-                        ApplyCustomizePlusProfile(design.CustomizePlusProfile);
-                    }
-
-                    // Trigger Penumbra redraw
-                    TriggerPenumbraRedraw();
-                }
-
-                // Track last used design for auto-reapplication (only for auto-reapplication and commands, not UI)
-                Configuration.LastUsedDesignByCharacter[character.Data.Name] = design.Name;
-                Configuration.LastUsedDesignCharacterKey = character.Data.Name;
-                Configuration.LastUsedCharacterKey = character.Data.Name;
-                Configuration.Save();
-            }
 
             // Switch gearset AFTER Glamourer design is applied (via macros above)
             // This ensures Lightless sees the correct appearance when the gearset switch triggers a model refresh

@@ -34,10 +34,6 @@ namespace SimpleCharacterSelectPlugin
         public bool RememberMainWindowState { get; set; } = false;
         public bool IsMainWindowOpen { get; set; } = false;
         public bool EnableAutomations { get; set; } = false;
-        public string LastSeenVersion { get; set; } = "";
-
-        /// <summary>Last seen patch notes version (e.g., "2.1"). Only changes when patch notes content changes.</summary>
-        public string LastSeenPatchNotesVersion { get; set; } = "";
         public List<string> KnownTags { get; set; } = new();
         public byte LastIdlePoseAppliedByPlugin { get; set; } = 255;
         public byte LastSitPoseAppliedByPlugin { get; set; } = 255;
@@ -117,11 +113,6 @@ namespace SimpleCharacterSelectPlugin
         public HashSet<string> BlockedGalleryProfiles { get; set; } = new();
         public float DesignPanelWidth { get; set; } = 300f;
         
-        // Conflict Resolution
-        public bool EnableConflictResolution { get; set; } = false;
-        public bool RespectPenumbraInheritance { get; set; } = false;
-        public HashSet<string> SecretModeBlacklistedMods { get; set; } = new();
-        public HashSet<string> FollowedPlayers { get; set; } = new();
         [JsonPropertyName("enableDialogueIntegration")]
         public bool EnableDialogueIntegration { get; set; } = false;
 
@@ -159,64 +150,9 @@ namespace SimpleCharacterSelectPlugin
         [JsonPropertyName("enableNameReplacement")]
         public bool EnableNameReplacement { get; set; } = false;
 
-        [JsonPropertyName("nameReplacementNameplate")]
-        public bool NameReplacementNameplate { get; set; } = true;
-
-        [JsonPropertyName("nameReplacementChat")]
-        public bool NameReplacementChat { get; set; } = true;
-
-        [JsonPropertyName("nameReplacementPartyList")]
-        public bool NameReplacementPartyList { get; set; } = true;
-
-        [JsonPropertyName("hideFCTagInNameplate")]
-        public bool HideFCTagInNameplate { get; set; } = false;
-
         /// <summary>Use simple solid glow instead of wave effect on nameplates (for compatibility).</summary>
         [JsonPropertyName("useSimpleNameplateGlow")]
         public bool UseSimpleNameplateGlow { get; set; } = false;
-
-        /// <summary>Use simple solid glow for other players' nameplates (disables periodic redraw).</summary>
-        [JsonPropertyName("useSimpleGlowForOthers")]
-        public bool UseSimpleGlowForOthers { get; set; } = false;
-
-        // Shared Name Replacement
-        [JsonPropertyName("enableSharedNameReplacement")]
-        public bool EnableSharedNameReplacement { get; set; } = false;
-
-        [JsonPropertyName("allowOthersToSeeMyCSName")]
-        public bool AllowOthersToSeeMyCSName { get; set; } = false;
-
-        // Reveal actual names keybind
-        [JsonPropertyName("enableRevealActualNamesKeybind")]
-        public bool EnableRevealActualNamesKeybind { get; set; } = false;
-
-        [JsonPropertyName("revealActualNamesKey")]
-        public RevealNamesKeyOption RevealActualNamesKey { get; set; } = RevealNamesKeyOption.Alt;
-
-        /// <summary>Custom virtual key code for reveal names (0 = use RevealActualNamesKey enum instead).</summary>
-        [JsonPropertyName("revealActualNamesCustomKey")]
-        public int RevealActualNamesCustomKey { get; set; } = 0;
-
-        /// <summary>Display name for the custom key.</summary>
-        [JsonPropertyName("revealActualNamesCustomKeyName")]
-        public string RevealActualNamesCustomKeyName { get; set; } = "";
-
-        /// <summary>Modifier key for reveal names (0 = none, 0x11 = Ctrl, 0x10 = Shift, 0x12 = Alt).</summary>
-        [JsonPropertyName("revealActualNamesModifier")]
-        public int RevealActualNamesModifier { get; set; } = 0;
-
-        /// <summary>Display name for the modifier key.</summary>
-        [JsonPropertyName("revealActualNamesModifierName")]
-        public string RevealActualNamesModifierName { get; set; } = "";
-
-        public bool EnableRaceReplacement { get; set; } = false;
-        public DateTime LastSeenAnnouncements { get; set; } = DateTime.MinValue;
-        public bool ShowNSFWProfiles { get; set; } = false;
-        public int LastAcceptedGalleryTOSVersion { get; set; } = 0;
-
-        // Context menu
-        [JsonPropertyName("showViewRPContextMenu")]
-        public bool ShowViewRPContextMenu { get; set; } = true;
 
         [JsonPropertyName("showBlockUserContextMenu")]
         public bool ShowBlockUserContextMenu { get; set; } = true;
@@ -227,24 +163,6 @@ namespace SimpleCharacterSelectPlugin
         // Blocked SCS users
         [JsonPropertyName("blockedCSUsers")]
         public HashSet<string> BlockedCSUsers { get; set; } = new();
-
-        // Migration
-        public bool HasMigratedHonorificSilent { get; set; } = false;
-
-        // Honorific supporter acknowledgment
-        [JsonPropertyName("hasAcknowledgedHonorificSupport")]
-        public bool HasAcknowledgedHonorificSupport { get; set; } = false;
-
-        /// <summary>
-        /// Features user has seen (versioned keys, e.g. "NameSync_v2.1").
-        /// </summary>
-        public HashSet<string> SeenFeatures { get; set; } = new();
-
-        /// <summary>
-        /// Show patch notes on startup after updates.
-        /// </summary>
-        [DefaultValue(true)]
-        public bool ShowPatchNotesOnStartup { get; set; } = true;
 
         public Configuration(IDalamudPluginInterface pluginInterface)
         {
