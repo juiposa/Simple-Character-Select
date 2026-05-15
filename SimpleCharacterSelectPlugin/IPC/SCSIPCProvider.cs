@@ -78,7 +78,7 @@ namespace SimpleCharacterSelectPlugin
         /// </summary>
         private string GetCurrentCharacter()
         {
-            return plugin.PlayerCharacter.activeCharacter?.Data.Name ?? "";
+            return plugin.PlayerCharacter.ActiveCharacter?.Data.Name ?? "";
         }
 
         /// <summary>
@@ -189,11 +189,11 @@ namespace SimpleCharacterSelectPlugin
             var result = new List<(string, bool, string?)>();
             
             Plugin.Log.Info($"[IPC] GetCharacters called. Total characters: {plugin.Characters.Count}");
-            Plugin.Log.Info($"[IPC] Active character: {plugin.PlayerCharacter.activeCharacter?.Data.Name ?? "None"}");
+            Plugin.Log.Info($"[IPC] Active character: {plugin.PlayerCharacter.ActiveCharacter?.Data.Name ?? "None"}");
             
             foreach (var character in plugin.Characters)
             {
-                bool isActive = plugin.PlayerCharacter.activeCharacter?.Data.Name == character.Data.Name;
+                bool isActive = plugin.PlayerCharacter.ActiveCharacter?.Data.Name == character.Data.Name;
                 string? currentDesign = null;
                 
                 Plugin.Log.Info($"[IPC] Character: {character.Data.Name}, Active: {isActive}");

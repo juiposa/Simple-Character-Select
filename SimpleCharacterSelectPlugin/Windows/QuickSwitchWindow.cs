@@ -510,24 +510,24 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         private void RevertToCurrentPlayerCharacter()
         {
-            if (plugin.PlayerCharacter.activeCharacter != null)
+            if (plugin.PlayerCharacter.ActiveCharacter != null)
             {
-                var matchingCharacterIndex = plugin.Characters.FindIndex(c => c.Data.Name == plugin.PlayerCharacter.activeCharacter.Data.Name);
+                var matchingCharacterIndex = plugin.Characters.FindIndex(c => c.Data.Name == plugin.PlayerCharacter.ActiveCharacter.Data.Name);
                 if (matchingCharacterIndex >= 0)
                 {
                     selectedCharacterIndex = matchingCharacterIndex;
 
-                    if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(plugin.PlayerCharacter.activeCharacter.Data.Name, out var lastDesignName))
+                    if (plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(plugin.PlayerCharacter.ActiveCharacter.Data.Name, out var lastDesignName))
                     {
                         var character = plugin.Characters[matchingCharacterIndex];
                         var designIndex = character.Data.Designs.FindIndex(d => d.Name.Equals(lastDesignName, StringComparison.OrdinalIgnoreCase));
                         selectedDesignIndex = designIndex >= 0 ? designIndex : -1;
-                        Plugin.Log.Information($"[QuickSwitch] Reverted to active character: {plugin.PlayerCharacter.activeCharacter.Data.Name} with design: {(designIndex >= 0 ? lastDesignName : "None")}");
+                        Plugin.Log.Information($"[QuickSwitch] Reverted to active character: {plugin.PlayerCharacter.ActiveCharacter.Data.Name} with design: {(designIndex >= 0 ? lastDesignName : "None")}");
                     }
                     else
                     {
                         selectedDesignIndex = -1;
-                        Plugin.Log.Information($"[QuickSwitch] Reverted to active character: {plugin.PlayerCharacter.activeCharacter.Data.Name} (no design)");
+                        Plugin.Log.Information($"[QuickSwitch] Reverted to active character: {plugin.PlayerCharacter.ActiveCharacter.Data.Name} (no design)");
                     }
 
                     userIsInteracting = false;

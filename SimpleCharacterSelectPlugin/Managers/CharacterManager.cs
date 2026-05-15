@@ -14,14 +14,14 @@ public static class CharacterManager
     private static readonly string NameEmptyError =
         "Name cannot be empty.";
 
-    public static SCSError? ValidateName(string name, Character currentCharacter, List<Character> characters)
+    public static string? ValidateName(string name, List<Character> characters)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return new SCSError(NameEmptyError);
+            return NameEmptyError;
 
-        if (name != currentCharacter.Data.Name && characters.Any(c => c.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        if (characters.Any(c => c.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
         {
-            return new SCSError(NameValidationError);
+            return NameValidationError;
         }
         return null;
     }
@@ -30,7 +30,7 @@ public static class CharacterManager
     {
         if (character.Data.Designs.Count == 0)
         {
-            character.Data.Designs.Add(CreateDefaultDesign(character, config));
+            character.Data.Designs.Add(DesignManager.CreateDefaultDesign(character, config));
         }
         
         character.Save();
@@ -46,23 +46,13 @@ public static class CharacterManager
         config.Save();
     }
 
-    private static CharacterDesign CreateDefaultDesign(Character character, Configuration config)
+    public static List<Character> LoadCharacters(Configuration config, IPluginLog log)
     {
-        string defaultDesignName = $"{character.Data.Name} {character.Data.GlamourerDesign}";
-        var defaultDesign = new CharacterDesign(
-            defaultDesignName,
-            "",  // macro will be filled below
-            false,
-            ""
-        );
+        return new List<Character>();
+    }
 
-        // Sanitize to include Automation fallback
-        defaultDesign.Macro = GameCommandManager.SanitizeDesignMacro(
-            $"/glamour apply {character.Data.GlamourerDesign} | self\n/penumbra redraw self",
-            defaultDesign,
-            character,
-            config.EnableAutomations
-        );
-        return defaultDesign;
+    public static List<PlayerCharacter> GetPlayerCharactersWithAssignments(List<PlayerCharacter> pcs)
+    {
+        return pcs;
     }
 }

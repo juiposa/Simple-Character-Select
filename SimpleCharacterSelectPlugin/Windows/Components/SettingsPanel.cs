@@ -11,6 +11,7 @@ using SimpleCharacterSelectPlugin.Managers;
 using System.IO;
 using System.Windows.Forms;
 using System.Threading;
+using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin.Windows.Components
 {
@@ -34,8 +35,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private bool backupSettingsOpen = false;
         private string? pendingExpandSection = null; // Section to force-expand on next draw
         private int selectedBlockedUserIndex = -1;
-        private string newRealCharacterBuffer = "";
-        private string newCSCharacterBuffer = "";
         private bool newAssignmentUseDesign = false;
         private string newAssignmentDesignBuffer = "";
         private string editingAssignmentKey = "";
@@ -956,12 +955,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Spacing();
 
             // Display current assignments
-            if (plugin.Configuration.CharacterAssignments.Any())
+            List<PlayerCharacter> assignedCharacters =
+                CharacterManager.GetPlayerCharactersWithAssignments(plugin.Configuration.PlayerCharacters);
+            if (assignedCharacters.Any())
             {
                 ImGui.Text("Current Assignments:");
                 ImGui.Spacing();
-
-                var toRemove = new List<string>();
 
                 // Calculate button widths for layout
                 float editButtonWidth = ImGui.CalcTextSize("Edit").X + ImGui.GetStyle().FramePadding.X * 2 + 4;
@@ -971,37 +970,16 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 float availableWidth = ImGui.GetContentRegionAvail().X;
                 float maxTextWidth = availableWidth - totalButtonWidth - 10; // 10px padding
 
-                foreach (var assignment in plugin.Configuration.CharacterAssignments.ToList())
+                foreach (var a in assignedCharacters)
                 {
                     // Build the full display text
-                    string displayText;
-                    string fullTooltip;
-
-                    if (assignment.Value == "None")
-                    {
-                        displayText = $"{assignment.Key} → None (No Auto-Apply)";
-                        fullTooltip = displayText;
-                    }
-                    else
-                    {
-                        var (charName, designName) = ParseCharacterAssignmentValue(assignment.Value);
-                        if (!string.IsNullOrEmpty(designName))
-                        {
-                            displayText = $"{assignment.Key} → {charName} ({designName})";
-                        }
-                        else
-                        {
-                            displayText = $"{assignment.Key} → {charName}";
-                        }
-                        fullTooltip = displayText;
-                    }
+                    string aKey = $"{a.Name}@{a.World}";
+                    string displayText = $"{aKey} → {a.AssignedCharacter!.Data.Name}";
 
                     // Truncate if too long
                     string truncatedText = displayText;
-                    bool wasTruncated = false;
                     if (ImGui.CalcTextSize(displayText).X > maxTextWidth)
                     {
-                        wasTruncated = true;
                         while (truncatedText.Length > 3 && ImGui.CalcTextSize(truncatedText + "...").X > maxTextWidth)
                         {
                             truncatedText = truncatedText.Substring(0, truncatedText.Length - 1);
@@ -1030,10 +1008,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         ImGui.Text(truncatedText);
                     }
 
-                    // Show full text in tooltip if truncated
-                    if (wasTruncated && ImGui.IsItemHovered())
+                    if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip(fullTooltip);
+                        ImGui.SetTooltip(displayText);
                     }
 
                     // Position buttons on the right
@@ -1044,10 +1021,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.7f, 0.9f, 0.8f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.5f, 0.8f, 1.0f, 1.0f));
 
-                    if (ImGui.SmallButton($"Edit##{assignment.Key}"))
+                    if (ImGui.SmallButton($"Edit##{aKey}"))
                     {
-                        editingAssignmentKey = assignment.Key;
-                        var (charName, designName) = ParseCharacterAssignmentValue(assignment.Value);
+                        editingAssignmentKey = aKey;
+                        var (charName, designName) = ParseCharacterAssignmentValue(aKey);
                         editingAssignmentValue = charName;
                         editingAssignmentUseDesign = !string.IsNullOrEmpty(designName);
                         editingAssignmentDesignBuffer = designName ?? "";
@@ -1056,7 +1033,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip($"Edit assignment for {assignment.Key}");
+                        ImGui.SetTooltip($"Edit assignment for {aKey}");
                     }
 
                     ImGui.SameLine();
@@ -1066,22 +1043,16 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.9f, 0.4f, 0.4f, 0.8f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1.0f, 0.5f, 0.5f, 1.0f));
 
-                    if (ImGui.SmallButton($"Remove##{assignment.Key}"))
+                    if (ImGui.SmallButton($"Remove##{aKey}"))
                     {
-                        toRemove.Add(assignment.Key);
+                        a.AssignedCharacter = null;
                     }
                     ImGui.PopStyleColor(3);
 
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip($"Remove assignment for {assignment.Key}");
+                        ImGui.SetTooltip($"Remove assignment for {aKey}");
                     }
-                }
-
-                foreach (var key in toRemove)
-                {
-                    plugin.Configuration.CharacterAssignments.Remove(key);
-                    plugin.Configuration.Save();
                 }
 
                 ImGui.Spacing();
@@ -1206,39 +1177,23 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Spacing();
 
             // Get list of known real characters from existing tracking
-            var knownRealCharacters = plugin.Configuration.LastUsedCharacterByPlayer.Keys.ToList();
-
-            // Add current character if logged in and not already in list
-            if (Plugin.ClientState.IsLoggedIn && Plugin.ObjectTable.LocalPlayer != null)
-            {
-                var player = Plugin.ObjectTable.LocalPlayer;
-                if (player.HomeWorld.IsValid)
-                {
-                    string currentFormat = $"{player.Name.TextValue}@{player.HomeWorld.Value.Name}";
-                    if (!knownRealCharacters.Contains(currentFormat))
-                    {
-                        knownRealCharacters.Insert(0, currentFormat);
-                    }
-                }
-            }
-
-            string newRealCharacter = newRealCharacterBuffer;
-            string newCSCharacter = newCSCharacterBuffer;
+            var knownPCs = plugin.Configuration.PlayerCharacters;
 
             ImGui.Text("In-Game Character:");
             ImGui.SetNextItemWidth(300f);
 
-            if (knownRealCharacters.Any())
+            if (knownPCs.Any())
             {
+                PlayerCharacter? currentSelected = null;
                 // Dropdown of known characters
-                if (ImGui.BeginCombo("##RealCharSelect", string.IsNullOrEmpty(newRealCharacter) ? "Select In-Game Character" : newRealCharacter))
+                if (ImGui.BeginCombo("##RealCharSelect", currentSelected != null ? currentSelected.FullName : "--------" ))
                 {
-                    foreach (var realChar in knownRealCharacters.OrderBy(x => x))
+                    foreach (var realChar in knownPCs)
                     {
-                        bool isSelected = realChar == newRealCharacter;
-                        if (ImGui.Selectable(realChar, isSelected))
+                        bool isSelected = realChar.FullName == currentSelected?.FullName;
+                        if (ImGui.Selectable(realChar.FullName, isSelected))
                         {
-                            newRealCharacterBuffer = realChar;
+                            currentSelected = realChar;
                         }
                         if (isSelected)
                             ImGui.SetItemDefaultFocus();
@@ -1248,17 +1203,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 DrawTooltip("Select from characters the plugin has seen before, or type manually below.");
 
                 // Manual input as backup
+                string newCharacterName= "";
                 ImGui.Text("Or enter manually:");
                 ImGui.SetNextItemWidth(300f);
-                if (ImGui.InputTextWithHint("##RealCharManual", "First Last@WorldName", ref newRealCharacter, 100))
-                {
-                    newRealCharacterBuffer = newRealCharacter;
-                }
-            }
-            else
-            {
-                // Fallback to manual input if no known characters
-                if (ImGui.InputTextWithHint("##RealChar", "First Last@WorldName", ref newRealCharacter, 100))
+                if (ImGui.InputTextWithHint("##RealCharManual", "First Last@WorldName", ref newCharacterName, 100))
                 {
                     newRealCharacterBuffer = newRealCharacter;
                 }
@@ -1362,15 +1310,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.PopStyleColor();
             }
 
-            // Show helpful info if no known characters
-            if (!knownRealCharacters.Any())
-            {
-                ImGui.Spacing();
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.6f, 1f));
-                ImGui.TextWrapped("Tip: The plugin will remember character names after you log into them and use a SCS character at least once.");
-                ImGui.PopStyleColor();
-            }
-
             ImGui.Spacing();
         }
 
@@ -1383,26 +1322,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private int newJobAssignmentDesignIndex = 0;
 
         // Job data for UI
-        private static readonly (uint Id, string Name, string Role)[] JobData = new[]
-        {
-            // Tanks
-            (19u, "Paladin", "Tank"), (21u, "Warrior", "Tank"), (32u, "Dark Knight", "Tank"), (37u, "Gunbreaker", "Tank"),
-            // Healers
-            (24u, "White Mage", "Healer"), (28u, "Scholar", "Healer"), (33u, "Astrologian", "Healer"), (40u, "Sage", "Healer"),
-            // Melee DPS
-            (20u, "Monk", "Melee"), (22u, "Dragoon", "Melee"), (30u, "Ninja", "Melee"), (34u, "Samurai", "Melee"), (39u, "Reaper", "Melee"), (41u, "Viper", "Melee"),
-            // Ranged Physical DPS
-            (23u, "Bard", "Ranged"), (31u, "Machinist", "Ranged"), (38u, "Dancer", "Ranged"),
-            // Caster DPS
-            (25u, "Black Mage", "Caster"), (27u, "Summoner", "Caster"), (35u, "Red Mage", "Caster"), (36u, "Blue Mage", "Caster"), (42u, "Pictomancer", "Caster"),
-            // Crafters
-            (8u, "Carpenter", "Crafter"), (9u, "Blacksmith", "Crafter"), (10u, "Armorer", "Crafter"), (11u, "Goldsmith", "Crafter"),
-            (12u, "Leatherworker", "Crafter"), (13u, "Weaver", "Crafter"), (14u, "Alchemist", "Crafter"), (15u, "Culinarian", "Crafter"),
-            // Gatherers
-            (16u, "Miner", "Gatherer"), (17u, "Botanist", "Gatherer"), (18u, "Fisher", "Gatherer")
-        };
 
-        private static readonly string[] RoleNames = new[] { "Tank", "Healer", "Melee", "Ranged", "Caster", "Crafter", "Gatherer" };
+
+
 
         // TODO readd
         private void DrawJobAssignmentSettings()
@@ -1750,89 +1672,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 else if (string.IsNullOrWhiteSpace(character.Data.CharacterAutomation))
                 {
                     character.Data.CharacterAutomation = "None";
-                }
-            }
-
-            if (!enableAutomations)
-            {
-                // Remove automation lines from all macros
-                foreach (var character in plugin.Characters)
-                {
-                    foreach (var design in character.Data.Designs)
-                    {
-                        string macro = design.IsAdvancedMode ? design.AdvancedMacro : design.Macro;
-                        if (string.IsNullOrWhiteSpace(macro))
-                            continue;
-
-                        var cleaned = string.Join("\n", macro
-                            .Split('\n')
-                            .Where(line => !line.TrimStart().StartsWith("/glamour automation enable", StringComparison.OrdinalIgnoreCase))
-                            .Select(line => line.TrimEnd()));
-
-                        if (design.IsAdvancedMode && cleaned != design.AdvancedMacro)
-                        {
-                            design.AdvancedMacro = cleaned;
-                            changed = true;
-                        }
-                        else if (!design.IsAdvancedMode && cleaned != design.Macro)
-                        {
-                            design.Macro = cleaned;
-                            changed = true;
-                        }
-                    }
-                }
-
-                foreach (var character in plugin.Characters)
-                {
-                    if (string.IsNullOrWhiteSpace(character.Data.Macros))
-                        continue;
-
-                    var cleaned = string.Join("\n", character.Data.Macros
-                        .Split('\n')
-                        .Where(line => !line.TrimStart().StartsWith("/glamour automation enable", StringComparison.OrdinalIgnoreCase))
-                        .Select(line => line.TrimEnd()));
-
-                    if (cleaned != character.Data.Macros)
-                    {
-                        character.Data.Macros = cleaned;
-                        changed = true;
-                    }
-                }
-            }
-            else
-            {
-                // Re-add automation lines
-                foreach (var character in plugin.Characters)
-                {
-                    foreach (var design in character.Data.Designs)
-                    {
-                        string macro = design.IsAdvancedMode ? design.AdvancedMacro : design.Macro;
-                        if (string.IsNullOrWhiteSpace(macro))
-                            continue;
-
-                        string updated = GameCommandManager.SanitizeDesignMacro(macro, design, character, true);
-
-                        if (design.IsAdvancedMode && updated != design.AdvancedMacro)
-                        {
-                            design.AdvancedMacro = updated;
-                            changed = true;
-                        }
-                        else if (!design.IsAdvancedMode && updated != design.Macro)
-                        {
-                            design.Macro = updated;
-                            changed = true;
-                        }
-                    }
-                }
-
-                foreach (var character in plugin.Characters)
-                {
-                    string updated = GameCommandManager.SanitizeMacro(character.Data.Macros, character);
-                    if (updated != character.Data.Macros)
-                    {
-                        character.Data.Macros = updated;
-                        changed = true;
-                    }
                 }
             }
 

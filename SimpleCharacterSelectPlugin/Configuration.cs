@@ -18,8 +18,8 @@ namespace SimpleCharacterSelectPlugin
     {
         public int Version { get; set; } = 1;
         public List<Character> Characters { get; set; } = new List<Character>();
+        public List<PlayerCharacter> PlayerCharacters { get; set; } = new List<PlayerCharacter>();
         public Vector3 NewCharacterColor { get; set; } = new Vector3(1.0f, 1.0f, 1.0f);
-        public bool IsConfigWindowMovable { get; set; } = true;
         public bool SomePropertyToBeSavedAndWithADefault { get; set; } = false;
 
         // Profile Settings
@@ -36,21 +36,8 @@ namespace SimpleCharacterSelectPlugin
         public bool EnableAutomations { get; set; } = false;
         public List<string> KnownTags { get; set; } = new();
         
-        // TODO readd
-        // public byte LastIdlePoseAppliedByPlugin { get; set; } = 255;
-        // public byte LastSitPoseAppliedByPlugin { get; set; } = 255;
-        // public byte LastGroundSitPoseAppliedByPlugin { get; set; } = 255;
-        // public byte LastDozePoseAppliedByPlugin { get; set; } = 255;
-        public Dictionary<string, string> LastUsedCharacterByPlayer { get; set; } = new();
-        public Dictionary<string, string> CharacterAssignments { get; set; } = new();
-
-        // Job Assignments - maps job IDs or roles to SCS characters/designs
-        // Key format: "Job_{JobId}" for specific jobs, "Role_{RoleName}" for roles
-        // Value format: "Character:{CharacterName}" or "Design:{CharacterName}:{DesignName}"
-        public Dictionary<string, string> JobAssignments { get; set; } = new();
         public bool EnableJobAssignments { get; set; } = false;
         public bool EnableGearsetAssignments { get; set; } = false;
-
         public bool EnableLastUsedCharacterAutoload { get; set; } = false;
         public bool EnableLastUsedDesignAutoload { get; set; } = false;
         public List<uint> FavoriteIconIds { get; set; } = new();
@@ -67,8 +54,6 @@ namespace SimpleCharacterSelectPlugin
         }
         [DefaultValue(true)]
         public bool ApplyIdleOnLogin { get; set; } = true;
-        public uint LastKnownJobId { get; set; } = 0;
-        public Dictionary<string, string> LastUsedDesignByCharacter { get; set; } = new();
         public bool ReapplyDesignOnJobChange { get; set; } = false;
         
         // Pose Settings

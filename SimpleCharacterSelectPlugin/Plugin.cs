@@ -353,15 +353,15 @@ namespace SimpleCharacterSelectPlugin
         {
             // Detect if this is a design switch on the SAME character (not a full character switch)
             // If so, we should only re-run known integration commands, not custom toggles like /minion
-            bool isSameCharacterDesignSwitch = PlayerCharacter.activeCharacter != null &&
-                                               PlayerCharacter.activeCharacter.Data.Name == character.Data.Name &&
+            bool isSameCharacterDesignSwitch = PlayerCharacter.ActiveCharacter != null &&
+                                               PlayerCharacter.ActiveCharacter.Data.Name == character.Data.Name &&
                                                 designIndex >= 0;
             if (isSameCharacterDesignSwitch)
             {
                 Log.Debug($"[ApplyProfile] Same-character design switch - filtering to integration commands only");
             }
 
-            PlayerCharacter.activeCharacter = character;
+            PlayerCharacter.ActiveCharacter = character;
 
             if (!ClientState.IsLoggedIn ||
                 ClientState.TerritoryType == 0 ||
@@ -1737,7 +1737,7 @@ namespace SimpleCharacterSelectPlugin
             }
 
             // Set active character for Name Sync
-            PlayerCharacter.activeCharacter = selectedCharacter;
+            PlayerCharacter.ActiveCharacter = selectedCharacter;
             
             if (selectedCharacter.Data.IdlePoseIndex < 7)
             {
@@ -1774,7 +1774,7 @@ namespace SimpleCharacterSelectPlugin
             }
 
             // Set active character for Name Sync
-            PlayerCharacter.activeCharacter = character;
+            PlayerCharacter.ActiveCharacter = character;
 
             // Update ActiveProfilesByPlayerName for GetActiveCharacter() (used by name sync)
             if (ObjectTable.LocalPlayer != null)
@@ -1844,7 +1844,7 @@ namespace SimpleCharacterSelectPlugin
             var selectedCharacter = groupCharacters[random.Next(groupCharacters.Count)];
 
             // Set active character for Name Sync
-            PlayerCharacter.activeCharacter = selectedCharacter;
+            PlayerCharacter.ActiveCharacter = selectedCharacter;
 
             // Get available designs - respect favorites setting
             var availableDesigns = Configuration.RandomSelectionFavoritesOnly

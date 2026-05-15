@@ -164,22 +164,22 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.WindowState.CharacterNameFieldSize = ImGui.GetItemRectSize();
 
                 // Validate name on change
-                SCSError? err = CharacterManager.ValidateName(tempName, currentCharacter, plugin.Characters);
-                if (err != null)
+                string? errMessage = CharacterManager.ValidateName(tempName, plugin.Characters);
+                if (errMessage != null)
                 {
                     noErrors = false;
                     ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(1.0f, 0.0f, 0.0f, 1.0f));
                     ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 2.0f);
                 }
                 
-                if (err != null)
+                if (errMessage != null)
                 {
                     ImGui.PopStyleColor();
                     ImGui.PopStyleVar();
                     
                     // Show error message
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.3f, 0.3f, 1.0f));
-                    ImGui.TextWrapped(err.Message);
+                    ImGui.TextWrapped(errMessage);
                     ImGui.PopStyleColor();
                     return;
                 }
