@@ -6,7 +6,6 @@ namespace SimpleCharacterSelectPlugin
     public class CharacterDesign
     {
         public string Name { get; set; }
-        public string Macro { get; set; }
         public string GlamourerDesign { get; set; }
         public DateTime DateAdded { get; set; } = DateTime.UtcNow;
         public bool IsFavorite { get; set; }
@@ -29,10 +28,9 @@ namespace SimpleCharacterSelectPlugin
         /// <summary>Gearset to switch to when applying this design (null = use character's setting or don't switch).</summary>
         public int? AssignedGearset { get; set; } = null;
 
-        public CharacterDesign(string name, string macro, string glamourerDesign = "", string automation = "", string customizePlusProfile = "", string? previewImagePath = null)
+        public CharacterDesign(string name, string glamourerDesign = "", string automation = "", string customizePlusProfile = "", string? previewImagePath = null)
         {
             Name = name;
-            Macro = macro;
             GlamourerDesign = glamourerDesign;
             Automation = automation;
             CustomizePlusProfile = customizePlusProfile;

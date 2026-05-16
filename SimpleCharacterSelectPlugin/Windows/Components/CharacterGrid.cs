@@ -666,7 +666,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 int realIndex = plugin.Characters.IndexOf(character);
                 if (realIndex >= 0)
-                    plugin.OpenDesignPanel(realIndex);
+                    plugin.MainWindow.OpenDesignPanel(realIndex);
             }
             if (useIcons)
             {

@@ -33,7 +33,7 @@ public class DesignManager
          return defaultDesign;
      }
      
-     public bool ApplyDesign(PlayerCharacter pc, Character character, int designIndex)
+     public static bool ApplyDesign(PlayerCharacter pc, Character character, int designIndex)
      {
          if (!Plugin.ClientState.IsLoggedIn ||
              Plugin.ClientState.TerritoryType == 0 ||
@@ -49,8 +49,17 @@ public class DesignManager
          pc.ActiveDesign = designIndex;
          
          CharacterDesign characterDesign = character.Data.Designs[designIndex];
+         // apply design
      }
-     public void ApplyProfile(PlayerCharacter pc, Character character, int designIndex)
+     
+     public static void ApplyActiveProfile(PlayerCharacter pc)
+     {
+         if (pc.ActiveCharacter != null)
+         {
+             ApplyProfile(pc, pc.ActiveCharacter, pc.ActiveDesign);
+         }
+     }
+     public static void ApplyProfile(PlayerCharacter pc, Character character, int designIndex)
      {
          // Detect if this is a design switch on the SAME character (not a full character switch)
          // If so, we should only re-run known integration commands, not custom toggles like /minion

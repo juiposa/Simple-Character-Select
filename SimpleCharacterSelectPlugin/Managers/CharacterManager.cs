@@ -51,8 +51,56 @@ public static class CharacterManager
         return new List<Character>();
     }
 
-    public static List<PlayerCharacter> GetPlayerCharactersWithAssignments(List<PlayerCharacter> pcs)
+    public static List<PlayerCharacter> GetPlayerCharactersWithAssignments(Dictionary<string, PlayerCharacter> pcs)
     {
-        return pcs;
+        var returnList = new List<PlayerCharacter>();
+        foreach (var pc in pcs)
+        {
+            if (pc.Value.AssignedCharacter != null)
+            {
+                returnList.Add(pc.Value);
+            }
+        }
+        return returnList;
     }
+    
+    public static void SetActiveCharacter(Character character, Configuration config)
+    {
+        Plugin.Log.Debug("[SetActiveCharacter] CALLED");
+
+        if (Plugin.ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
+        {
+            string localName = player.Name.TextValue;
+            string worldName = player.HomeWorld.Value.Name.ToString();
+            string fullKey = $"{localName}@{worldName}"; // Who is logged in
+            string pluginCharacterKey = $"{character.Data.Name}@{worldName}"; // SCS character identity
+
+            // This is the key logic: player -> selected plugin character
+            config.PlayerCharacters
+            Configuration.LastUsedCharacterKey = character.Data.Name;
+
+            try
+            {
+                Configuration.Save();
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Error($"[SetActiveCharacter] Failed to save configuration: {ex.Message}");
+            }
+                
+                
+            // TODO dupe SetActive
+            Plugin.Log.Debug($"[SetActiveCharacter] Saved: {fullKey} → {pluginCharacterKey}");
+            Plugin.Log.Debug($"[SetActiveCharacter] Set LastInGameName = {fullKey} for profile {character.Data.Name}");
+        }
+    }
+
+    public static void ApplyLastUsedOrAssignedCharacter(PlayerCharacter pc)
+    {
+        if (pc.AssignedCharacter != null) //assignments take precedence
+        {
+            DesignManager.
+        }
+    }
+
 }

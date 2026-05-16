@@ -33,7 +33,6 @@ public class CharacterData
     public byte GroundSitPoseIndex { get; set; } = 255;
     public byte DozePoseIndex { get; set; } = 255;
     public string? Pronouns { get; set; }
-    public string? LastInGameName { get; set; }
     public List<string> Tags { get; set; } = new();
     [JsonIgnore]
     public string Tag

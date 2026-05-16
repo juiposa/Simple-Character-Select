@@ -18,7 +18,7 @@ namespace SimpleCharacterSelectPlugin
     {
         public int Version { get; set; } = 1;
         public List<Character> Characters { get; set; } = new List<Character>();
-        public List<PlayerCharacter> PlayerCharacters { get; set; } = new List<PlayerCharacter>();
+        public Dictionary<string, PlayerCharacter> PlayerCharacters { get; set; } = new Dictionary<string, PlayerCharacter>();
         public Vector3 NewCharacterColor { get; set; } = new Vector3(1.0f, 1.0f, 1.0f);
         public bool SomePropertyToBeSavedAndWithADefault { get; set; } = false;
 
@@ -63,8 +63,6 @@ namespace SimpleCharacterSelectPlugin
         public int CurrentDesignSortIndex { get; set; } = 1;
         public string? LastUsedDesignCharacterKey { get; set; } = null;
         public string? LastUsedCharacterKey { get; set; } = null;
-        [DefaultValue(false)]
-        public bool EnableLoginDelay { get; set; } = false;
         [JsonProperty]
         public bool EnablePoseAutoSave { get; set; } = true;
         public bool EnableSafeMode { get; set; } = false;

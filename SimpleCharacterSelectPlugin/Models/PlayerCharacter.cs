@@ -14,15 +14,21 @@ public class PlayerCharacter
     public Character? AssignedCharacter { get; set; } = null;
     public Character? ActiveCharacter = null!;
     public int ActiveDesign { get; set; } = 0;
-    internal byte lastSeenIdlePose = 255;
-    internal byte lastSeenSitPose = 255;
-    internal byte lastSeenGroundSitPose = 255;
-    internal byte lastSeenDozePose = 255;
+    // internal byte lastSeenIdlePose = 255;
+    // internal byte lastSeenSitPose = 255;
+    // internal byte lastSeenGroundSitPose = 255;
+    // internal byte lastSeenDozePose = 255;
 
     private static readonly Regex ValidNameRegex = new Regex("/^[A-Z]{1}[a-z']{1,14} [A-Z]{1}[a-z']{1,14}$/");
 
+    internal PlayerCharacter()
+    {
+    }
+    
     public PlayerCharacter(string name, string world)
     {
+        Name = name;
+        World = world; 
     }
 
     public static PlayerCharacter? NewCharacter(string fullname)

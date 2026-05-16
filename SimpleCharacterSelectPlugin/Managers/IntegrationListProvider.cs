@@ -280,7 +280,7 @@ namespace SimpleCharacterSelectPlugin.Managers
         {
             try
             {
-                var profileName = plugin.GetCurrentCustomizePlusProfileName();
+                var profileName = GetCurrentCustomizePlusProfileName();
                 if (!string.IsNullOrEmpty(profileName))
                 {
                     return profileName;
@@ -291,6 +291,44 @@ namespace SimpleCharacterSelectPlugin.Managers
                 // Silently fail - this is called frequently during UI rendering
             }
             return null;
+        }
+        
+        /// <summary>Gets the name of the currently active Customize+ profile for the local player.</summary>
+        public string? GetCurrentCustomizePlusProfileName()
+        {
+            try
+            {
+                var localPlayer = plugin.ObjectTable?.LocalPlayer;
+                if (localPlayer == null) return null;
+
+                // Get active profile GUID
+                var activeProfileIpc = PluginInterface.GetIpcSubscriber<ushort, (int, Guid?)>("CustomizePlus.Profile.GetActiveProfileIdOnCharacter");
+                var activeResult = activeProfileIpc.InvokeFunc((ushort)localPlayer.ObjectIndex);
+
+                if (activeResult.Item1 != 0 || !activeResult.Item2.HasValue || activeResult.Item2.Value == Guid.Empty)
+                    return null;
+
+                var activeProfileId = activeResult.Item2.Value;
+
+                // Get profile list and find the matching profile
+                var profileListIpc = PluginInterface.GetIpcSubscriber<IList<(Guid, string, string, IList<(string, ushort, byte, ushort)>, int, bool)>>("CustomizePlus.Profile.GetList");
+                var profileList = profileListIpc.InvokeFunc();
+
+                if (profileList == null) return null;
+
+                // Find the profile by GUID and return its name (Item2)
+                var activeProfile = profileList.FirstOrDefault(p => p.Item1 == activeProfileId);
+                if (activeProfile.Item1 != Guid.Empty && !string.IsNullOrWhiteSpace(activeProfile.Item2))
+                {
+                    return activeProfile.Item2;
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>Extracts title string from Honorific TitleData object.</summary>
