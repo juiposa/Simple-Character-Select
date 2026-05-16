@@ -26,13 +26,19 @@ public static class CharacterManager
         return null;
     }
     
-    public static void SaveCharacter(int index, Character character, Configuration config, IPluginLog log)
+    public static PlayerCharacter? NewPlayerCharacter(string fullname)
     {
-        if (character.Data.Designs.Count == 0)
+        string[] parts = fullname.Split('@');
+        if (parts.Length != 2)
         {
-            character.Data.Designs.Add(DesignManager.CreateDefaultDesign(character, config));
+            return null;
         }
-        
+
+        return new PlayerCharacter(parts[0], parts[1]);
+    }
+    
+    public static void SaveCharacter(int index, Character character, Configuration config)
+    {
         character.Save();
         
         if (index >= 0)
@@ -44,11 +50,6 @@ public static class CharacterManager
             config.Characters.Add(character);
         }
         config.Save();
-    }
-
-    public static List<Character> LoadCharacters(Configuration config, IPluginLog log)
-    {
-        return new List<Character>();
     }
 
     public static List<PlayerCharacter> GetPlayerCharactersWithAssignments(Dictionary<string, PlayerCharacter> pcs)
@@ -63,44 +64,24 @@ public static class CharacterManager
         }
         return returnList;
     }
-    
-    public static void SetActiveCharacter(Character character, Configuration config)
-    {
-        Plugin.Log.Debug("[SetActiveCharacter] CALLED");
-
-        if (Plugin.ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
-        {
-            string localName = player.Name.TextValue;
-            string worldName = player.HomeWorld.Value.Name.ToString();
-            string fullKey = $"{localName}@{worldName}"; // Who is logged in
-            string pluginCharacterKey = $"{character.Data.Name}@{worldName}"; // SCS character identity
-
-            // This is the key logic: player -> selected plugin character
-            config.PlayerCharacters
-            Configuration.LastUsedCharacterKey = character.Data.Name;
-
-            try
-            {
-                Configuration.Save();
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"[SetActiveCharacter] Failed to save configuration: {ex.Message}");
-            }
-                
-                
-            // TODO dupe SetActive
-            Plugin.Log.Debug($"[SetActiveCharacter] Saved: {fullKey} → {pluginCharacterKey}");
-            Plugin.Log.Debug($"[SetActiveCharacter] Set LastInGameName = {fullKey} for profile {character.Data.Name}");
-        }
-    }
 
     public static void ApplyLastUsedOrAssignedCharacter(PlayerCharacter pc)
     {
         if (pc.AssignedCharacter != null) //assignments take precedence
         {
-            DesignManager.
+            DesignManager.ApplyProfile(pc, pc.AssignedCharacter, -1);
+            return;
         }
+
+        if (pc.ActiveCharacter != null) //else use last known
+        {
+            DesignManager.ApplyActiveProfile(pc);
+        }
+    }
+
+    public static void ApplyCharacter(Character character)
+    {
+        
     }
 
 }

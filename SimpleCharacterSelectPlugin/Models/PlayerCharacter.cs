@@ -31,27 +31,6 @@ public class PlayerCharacter
         World = world; 
     }
 
-    public static PlayerCharacter? NewCharacter(string fullname)
-    {
-        string[] parts = fullname.Split('@');
-        if (parts.Length != 2)
-        {
-            return null;
-        }
-
-        return NewCharacter(parts[0], parts[1]);
-    }
-
-    public static PlayerCharacter? NewCharacter(string name, string world)
-    {
-        if (!validName(name) || !validWorld(world))
-        {
-            return null;
-        }
-
-        return new PlayerCharacter(name, world);
-    }
-
     private static bool validName(string name)
     {
         var match = ValidNameRegex.Match(name);

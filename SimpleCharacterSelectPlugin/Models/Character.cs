@@ -18,7 +18,6 @@ namespace SimpleCharacterSelectPlugin.Models
         
         public void Save()
         {
-            Data.Macros = GameCommandManager.GenerateMacro(this);
             savedData = Data.Clone();
         }
 
@@ -29,7 +28,17 @@ namespace SimpleCharacterSelectPlugin.Models
         
         public void ResetEdits()
         {
-            Data = savedData.Clone();
+            Data = savedData.Clone(); //TODO doesn't work as intended
+        }
+
+        public CharacterDesign GetDefaultDesign()
+        {
+            return Data.Designs[Data.DefaultDesignIndex];
+        }
+
+        public void SetDefaultDesign(CharacterDesign characterDesign)
+        {
+            Data.Designs[Data.DefaultDesignIndex] = characterDesign;
         }
     }
     public class DesignFolder

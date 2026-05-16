@@ -35,6 +35,7 @@ using Dalamud.Interface;
 using Dalamud.Game.Gui.NamePlate;
 using Dalamud.Game.ClientState.Party;
 using SimpleCharacterSelectPlugin;
+using SimpleCharacterSelectPlugin.IPC;
 using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin
@@ -98,7 +99,7 @@ namespace SimpleCharacterSelectPlugin
 
         public List<Character> Characters => Configuration.Characters;
 
-        public PlayerCharacter PlayerCharacter;
+        public ActivePlayerCharacter ActivePlayer;
         public Vector3 NewCharacterColor { get; set; } = new Vector3(1.0f, 1.0f, 1.0f); // Default to white
 
 
@@ -111,18 +112,16 @@ namespace SimpleCharacterSelectPlugin
         public PenumbraIntegration PenumbraIntegration { get; private set; } = null!;
         
         // Integration List Provider for autocomplete dropdowns
-        public Managers.IntegrationListProvider? IntegrationListProvider { get; private set; }
+        public IntegrationListProvider? IntegrationListProvider { get; private set; }
 
-        // IPC Provider for other plugins
-        private SCSIPCProvider? ipcProvider;
+        // IPC Providers
+        private IPCProvider? ipcProvider;
         
         // Target application safety tracking
         private readonly Dictionary<int, DateTime> lastTargetApplicationTime = new();
         private readonly TimeSpan minimumTargetApplicationInterval = TimeSpan.FromSeconds(2);
         
-        // Startup coordination between AutoLoad-LastUsed and DeferredStartup
-        private bool characterAlreadyAppliedOnStartup = false;
-        private bool autoLoadAlreadyRanThisStartup = false;
+        public bool StartupComplete = false;
         
         private DateTime pluginInitTime = DateTime.Now;
         
@@ -130,9 +129,6 @@ namespace SimpleCharacterSelectPlugin
 
         public WindowState WindowState { get; set; } = new WindowState();
         //private NPCDialogueProcessor? dialogueProcessor;
-
-        public ExternalIPCProvider IPC;
-        public bool NewCharacterIsAdvancedMode { get; set; } = false;
 
         public unsafe Plugin(IGameInteropProvider gameInteropProvider)
         {
@@ -159,7 +155,6 @@ namespace SimpleCharacterSelectPlugin
 
             // Load configuration
             Configuration = LoadConfigurationSafely();
-            EnsureConfigurationDefaults();
             
             GameCommandManager.Init(Log, CommandManager, PluginInterface);
                 
@@ -167,8 +162,6 @@ namespace SimpleCharacterSelectPlugin
             commands.AddCommands();
 
             Logger = Log;
-
-            IPC = new ExternalIPCProvider(PluginInterface);
 
             // Cache initialization will happen after UserOverrideManager is ready
 
@@ -206,13 +199,7 @@ namespace SimpleCharacterSelectPlugin
             WindowSystem.AddWindow(FileBrowserWindow);
 
             // Initialize IPC provider for other plugins
-            ipcProvider = new SCSIPCProvider(this, PluginInterface);
-
-            // Restore Main Window state if enabled
-            if (Configuration.RememberMainWindowState && Configuration.IsMainWindowOpen)
-            {
-                MainWindow.IsOpen = true;
-            }
+            //ipcProvider = new IPCProvider(this, PluginInterface);
             
             WindowSystem.AddWindow(MainWindow);
             WindowSystem.AddWindow(QuickSwitchWindow); // Quick Switch Window
@@ -231,296 +218,63 @@ namespace SimpleCharacterSelectPlugin
             // Only initialize dialogue processor if the feature is enabled (sig scanning can be slow)
             if (Configuration.EnableDialogueIntegration)
             {
-                // try TODO
-                // {
-                //     dialogueProcessor = new NPCDialogueProcessor(
-                //         this,
-                //         SigScanner,
-                //         GameInteropProvider,
-                //         ChatGui,
-                //         ClientState,
-                //         Log,
-                //         Condition
-                //     );
-                // }
-                // catch (Exception ex)
-                // {
-                //     Log.Error($"Failed to initialize dialogue processor: {ex.Message}");
-                // }
+                //TODO
             }
-
         }
         
-        // TODO dialogue
-        /// <summary>
-        /// Initializes the dialogue processor if not already initialized.
-        /// Called when user enables Immersive Dialogue in settings.
-        /// </summary>
-        public void EnsureDialogueProcessorInitialized()
+        private void FrameworkUpdate(IFramework framework)
         {
-            // if (dialogueProcessor != null) return;
-            //
-            // try
-            // {
-            //     dialogueProcessor = new NPCDialogueProcessor(
-            //         this,
-            //         SigScanner,
-            //         GameInteropProvider,
-            //         ChatGui,
-            //         ClientState,
-            //         Log,
-            //         Condition
-            //     );
-            //     Log.Info("[Dialogue] Dialogue processor initialized on-demand.");
-            // }
-            // catch (Exception ex)
-            // {
-            //     Log.Error($"Failed to initialize dialogue processor: {ex.Message}");
-            // }
-        }
-        
-        // TODO apply profile
-        public void ApplyProfile(Character character, int designIndex)
-        {
-            // Detect if this is a design switch on the SAME character (not a full character switch)
-            // If so, we should only re-run known integration commands, not custom toggles like /minion
-            // TODO create playercharacter if not exists
-            bool isSameCharacterDesignSwitch = PlayerCharacter.ActiveCharacter != null &&
-                                               PlayerCharacter.ActiveCharacter.Data.Name == character.Data.Name &&
-                                                designIndex >= 0;
-            if (isSameCharacterDesignSwitch)
+            if (Configuration.EnableSafeMode)
+                return;
+            if (!ClientState.IsLoggedIn || ObjectTable.LocalPlayer == null)
+                return;
+            
+            var player = ObjectTable.LocalPlayer!;
+            
+            // TODO get or create PlayerCharacter
+            
+            // start up
+            if (!StartupComplete && player.HomeWorld.IsValid && ClientState.IsLoggedIn && ClientState.TerritoryType != 0)
             {
-                Log.Debug($"[ApplyProfile] Same-character design switch - filtering to integration commands only");
-            }
+                string world = player.HomeWorld.Value.Name.ToString();
+                string fullKey = $"{player.Name.TextValue}@{world}";
 
-            PlayerCharacter.ActiveCharacter = character;
+                if (!Configuration.PlayerCharacters.ContainsKey(fullKey)) //new PC, create an entry for it
+                {
+                    var newPc = CharacterManager.NewPlayerCharacter(fullKey);
+                    Configuration.PlayerCharacters[fullKey] = newPc;
+                    ActivePlayer.Pc = newPc;
+                }
 
-            if (!ClientState.IsLoggedIn ||
-                ClientState.TerritoryType == 0 ||
-                ObjectTable.LocalPlayer == null ||
-                string.IsNullOrEmpty(ObjectTable.LocalPlayer.Name.TextValue) ||
-                !ObjectTable.LocalPlayer.HomeWorld.IsValid)
-            {
-                Plugin.Log.Debug("[ApplyProfile] Skipped: Player not fully loaded.");
+                if (!Configuration.EnableLastUsedCharacterAutoload)
+                    return;
+                
+                CharacterManager.ApplyLastUsedOrAssignedCharacter(ActivePlayer.Pc);
+                QuickSwitchWindow.RefreshSelection();
+                StartupComplete = true;
                 return;
             }
 
-            if (ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
+            if (ActivePlayer.RequiresUpdate()) // trigger an update
             {
-                string localName = player.Name.TextValue;
-                string worldName = player.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-
-                if (Configuration.PlayerCharacters.ContainsKey(fullKey))
-                {
-                    
-                }
-                // // Remove all old entries for this player
-                // var toRemove = ActiveProfilesByPlayerName TODO
-                //     .Where(kvp => kvp.Key.StartsWith($"{localName}@{worldName}", StringComparison.OrdinalIgnoreCase))
-                //     .Select(kvp => kvp.Key)
-                //     .ToList();
-                //
-                // foreach (var oldKey in toRemove)
-                //     ActiveProfilesByPlayerName.Remove(oldKey);
-                //
-                // // Register key
-                // ActiveProfilesByPlayerName[fullKey] = character.Data.Name;
-                string pluginCharacterKey = $"{character.Data.Name}@{worldName}"; // plugin character identity
-                character.Data.LastInGameName = $"{localName}@{worldName}";        // who is currently logged in
-
-                Configuration.PlayerCharacters[fullKey] = PlayerCharacter;
-                Configuration.LastUsedCharacterKey = character.Data.Name;
-                Configuration.Save();
-                
-                
-                //TODO dupe SetActive
-                Plugin.Log.Debug($"[ApplyProfile] Saved: {fullKey} → {pluginCharacterKey}");
-                Plugin.Log.Debug($"[SetActiveCharacter] Updated LastUsedCharacterKey = {fullKey}");
-                Plugin.Log.Debug($"[ApplyProfile] Set LastInGameName = {character.Data.LastInGameName} for profile {character.Data.Name}");
+                DesignManager.ApplyUpdate(ActivePlayer);
+                QuickSwitchWindow.RefreshSelection();
+                return;
             }
-            SaveConfiguration();
-            if (character == null) return;
             
-            // Switch Penumbra UI collection to match the character's collection
-            if (!string.IsNullOrEmpty(character.Data.PenumbraCollection))
-            {
-                var success = PenumbraIntegration.SwitchCollection(character.Data.PenumbraCollection);
-                if (success)
-                {
-                    Log.Information($"Successfully switched Penumbra UI collection to: {character.Data.PenumbraCollection}");
-                }
-                else
-                {
-                    Log.Warning($"Failed to switch Penumbra UI collection to: {character.Data.PenumbraCollection}");
-                }
-            }
-
-            // Apply the character's macro
-            // If this is a same-character design switch, only run known integration commands
-            string characterMacro = isSameCharacterDesignSwitch
-                ? FilterToKnownIntegrationCommands(character.Data.Macros)
-                : character.Data.Macros;
-            GameCommandManager.ExecuteMacro(characterMacro, character, null);
-
-            // Switch gearset AFTER Glamourer design is applied (via macros above)
-            // This ensures Lightless sees the correct appearance when the gearset switch triggers a model refresh
-            if (Configuration.EnableGearsetAssignments)
-            {
-                int? effectiveGearset = null;
-                if (designIndex >= 0 && designIndex < character.Data.Designs.Count)
-                {
-                    var designForGearset = character.Data.Designs[designIndex];
-                    effectiveGearset = designForGearset.AssignedGearset ?? character.Data.AssignedGearset;
-                }
-                else
-                {
-                    effectiveGearset = character.Data.AssignedGearset;
-                }
-
-                if (effectiveGearset.HasValue)
-                {
-                    // // Small delay to let Glamourer finish applying before gearset switch
-                    // var gearsetToSwitch = effectiveGearset.Value;
-                    // Framework.RunOnTick(() => SwitchToGearset(gearsetToSwitch), delayTicks: 5);
-                }
-            }
-
-
-            // Apply poses immediately TODO
-            // if (character.Data.IdlePoseIndex < 7)
-            // {
-            //     PoseManager.ApplyPose(PoseType.Idle, character.Data.IdlePoseIndex);
-            //     Configuration.LastIdlePoseAppliedByPlugin = character.Data.IdlePoseIndex;
-            //     Configuration.Save();
-            // }
-            // else
-            // {
-            //     Plugin.Log.Debug("[ApplyProfile] Skipping idle pose apply because it is set to None.");
-            // }
-
-            this.QuickSwitchWindow.UpdateSelectionFromCharacter(character);
-
-            SaveConfiguration();
-        }
-        // TODO apply end
-        
-        // TODO config
-        private void EnsureConfigurationDefaults()
-        {
-            bool updated = false;
-
-            // Keep existing check for IsConfigWindowMovable
-            if (Configuration.GetType().GetProperty("IsConfigWindowMovable")?.CanWrite ?? false)
-            {
-                if (Configuration.GetType().GetProperty("IsConfigWindowMovable")?.GetValue(Configuration) is not bool)
-                {
-                    Configuration.GetType().GetProperty("IsConfigWindowMovable")?.SetValue(Configuration, true);
-                    updated = true;
-                }
-            }
-            if (!Configuration.GetType().GetProperties().Any(p => p.Name == nameof(Configuration.EnableAutomations)))
-            {
-                Configuration.EnableAutomations = false;
-                updated = true;
-            }
-
-            // Handle nullable values & avoid unboxing issues
-            var profileImageScaleProperty = Configuration.GetType().GetProperty("ProfileImageScale");
-            if (profileImageScaleProperty != null && profileImageScaleProperty.CanWrite)
-            {
-                object? value = profileImageScaleProperty.GetValue(Configuration);
-                WindowState.ProfileImageScale = value is float scale ? scale : 1.0f;
-            }
-            else
-            {
-                WindowState.ProfileImageScale = 1.0f;
-                updated = true;
-            }
-
-            var profileColumnsProperty = Configuration.GetType().GetProperty("ProfileColumns");
-            if (profileColumnsProperty != null && profileColumnsProperty.CanWrite)
-            {
-                object? value = profileColumnsProperty.GetValue(Configuration);
-                WindowState.ProfileColumns = value is int columns ? columns : 3;
-            }
-            else
-            {
-                WindowState.ProfileColumns = 3;
-                updated = true;
-            }
-
-            var profileSpacingProperty = Configuration.GetType().GetProperty("ProfileSpacing");
-            if (profileSpacingProperty != null && profileSpacingProperty.CanWrite)
-            {
-                object? value = profileSpacingProperty.GetValue(Configuration);
-                WindowState.ProfileSpacing = value is float spacing ? spacing : 10.0f;
-            }
-            else
-            {
-                WindowState.ProfileSpacing = 10.0f;  // Default value if missing
-                updated = true;
-            }
-            if (updated) Configuration.Save();
+            // TODO scan for gearset changes if setting is on
         }
         
-        
-        // TODO file browser
-        /// <summary>
-        /// Opens a file picker dialog. Uses ImGui file browser if UseImGuiFilePicker is enabled,
-        /// otherwise uses the Windows file dialog.
-        /// </summary>
-        /// <param name="title">Dialog title</param>
-        /// <param name="filter">File filter (e.g., "PNG files (*.png)|*.png")</param>
-        /// <param name="onFileSelected">Callback when file is selected</param>
-        /// <param name="startDirectory">Optional starting directory</param>
         public void OpenFilePicker(string title, string filter, Action<string> onFileSelected, string? startDirectory = null)
         {
-            if (Configuration.UseImGuiFilePicker)
+            // Use ImGui file browser
+            if (FileBrowserWindow != null)
             {
-                // Use ImGui file browser
-                if (FileBrowserWindow != null)
-                {
-                    FileBrowserWindow.OnFileSelected = onFileSelected;
-                    FileBrowserWindow.Open(startDirectory);
-                }
-            }
-            else
-            {
-                // Use Windows file dialog - requires STA thread
-                var thread = new Thread(() =>
-                {
-                    try
-                    {
-                        using (var openFileDialog = new System.Windows.Forms.OpenFileDialog())
-                        {
-                            openFileDialog.Filter = filter;
-                            openFileDialog.Title = title;
-
-                            if (!string.IsNullOrEmpty(startDirectory) && Directory.Exists(startDirectory))
-                            {
-                                openFileDialog.InitialDirectory = startDirectory;
-                            }
-
-                            if (openFileDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-                            {
-                                var selectedPath = openFileDialog.FileName;
-                                // Invoke callback on framework thread
-                                Framework.RunOnFrameworkThread(() => onFileSelected(selectedPath));
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error($"Error opening file picker: {ex.Message}");
-                    }
-                });
-                thread.SetApartmentState(ApartmentState.STA);
-                thread.Start();
+                FileBrowserWindow.OnFileSelected = onFileSelected;
+                FileBrowserWindow.Open(startDirectory);
             }
         }
         
-        //TODO dispose
         public void Dispose()
         {
             WindowSystem.RemoveAllWindows();
@@ -530,9 +284,6 @@ namespace SimpleCharacterSelectPlugin
             PoseManager?.Dispose();
             //dialogueProcessor?.Dispose();
             IntegrationListProvider?.Dispose();
-
-            // Dispose Penumbra integration services
-            PenumbraIntegration?.Dispose();
 
             // Dispose IPC provider
             ipcProvider?.Dispose();
@@ -553,40 +304,6 @@ namespace SimpleCharacterSelectPlugin
             
             Instance = null;
         }
-        
-        // TODO application commands
-        private string GenerateCommandSnapshotMacro(CharacterDesign design)
-        {
-            var macroLines = new List<string>();
-
-            // Add Glamourer apply if we have it
-            if (!string.IsNullOrEmpty(design.GlamourerDesign))
-            {
-                // Use standard Glamourer apply
-                macroLines.Add($"/glamourer apply \"{design.Name}\" to self");
-            }
-
-            // Add Customize+ apply if we have it
-            if (!string.IsNullOrEmpty(design.CustomizePlusProfile))
-            {
-                // Use proper Customize+ command syntax
-                macroLines.Add($"/customize+ set temporary \"{design.Name}\"");
-            }
-
-            // Add a redraw command to refresh appearance
-            if (macroLines.Count > 0)
-            {
-                macroLines.Add("/penumbra redraw self");
-            }
-
-            // Add a default message if no automation was detected
-            if (macroLines.Count == 0)
-            {
-                macroLines.Add("echo No automation detected - manual setup required");
-            }
-
-            return string.Join("\n", macroLines);
-        }
 
         private void DrawUI()
         {
@@ -598,17 +315,6 @@ namespace SimpleCharacterSelectPlugin
             {
                 Configuration.IsQuickSwitchWindowOpen = currentState;
                 Configuration.Save();
-            }
-
-            // Track and persist Main Window state (if enabled)
-            if (Configuration.RememberMainWindowState)
-            {
-                bool mainWindowState = MainWindow.IsOpen;
-                if (Configuration.IsMainWindowOpen != mainWindowState)
-                {
-                    Configuration.IsMainWindowOpen = mainWindowState;
-                    Configuration.Save();
-                }
             }
         }
 
@@ -702,743 +408,13 @@ namespace SimpleCharacterSelectPlugin
             }
         }
         
-        // TODO per tick updates
-        private void FrameworkUpdate(IFramework framework)
-        {
-            if (Configuration.EnableSafeMode)
-                return;
-            if (!ClientState.IsLoggedIn || ObjectTable.LocalPlayer == null)
-                return;
-            
-            var player = ObjectTable.LocalPlayer!;
-            
-            // TODO get or create PlayerCharacter
-
-            // Job change detection - handles both Job Assignments and Reapply features
-            // if (currentJobId != Configuration.LastKnownJobId)
-            // {
-            //     var oldJob = Configuration.LastKnownJobId;
-            //     Configuration.LastKnownJobId = currentJobId;
-            //
-            //     // Skip if Glamourer Automations are enabled (let Glamourer handle it)
-            //     if (Configuration.EnableAutomations)
-            //     {
-            //         Plugin.Log.Debug($"[JobSwitch] Glamourer Automations enabled - skipping job change handling");
-            //         return;
-            //     }
-            //
-            //     // Check if current physical character has "None" assignment
-            //     if (player.HomeWorld.IsValid)
-            //     {
-            //         string world = player.HomeWorld.Value.Name.ToString();
-            //         string fullKey = $"{player.Name.TextValue}@{world}";
-            //
-            //         if (Configuration.CharacterAssignments.TryGetValue(fullKey, out var assignedCharacterName) &&
-            //             assignedCharacterName == "None")
-            //         {
-            //             Plugin.Log.Debug($"[JobSwitch] Character {fullKey} has assignment 'None' - skipping job change handling");
-            //             return;
-            //         }
-            //     }
-            //
-            //     Plugin.Log.Debug($"[JobSwitch] Detected job change: {oldJob} → {currentJobId}");
-            //
-            //     // Priority 1: Try Job Assignments first
-            //     if (Configuration.EnableJobAssignments && TryApplyJobAssignment(currentJobId))
-            //     {
-            //         Plugin.Log.Debug($"[JobSwitch] Job assignment applied for job {currentJobId}");
-            //         return;
-            //     }
-            //
-            //     // Priority 2: Fall back to Reapply Last Design/Character
-            //     if (Configuration.ReapplyDesignOnJobChange)
-            //     {
-            //         var reapplied = false;
-            //
-            //         if (!string.IsNullOrEmpty(Configuration.LastUsedDesignCharacterKey) &&
-            //             Configuration.LastUsedDesignByCharacter.TryGetValue(Configuration.LastUsedDesignCharacterKey, out var designName))
-            //         {
-            //             var designCharacter = Characters.FirstOrDefault(c => c.Data.Name == Configuration.LastUsedDesignCharacterKey);
-            //             var design = designCharacter?.Data.Designs.FirstOrDefault(d => d.Name == designName);
-            //             if (design != null)
-            //             {
-            //                 Plugin.Log.Debug($"[JobSwitch] Reapplying design {design.Name} for {designCharacter.Data.Name} (filtered)");
-            //                 GameCommandManager.ExecuteMacro(design.Macro, designCharacter, design.Name, filterJobChanges: true);
-            //                 reapplied = true;
-            //             }
-            //         }
-            //
-            //         if (!reapplied && !string.IsNullOrEmpty(Configuration.LastUsedCharacterKey))
-            //         {
-            //             var character = Characters.FirstOrDefault(c => c.Data.Name == Configuration.LastUsedCharacterKey);
-            //             if (character != null)
-            //             {
-            //                 Plugin.Log.Debug($"[JobSwitch] Reapplying character macro for {character.Data.Name} (filtered)");
-            //                 GameCommandManager.ExecuteMacro(character.Data.Macros, character, null, filterJobChanges: true);
-            //                 reapplied = true;
-            //             }
-            //         }
-            //     }
-            // }
-            
-            
-            // start up
-            if (!autoLoadAlreadyRanThisStartup && player.HomeWorld.IsValid && ClientState.IsLoggedIn && ClientState.TerritoryType != 0)
-            {
-                string world = player.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{player.Name.TextValue}@{world}";
-
-                if (!Configuration.PlayerCharacters.ContainsKey(fullKey)) //new PC, create an entry for it
-                {
-                    Configuration.PlayerCharacters[fullKey] = PlayerCharacter.NewCharacter(fullKey);
-                }
-
-                if (!Configuration.EnableLastUsedCharacterAutoload)
-                    return;
-                
-                CharacterManager.ApplyLastUsedOrAssignedCharacter(PlayerCharacter);
-                autoLoadAlreadyRanThisStartup = true;
-            }
-        }
-        
-        // TODO util
-        /// <summary>Get the role category for a job ID.</summary>
-        public static string GetRoleForJob(uint jobId)
-        {
-            return jobId switch
-            {
-                // Tanks
-                19 or 21 or 32 or 37 => "Tank",
-                // Healers
-                24 or 28 or 33 or 40 => "Healer",
-                // Melee DPS
-                20 or 22 or 30 or 34 or 39 or 41 => "Melee",
-                // Ranged Physical DPS
-                23 or 31 or 38 => "Ranged",
-                // Caster DPS
-                25 or 27 or 35 or 36 or 42 => "Caster",
-                // Crafters (8-15)
-                >= 8 and <= 15 => "Crafter",
-                // Gatherers (16-18)
-                >= 16 and <= 18 => "Gatherer",
-                // Base classes and other
-                _ => "Other"
-            };
-        }
-        
-        
-        // TODO util
-        /// <summary>Get job name from Lumina data.</summary>
-        public string? GetJobName(uint jobId)
-        {
-            try
-            {
-                var jobSheet = DataManager.GetExcelSheet<Lumina.Excel.Sheets.ClassJob>();
-                if (jobSheet != null)
-                {
-                    var job = jobSheet.GetRowOrDefault(jobId);
-                    if (job != null)
-                    {
-                        return job.Value.Name.ToString();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warning($"[JobAssignment] Failed to get job name for {jobId}: {ex.Message}");
-            }
-            return null;
-        }
-        
-        
-        // TODO ???
-        /// <summary>Parse a job assignment value into character and optional design name.</summary>
-        public (string? CharacterName, string? DesignName) ParseJobAssignment(string assignmentValue)
-        {
-            if (string.IsNullOrEmpty(assignmentValue))
-                return (null, null);
-
-            // Format: "Character:{CharacterName}" or "Design:{CharacterName}:{DesignName}"
-            if (assignmentValue.StartsWith("Character:", StringComparison.OrdinalIgnoreCase))
-            {
-                var characterName = assignmentValue.Substring("Character:".Length);
-                return (characterName, null);
-            }
-            else if (assignmentValue.StartsWith("Design:", StringComparison.OrdinalIgnoreCase))
-            {
-                var parts = assignmentValue.Substring("Design:".Length).Split(':', 2);
-                if (parts.Length == 2)
-                {
-                    return (parts[0], parts[1]);
-                }
-                else if (parts.Length == 1)
-                {
-                    return (parts[0], null);
-                }
-            }
-
-            // Legacy format - just character name
-            return (assignmentValue, null);
-        }
-        
-        
-        // TODO use a class?????
-        /// <summary>Parse a character assignment value into character and optional design name.</summary>
-        /// <remarks>Supports formats: "CharName" (legacy), "Character:CharName", "Design:CharName:DesignName"</remarks>
-        public (string? CharacterName, string? DesignName) ParseCharacterAssignment(string assignmentValue)
-        {
-            if (string.IsNullOrEmpty(assignmentValue))
-                return (null, null);
-
-            // Format: "Character:{CharacterName}" or "Design:{CharacterName}:{DesignName}"
-            if (assignmentValue.StartsWith("Character:", StringComparison.OrdinalIgnoreCase))
-            {
-                var characterName = assignmentValue.Substring("Character:".Length);
-                return (characterName, null);
-            }
-            else if (assignmentValue.StartsWith("Design:", StringComparison.OrdinalIgnoreCase))
-            {
-                var parts = assignmentValue.Substring("Design:".Length).Split(':', 2);
-                if (parts.Length == 2)
-                {
-                    return (parts[0], parts[1]);
-                }
-                else if (parts.Length == 1)
-                {
-                    return (parts[0], null);
-                }
-            }
-
-            // Legacy format - just character name
-            return (assignmentValue, null);
-        }
-
-        // TODO ??? util
-        /// <summary>Try to apply a job assignment for the given job ID.</summary>
-        /// <returns>True if an assignment was found and applied.</returns>
-        private bool TryApplyJobAssignment(uint jobId)
-        {
-            if (!Configuration.EnableJobAssignments || Configuration.JobAssignments.Count == 0)
-                return false;
-
-            string? assignmentValue = null;
-
-            // Check job-specific assignment first
-            var jobKey = $"Job_{jobId}";
-            if (Configuration.JobAssignments.TryGetValue(jobKey, out var jobAssignment))
-            {
-                assignmentValue = jobAssignment;
-                Log.Debug($"[JobAssignment] Found job-specific assignment for {jobKey}: {assignmentValue}");
-            }
-            else
-            {
-                // Check role assignment
-                var role = GetRoleForJob(jobId);
-                var roleKey = $"Role_{role}";
-                if (Configuration.JobAssignments.TryGetValue(roleKey, out var roleAssignment))
-                {
-                    assignmentValue = roleAssignment;
-                    Log.Debug($"[JobAssignment] Found role assignment for {roleKey}: {assignmentValue}");
-                }
-            }
-
-            if (string.IsNullOrEmpty(assignmentValue))
-                return false;
-
-            // Parse the assignment
-            var (characterName, designName) = ParseJobAssignment(assignmentValue);
-            if (string.IsNullOrEmpty(characterName))
-                return false;
-
-            // Find the character
-            var character = Characters.FirstOrDefault(c => c.Data.Name == characterName);
-            if (character == null)
-            {
-                Log.Warning($"[JobAssignment] Character '{characterName}' not found for job assignment");
-                return false;
-            }
-
-            // Apply the character (and optionally design)
-            if (!string.IsNullOrEmpty(designName))
-            {
-                var designIndex = character.Data.Designs.FindIndex(d => d.Name == designName);
-                if (designIndex >= 0)
-                {
-                    Log.Info(
-                        $"[JobAssignment] Applying design '{designName}' on character '{characterName}' for job {jobId}");
-                    ApplyProfile(character, designIndex);
-                }
-                else
-                {
-                    Log.Warning(
-                        $"[JobAssignment] Design '{designName}' not found on character '{characterName}', applying character only");
-                    ApplyProfile(character, -1);
-                }
-            }
-            else
-            {
-                Log.Info($"[JobAssignment] Applying character '{characterName}' for job {jobId}");
-                ApplyProfile(character, -1);
-            }
-
-            return true;
-        }
-
-        // TODO what fuckign problem is this trying to solve??
-        /// <summary>
-        /// Filters a macro to only include known integration commands (Penumbra, Glamourer, Customize+, Honorific, Moodles, poses).
-        /// Used when switching designs on the SAME character to avoid re-running custom toggle commands.
-        /// </summary>
-        public string FilterToKnownIntegrationCommands(string macro)
-        {
-            if (string.IsNullOrWhiteSpace(macro))
-                return macro;
-
-            try
-            {
-                var lines = macro.Split('\n');
-                var filteredLines = new List<string>();
-
-                foreach (var line in lines)
-                {
-                    var trimmedLine = line.Trim();
-                    if (string.IsNullOrEmpty(trimmedLine))
-                    {
-                        filteredLines.Add(line);
-                        continue;
-                    }
-
-                    // Check if this line matches any known integration command prefix
-                    bool isKnownCommand = KnownIntegrationCommandPrefixes.Any(prefix =>
-                        trimmedLine.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-
-                    if (isKnownCommand)
-                    {
-                        filteredLines.Add(line);
-                    }
-                    else
-                    {
-                        Log.Debug($"[DesignSwitch] Skipping non-integration command: {trimmedLine}");
-                    }
-                }
-
-                string result = string.Join("\n", filteredLines);
-                int skipped = lines.Length - filteredLines.Count;
-                if (skipped > 0)
-                {
-                    Log.Debug($"[DesignSwitch] Filtered {skipped} custom commands, kept {filteredLines.Count} integration commands");
-                }
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[DesignSwitch] Error filtering: {ex.Message}");
-                return macro; // Return original on error
-            }
-        }
-        
-        // TODO Glamourer
-        /// <summary>
-        /// Applies a Glamourer design by name via IPC.
-        /// </summary>
-        private void ApplyGlamourerDesignByName(string designName)
-        {
-            try
-            {
-                var local = ObjectTable.LocalPlayer;
-                if (local == null) return;
-
-                // Get design list and find matching design
-                var designs = IPC.GlamourerGetDesignsIpc?.InvokeFunc();
-                if (designs == null)
-                {
-                    Log.Warning("[ApplyGlamourerDesignByName] Could not get Glamourer design list");
-                    return;
-                }
-
-                var matchingDesign = designs.FirstOrDefault(d =>
-                    d.Value.Equals(designName, StringComparison.OrdinalIgnoreCase));
-
-                if (matchingDesign.Key == Guid.Empty)
-                {
-                    Log.Warning($"[ApplyGlamourerDesignByName] Design '{designName}' not found in Glamourer");
-                    return;
-                }
-
-                // Apply design via IPC
-                // DesignDefault = Once | Equipment | Customization = 0x07
-                const ulong designDefaultFlags = 0x07uL;
-                var result = IPC.GlamourerApplyDesignIpc?.InvokeFunc(matchingDesign.Key, (int)local.ObjectIndex, 0u, designDefaultFlags);
-                Log.Debug($"[ApplyGlamourerDesignByName] Applied '{designName}', result: {result}");
-            }
-            catch (Exception ex)
-            {
-                Log.Warning($"[ApplyGlamourerDesignByName] Failed: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Applies a Customize+ profile by name via IPC.
-        /// </summary>
-        private void ApplyCustomizePlusProfile(string profileName)
-        {
-            try
-            {
-                var local = ObjectTable.LocalPlayer;
-                if (local == null) return;
-
-                // SetTemporaryProfileOnCharacter(objectIndex, profileName) - returns (errorCode, guid?)
-                var result = IPC.CustomizePlusSetTempProfileIpc?.InvokeFunc((ushort)local.ObjectIndex, profileName);
-                Log.Debug($"[ApplyCustomizePlusProfile] Applied '{profileName}', error: {result?.Item1}, guid: {result?.Item2}");
-            }
-            catch (Exception ex)
-            {
-                Log.Warning($"[ApplyCustomizePlusProfile] Failed: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Triggers a Penumbra redraw for the local player.
-        /// </summary>
-        private void TriggerPenumbraRedraw()
-        {
-            try
-            {
-                var local = ObjectTable.LocalPlayer;
-                if (local == null) return;
-
-                IPC.PenumbraRedrawIpc?.InvokeAction((int)local.ObjectIndex, 0);
-                Log.Debug("[TriggerPenumbraRedraw] Penumbra redraw triggered");
-            }
-            catch (Exception ex)
-            {
-                Log.Warning($"[TriggerPenumbraRedraw] Failed: {ex.Message}");
-            }
-        }
-        
-        
         // TODO this is definitely way too long for what it's doing
         public void SelectRandomCharacterAndDesign()
         {
             var random = new Random();
-
-            // Get available characters based on settings
-            var availableCharacters = Configuration.RandomSelectionFavoritesOnly
-                ? Characters.Where(c => c.Data.IsFavorite).ToList()
-                : Characters.ToList();
-
-            // Fallback to all characters if no favourites exist
-            if (availableCharacters.Count == 0 && Configuration.RandomSelectionFavoritesOnly)
-            {
-                availableCharacters = Characters.ToList();
-                
-                // Create colored fallback message
-                var builder = new SeStringBuilder();
-                builder.AddText("[").AddBlue("Simple Character Select", true).AddText("] ");
-                builder.AddText("No favourite characters found, selecting from ").AddBlue("all characters", false).AddText(".");
-                ChatGui.Print(builder.BuiltString);
-            }
-
-            if (availableCharacters.Count == 0)
-            {
-                ChatGui.PrintError("[Simple Character Select] No characters available for random selection.");
-                return;
-            }
-
-            // Select random character
-            var selectedCharacter = availableCharacters[random.Next(availableCharacters.Count)];
-
-            // Get available designs for the selected character
-            var availableDesigns = Configuration.RandomSelectionFavoritesOnly
-                ? selectedCharacter.Data.Designs.Where(d => d.IsFavorite).ToList()
-                : selectedCharacter.Data.Designs.ToList();
-
-            // Fallback to all designs if no favourites exist
-            if (availableDesigns.Count == 0 && Configuration.RandomSelectionFavoritesOnly)
-            {
-                availableDesigns = selectedCharacter.Data.Designs.ToList();
-            }
-
-            // Apply character first
-            GameCommandManager.ExecuteMacro(selectedCharacter.Data.Macros, selectedCharacter, null);
-
-            // Switch Penumbra UI collection to match the character's collection
-            if (!string.IsNullOrEmpty(selectedCharacter.Data.PenumbraCollection))
-            {
-                var success = PenumbraIntegration.SwitchCollection(selectedCharacter.Data.PenumbraCollection);
-                if (success)
-                {
-                    Log.Information($"Successfully switched Penumbra UI collection to: {selectedCharacter.Data.PenumbraCollection}");
-                }
-                else
-                {
-                    Log.Warning($"Failed to switch Penumbra UI collection to: {selectedCharacter.Data.PenumbraCollection}");
-                }
-            }
-
-            // Apply random design if available
-            if (availableDesigns.Count > 0)
-            {
-                var selectedDesign = availableDesigns[random.Next(availableDesigns.Count)];
-                GameCommandManager.ExecuteMacro(selectedDesign.Macro, selectedCharacter, selectedDesign.Name);
-
-                // Update last used design tracking
-                Configuration.LastUsedDesignCharacterKey = selectedCharacter.Data.Name;
-                Configuration.LastUsedDesignByCharacter[selectedCharacter.Data.Name] = selectedDesign.Name;
-            }
-
-            // Set active character for Name Sync
-            PlayerCharacter.ActiveCharacter = selectedCharacter;
-            
-            if (selectedCharacter.Data.IdlePoseIndex < 7)
-            {
-                PoseManager.ApplyPose(PoseType.Idle, selectedCharacter.Data.IdlePoseIndex);
-                //Configuration.LastIdlePoseAppliedByPlugin = selectedCharacter.Data.IdlePoseIndex; TODO
-                Configuration.Save();
-            }
-
-            // Update character tracking for job change and quick switch features
-            if (ObjectTable.LocalPlayer != null)
-            {
-                var player = ObjectTable.LocalPlayer;
-                string localName = player.Name.ToString();
-                string worldName = player.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-                string pluginCharacterKey = $"{selectedCharacter.Data.Name}@{worldName}";
-                Configuration.LastUsedCharacterByPlayer[fullKey] = pluginCharacterKey;
-                Configuration.LastUsedCharacterKey = selectedCharacter.Data.Name;
-            }
-
-            // Update Quick Switch window to reflect the new selection (same as normal character click)
-            QuickSwitchWindow.UpdateSelectionFromCharacter(selectedCharacter);
-            
-            SaveConfiguration();
-        }
-
-        public void SelectRandomDesignOnly(string characterName)
-        {
-            var character = Characters.FirstOrDefault(c => c.Data.Name.Equals(characterName, StringComparison.OrdinalIgnoreCase));
-            if (character == null)
-            {
-                ChatGui.PrintError($"[Simple Character Select] Character '{characterName}' not found.");
-                return;
-            }
-
-            // Set active character for Name Sync
-            PlayerCharacter.ActiveCharacter = character;
-
-            // Update ActiveProfilesByPlayerName for GetActiveCharacter() (used by name sync)
-            if (ObjectTable.LocalPlayer != null)
-            {
-                string localName = ObjectTable.LocalPlayer.Name.TextValue;
-                string worldName = ObjectTable.LocalPlayer.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-                //ActiveProfilesByPlayerName[fullKey] = character.Data.Name; TODO
-                character.Data.LastInGameName = fullKey;
-            }
-
-            // Get available designs for the character
-            var availableDesigns = Configuration.RandomSelectionFavoritesOnly
-                ? character.Data.Designs.Where(d => d.IsFavorite).ToList()
-                : character.Data.Designs.ToList();
-
-            // Fallback to all designs if no favourites exist
-            if (availableDesigns.Count == 0 && Configuration.RandomSelectionFavoritesOnly)
-            {
-                availableDesigns = character.Data.Designs.ToList();
-            }
-
-            if (availableDesigns.Count == 0)
-            {
-                ChatGui.PrintError($"[Simple Character Select] No designs available for character '{characterName}'.");
-                return;
-            }
-
-            // Select random design
-            var random = new Random();
-            var selectedDesign = availableDesigns[random.Next(availableDesigns.Count)];
-            
-            // Execute the selected design's macro
-            GameCommandManager.ExecuteMacro(selectedDesign.Macro, character, selectedDesign.Name);
-
-            // Update last used design tracking
-            Configuration.LastUsedDesignCharacterKey = character.Data.Name;
-            Configuration.LastUsedDesignByCharacter[character.Data.Name] = selectedDesign.Name;
-            Configuration.Save();
-        }
-
-        /// <summary>
-        /// Selects a random character from a custom group and applies a random design.
-        /// </summary>
-        public void SelectRandomFromGroup(Configuration.RandomGroup group)
-        {
-            if (group.CharacterNames.Count == 0)
-            {
-                ChatGui.PrintError($"[Simple Character Select] Group '{group.Name}' has no characters.");
-                return;
-            }
-
-            // Get characters that exist in this group
-            var groupCharacters = Characters
-                .Where(c => group.CharacterNames.Contains(c.Data.Name))
-                .ToList();
-
-            if (groupCharacters.Count == 0)
-            {
-                ChatGui.PrintError($"[Simple Character Select] No valid characters found in group '{group.Name}'.");
-                return;
-            }
-
-            var random = new Random();
-
-            // Select random character from group
-            var selectedCharacter = groupCharacters[random.Next(groupCharacters.Count)];
-
-            // Set active character for Name Sync
-            PlayerCharacter.ActiveCharacter = selectedCharacter;
-
-            // Get available designs - respect favorites setting
-            var availableDesigns = Configuration.RandomSelectionFavoritesOnly
-                ? selectedCharacter.Data.Designs.Where(d => d.IsFavorite).ToList()
-                : selectedCharacter.Data.Designs.ToList();
-
-            // Fallback to all designs if no favourites exist
-            if (availableDesigns.Count == 0 && Configuration.RandomSelectionFavoritesOnly)
-            {
-                availableDesigns = selectedCharacter.Data.Designs.ToList();
-            }
-
-            CharacterDesign? selectedDesign = null;
-            int designIndex = -1;
-            if (availableDesigns.Count > 0)
-            {
-                selectedDesign = availableDesigns[random.Next(availableDesigns.Count)];
-                designIndex = selectedCharacter.Data.Designs.IndexOf(selectedDesign);
-            }
-
-            // Apply the character (and design if available)
-            ApplyProfile(selectedCharacter, designIndex);
-
-            // Execute the design's macro if one was selected
-            if (selectedDesign != null)
-            {
-                GameCommandManager.ExecuteMacro(selectedDesign.Macro, selectedCharacter, selectedDesign.Name);
-
-                // Update last used design tracking
-                Configuration.LastUsedDesignCharacterKey = selectedCharacter.Data.Name;
-                Configuration.LastUsedDesignByCharacter[selectedCharacter.Data.Name] = selectedDesign.Name;
-                Configuration.Save();
-            }
-        }
-
-        public string? GetTargetedPlayerName()
-        {
-            try
-            {
-                var target = TargetManager.Target;
-
-                if (target == null || target.ObjectKind != Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc)
-                    return null;
-
-                if (target is IPlayerCharacter player)
-                {
-                    string characterName = player.Name.TextValue;
-                    string worldName = player.HomeWorld.Value.Name.ToString();
-
-                    if (!string.IsNullOrWhiteSpace(characterName) && !string.IsNullOrWhiteSpace(worldName))
-                    {
-                        return $"{characterName}@{worldName}";
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error getting targeted player name: {ex.Message}");
-            }
-
-            return null;
-        }
-        
-        public void AddCharacterAssignment(string realCharacter, string csCharacter)
-        {
-            Configuration.CharacterAssignments[realCharacter] = csCharacter;
-            Configuration.Save();
-        }
-
-        public void RemoveCharacterAssignment(string realCharacter)
-        {
-            Configuration.CharacterAssignments.Remove(realCharacter);
-            Configuration.Save();
-        }
-
-        public string? GetAssignedCharacter(string realCharacter)
-        {
-            return Configuration.CharacterAssignments.TryGetValue(realCharacter, out var assigned) ? assigned : null;
-        }
-
-        public void SwitchPenumbraCollection(string collectionName)
-        {
-            try
-            {
-                // Use the proper PenumbraIntegration method instead of old IPC call
-                bool result = PenumbraIntegration.SwitchCollection(collectionName);
-                
-                if (result)
-                {
-                    Log.Info($"[Penumbra] Successfully switched to collection: {collectionName}");
-                }
-                else
-                {
-                    Log.Warning($"[Penumbra] Failed to switch to collection: {collectionName}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[Penumbra] Error switching to collection '{collectionName}': {ex.Message}");
-            }
-        }
-        
-        /// <summary>Ensures the character's Penumbra collection is set as the individual assignment via IPC.</summary>
-        public bool EnsurePenumbraCollectionAssignment(string collectionName)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(collectionName))
-                    return false;
-
-                var collections = IPC.PenumbraGetCollectionsIpc?.InvokeFunc();
-                if (collections == null)
-                {
-                    Log.Warning("[CR] Could not get Penumbra collections for assignment");
-                    return false;
-                }
-
-                var targetCollection = collections.FirstOrDefault(kvp =>
-                    string.Equals(kvp.Value, collectionName, StringComparison.OrdinalIgnoreCase));
-
-                if (targetCollection.Key == Guid.Empty)
-                {
-                    Log.Warning($"[CR] Collection '{collectionName}' not found in Penumbra");
-                    return false;
-                }
-
-                // Set individual assignment for the local player (object index 0)
-                var (ec, _) = IPC.PenumbraSetCollectionForObjectIpc?.InvokeFunc(0, targetCollection.Key, true, true) ?? (-1, null);
-
-                if (ec == 0 || ec == 1) // Success or NothingChanged
-                {
-                    Log.Info($"[CR] Set Penumbra individual assignment to '{collectionName}'");
-                    return true;
-                }
-
-                Log.Warning($"[CR] Failed to set collection assignment, error code: {ec}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[CR] Error setting Penumbra collection assignment: {ex.Message}");
-                return false;
-            }
+            // pick a character TODO
+            // pick a design
+            // apply it
         }
    
         /// <summary>
@@ -1447,30 +423,31 @@ namespace SimpleCharacterSelectPlugin
         /// </summary>
         public async Task<bool> ApplyToTarget(Character character, int designIndex = -1)
         {
-            try
-            {
-                // Get target info from the main thread to ensure fresh data
-                IGameObject? targetObject = null;
-                await Framework.RunOnFrameworkThread(() =>
-                {
-                    targetObject = GetCurrentTarget();
-                });
-                
-                if (targetObject == null)
-                {
-                    ChatGui.PrintError("[Simple Character Select] No valid target selected.");
-                    return false;
-                }
-                
-                
-                return await ApplyToTarget(character, designIndex, (int)targetObject.ObjectIndex, targetObject.ObjectKind, targetObject.Name?.ToString() ?? "Unknown");
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error applying character to target: {ex}");
-                ChatGui.PrintError($"[Simple Character Select] Failed to apply to target: {ex.Message}");
-                return false;
-            }
+            // try TODO readd target application
+            // {
+            //     // Get target info from the main thread to ensure fresh data
+            //     IGameObject? targetObject = null;
+            //     await Framework.RunOnFrameworkThread(() =>
+            //     {
+            //         targetObject = GetCurrentTarget();
+            //     });
+            //     
+            //     if (targetObject == null)
+            //     {
+            //         ChatGui.PrintError("[Simple Character Select] No valid target selected.");
+            //         return false;
+            //     }
+            //     
+            //     
+            //     return await ApplyToTarget(character, designIndex, (int)targetObject.ObjectIndex, targetObject.ObjectKind, targetObject.Name?.ToString() ?? "Unknown");
+            // }
+            // catch (Exception ex)
+            // {
+            //     Log.Error($"Error applying character to target: {ex}");
+            //     ChatGui.PrintError($"[Simple Character Select] Failed to apply to target: {ex.Message}");
+            //     return false;
+            // }
+            return true;
         }
 
         /// <summary>
@@ -1635,425 +612,6 @@ namespace SimpleCharacterSelectPlugin
                 Log.Error($"[ValidateTarget] Error validating target safety: {ex}");
                 return false;
             }
-        }
-        
-        /// <summary>
-        /// Apply character/design to target using direct IPC calls - thread-safe overload
-        /// </summary>
-        public async Task<bool> ApplyToTarget(Character character, int designIndex, int objectIndex, Dalamud.Game.ClientState.Objects.Enums.ObjectKind objectKind, string targetName)
-        {
-            try
-            {
-                // Validate target type - accept Players, NPCs, and GPose actors
-                var validTypes = new[] { 
-                    Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Pc, 
-                    Dalamud.Game.ClientState.Objects.Enums.ObjectKind.BattleNpc, 
-                    Dalamud.Game.ClientState.Objects.Enums.ObjectKind.EventNpc,
-                    Dalamud.Game.ClientState.Objects.Enums.ObjectKind.Companion 
-                };
-                
-                if (!validTypes.Contains(objectKind))
-                {
-                    ChatGui.PrintError($"[Simple Character Select] Invalid target type: {objectKind}");
-                    return false;
-                }
-                
-                // Check for rapid successive applications to prevent crashes
-                if (lastTargetApplicationTime.TryGetValue(objectIndex, out var lastTime))
-                {
-                    var timeSinceLastApplication = DateTime.Now - lastTime;
-                    if (timeSinceLastApplication < minimumTargetApplicationInterval)
-                    {
-                        var waitTime = minimumTargetApplicationInterval - timeSinceLastApplication;
-                        ChatGui.PrintError($"[Simple Character Select] Please wait {waitTime.TotalSeconds:F1} seconds between target applications to prevent crashes");
-                        return false;
-                    }
-                }
-                
-                // Update last application time
-                lastTargetApplicationTime[objectIndex] = DateTime.Now;
-                
-                // Comprehensive safety validation before any modifications
-                if (!await ValidateTargetObjectSafety(objectIndex, targetName))
-                {
-                    ChatGui.PrintError($"[Simple Character Select] Target object validation failed - cannot apply safely");
-                    return false;
-                }
-                
-                Log.Information($"[ApplyToTarget] Applying {character.Data.Name} to target: {targetName} (Index: {objectIndex})");
-                
-                // Get the macro text to parse
-                string macroText;
-                if (designIndex >= 0 && designIndex < character.Data.Designs.Count)
-                {
-                    var design = character.Data.Designs[designIndex];
-                    macroText = design.IsAdvancedMode ? design.AdvancedMacro : design.Macro;
-                }
-                else
-                {
-                    macroText = character.Data.Macros;
-                }
-                
-                // Parse macro text and execute via IPC after conflict resolution has set up mod state
-                // TODO direct apply, no macro
-                // var commands = ParseMacroForTargetApplication(macroText);
-                // var success = await ExecuteTargetCommands(commands, objectIndex);
-                
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error applying character to target: {ex}");
-                ChatGui.PrintError($"[Simple Character Select] Failed to apply to target: {ex.Message}");
-                return false;
-            }
-        }
-        
-        /// <summary>
-        /// Extract quoted parameter from command line
-        /// </summary>
-        private string ExtractQuotedParameter(string commandLine)
-        {
-            var firstQuote = commandLine.IndexOf('"');
-            if (firstQuote == -1) return "";
-            
-            var secondQuote = commandLine.IndexOf('"', firstQuote + 1);
-            if (secondQuote == -1) return "";
-            
-            return commandLine.Substring(firstQuote + 1, secondQuote - firstQuote - 1);
-        }
-        
-        /// <summary>
-        /// Execute parsed commands via IPC for target application with enhanced safety
-        /// </summary>
-        private async Task<bool> ExecuteTargetCommands(List<object> commands, int objectIndex)
-        {
-            bool allSucceeded = true;
-            
-            foreach (var command in commands)
-            {
-                try
-                {
-                    // Validate object is still safe before each command - must run on main thread
-                    IGameObject? targetObject = null;
-                    await Framework.RunOnFrameworkThread(() =>
-                    {
-                        targetObject = objectIndex >= 0 && objectIndex < ObjectTable.Length ? ObjectTable[objectIndex] : null;
-                    });
-                    
-                    if (targetObject?.Address == nint.Zero)
-                    {
-                        Log.Warning($"[ExecuteTargetCommands] Target object at index {objectIndex} became invalid, aborting remaining commands");
-                        allSucceeded = false;
-                        break;
-                    }
-                    
-                    switch (command)
-                    {
-                        case PenumbraCommand penCmd:
-                            allSucceeded &= await ExecutePenumbraCommand(penCmd, (uint)objectIndex);
-                            break;
-                        case GlamourerCommand glamCmd:
-                            allSucceeded &= await ExecuteGlamourerCommand(glamCmd, (uint)objectIndex);
-                            break;
-                        case CustomizePlusCommand custCmd:
-                            allSucceeded &= await ExecuteCustomizePlusCommand(custCmd, (uint)objectIndex);
-                            break;
-                    }
-                    
-                    // Increased delay between commands to allow game to process changes safely
-                    await Task.Delay(200);
-                    
-                    // Additional validation after equipment/weapon related commands
-                    if (command is GlamourerCommand)
-                    {
-                        // Extra delay after Glamourer commands to prevent weapon loading race conditions
-                        await Task.Delay(300);
-                        
-                        // Validate object is still valid after glamour changes - must run on main thread
-                        await Framework.RunOnFrameworkThread(() =>
-                        {
-                            targetObject = objectIndex >= 0 && objectIndex < ObjectTable.Length ? ObjectTable[objectIndex] : null;
-                        });
-                        
-                        if (targetObject?.Address == nint.Zero)
-                        {
-                            Log.Warning($"[ExecuteTargetCommands] Target object became invalid after Glamourer command");
-                            allSucceeded = false;
-                            break;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Error executing command {command}: {ex}");
-                    allSucceeded = false;
-                    
-                    // If we get an exception, add a longer delay before continuing
-                    await Task.Delay(500);
-                }
-            }
-            
-            // Final validation and redraw with enhanced safety - this is where LoadWeapon crashes occurred
-            if (allSucceeded)
-            {
-                // Final object validation before redraw to prevent LoadWeapon crashes - must run on main thread
-                IGameObject? finalTargetObject = null;
-                await Framework.RunOnFrameworkThread(() =>
-                {
-                    finalTargetObject = objectIndex >= 0 && objectIndex < ObjectTable.Length ? ObjectTable[objectIndex] : null;
-                });
-                
-                if (finalTargetObject?.Address == nint.Zero)
-                {
-                    Log.Warning($"[ExecuteTargetCommands] Target object became invalid before final redraw, skipping redraw");
-                    return false;
-                }
-                
-                // Add delay before redraw to ensure all previous changes have been processed
-                await Task.Delay(500);
-                
-                // Final redraw with enhanced retry logic
-                for (int attempt = 1; attempt <= 3; attempt++)
-                {
-                    try
-                    {
-                        // Re-validate object before each redraw attempt - must run on main thread
-                        await Framework.RunOnFrameworkThread(() =>
-                        {
-                            finalTargetObject = objectIndex >= 0 && objectIndex < ObjectTable.Length ? ObjectTable[objectIndex] : null;
-                        });
-                        
-                        if (finalTargetObject?.Address == nint.Zero)
-                        {
-                            Log.Warning($"[ExecuteTargetCommands] Target object became invalid during redraw attempts");
-                            break;
-                        }
-                        
-                        IPC.PenumbraRedrawObjectIpc?.InvokeFunc((int)objectIndex);
-                        break;
-                    }
-                    catch (Dalamud.Plugin.Ipc.Exceptions.IpcNotReadyError)
-                    {
-                        if (attempt < 3)
-                        {
-                            await Task.Delay(attempt * 200);
-                            continue;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error($"[ApplyToTarget] Failed to trigger redraw on attempt {attempt}: {ex}");
-                        if (attempt < 3)
-                        {
-                            await Task.Delay(attempt * 300);
-                        }
-                        else
-                        {
-                            Log.Error($"[ApplyToTarget] All redraw attempts failed, this may prevent visual updates");
-                            break;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                Log.Warning($"[ExecuteTargetCommands] Some commands failed, skipping final redraw for safety");
-            }
-            
-            return allSucceeded;
-        }
-        
-        /// <summary>
-        /// Execute Penumbra collection command with retry logic
-        /// </summary>
-        private async Task<bool> ExecutePenumbraCommand(PenumbraCommand command, uint objectIndex)
-        {
-            const int maxRetries = 5;
-            const int baseDelayMs = 200;
-
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
-            {
-                try
-                {
-                    // Get available collections
-                    var collections = IPC.PenumbraGetCollectionsIpc?.InvokeFunc();
-                    if (collections == null)
-                    {
-                        return false;
-                    }
-                    
-                    // Find collection by name
-                    var targetCollection = collections.FirstOrDefault(kvp => 
-                        string.Equals(kvp.Value, command.CollectionName, StringComparison.OrdinalIgnoreCase));
-                    
-                    if (targetCollection.Key == Guid.Empty)
-                    {
-                        return false;
-                    }
-                    
-                    // Apply collection to target object (using collection GUID)
-                    var (ec, pair) = IPC.PenumbraSetCollectionForObjectIpc?.InvokeFunc((int)objectIndex, targetCollection.Key, true, true) ?? (-1, null);
-                    
-                    if (ec == 0 || ec == 1) // Success or NothingChanged
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-                catch (Dalamud.Plugin.Ipc.Exceptions.IpcNotReadyError)
-                {
-                    if (attempt < maxRetries)
-                    {
-                        int delayMs = baseDelayMs * attempt;
-                        await Task.Delay(delayMs);
-                        continue;
-                    }
-                    return false;
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Error executing Penumbra command: {ex}");
-                    return false;
-                }
-            }
-            
-            return false;
-        }
-        
-        /// <summary>
-        /// Execute Glamourer design command with retry logic
-        /// </summary>
-        private async Task<bool> ExecuteGlamourerCommand(GlamourerCommand command, uint objectIndex)
-        {
-            const int maxRetries = 5;
-            const int baseDelayMs = 200;
-
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
-            {
-                try
-                {
-                    // Check if Glamourer IPC subscriber is available
-                    if (IPC.GlamourerGetDesignsIpc == null)
-                    {
-                        return false;
-                    }
-
-                    // Get available designs
-                    var designs = IPC.GlamourerGetDesignsIpc.InvokeFunc();
-                    if (designs == null)
-                    {
-                        return false;
-                    }
-                    
-                    // Find design by name
-                    var targetDesign = designs.FirstOrDefault(kvp => 
-                        string.Equals(kvp.Value, command.DesignName, StringComparison.OrdinalIgnoreCase));
-                    
-                    if (targetDesign.Key == Guid.Empty)
-                    {
-                        return false;
-                    }
-                    
-                    // Apply design via IPC with correct parameters and default flags
-                    // DesignDefault = Once | Equipment | Customization = 0x01 | 0x02 | 0x04 = 0x07
-                    const ulong designDefaultFlags = 0x07uL; // ApplyFlag.Once | ApplyFlag.Equipment | ApplyFlag.Customization
-                    var result = IPC.GlamourerApplyDesignIpc!.InvokeFunc(targetDesign.Key, (int)objectIndex, 0u, designDefaultFlags);
-                    
-                    return result == 0; // 0 = Success
-                }
-                catch (Dalamud.Plugin.Ipc.Exceptions.IpcNotReadyError)
-                {
-                    if (attempt < maxRetries)
-                    {
-                        int delayMs = baseDelayMs * attempt;
-                        await Task.Delay(delayMs);
-                        continue;
-                    }
-                    return false;
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Error executing Glamourer command: {ex}");
-                    return false;
-                }
-            }
-            
-            return false;
-        }
-        
-        /// <summary>
-        /// Execute CustomizePlus profile command
-        /// </summary>
-        private async Task<bool> ExecuteCustomizePlusCommand(CustomizePlusCommand command, uint objectIndex)
-        {
-            try
-            {
-                
-                // Get available profiles
-                var profiles = IPC.CustomizePlusGetProfileListIpc?.InvokeFunc();
-                if (profiles == null)
-                {
-                    return false;
-                }
-                
-                
-                // Find profile by name
-                var targetProfile = profiles.FirstOrDefault(profile => 
-                    string.Equals(profile.Item2, command.ProfileName, StringComparison.OrdinalIgnoreCase));
-                
-                if (targetProfile.Item1 == Guid.Empty)
-                {
-                    return false;
-                }
-                
-                
-                // Get the actual profile JSON data by Guid
-                var (errorCode, profileJson) = IPC.CustomizePlusGetByUniqueIdIpc?.InvokeFunc(targetProfile.Item1) ?? (1, null);
-                if (errorCode != 0 || string.IsNullOrEmpty(profileJson))
-                {
-                    return false;
-                }
-                
-                
-                // Apply profile to target object using JSON data
-                var result = IPC.CustomizePlusSetTempProfileIpc?.InvokeFunc((ushort)objectIndex, profileJson);
-                
-                
-                // Check if the result indicates success
-                if (result.HasValue && result.Value.Item1 == 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"Error executing CustomizePlus command: {ex}");
-                return false;
-            }
-        }
-        
-        // Command classes for parsed macro commands
-        private class PenumbraCommand
-        {
-            public string CollectionName { get; set; } = "";
-        }
-        
-        private class GlamourerCommand
-        {
-            public string DesignName { get; set; } = "";
-        }
-        
-        private class CustomizePlusCommand
-        {
-            public string ProfileName { get; set; } = "";
         }
 
         private async Task<string> SaveClipboardImageForDesign(Guid designId)

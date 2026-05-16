@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Dalamud.Plugin.Services;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Plugin;
+using SimpleCharacterSelectPlugin.IPC;
 
 namespace SimpleCharacterSelectPlugin
 {
@@ -70,8 +71,7 @@ namespace SimpleCharacterSelectPlugin
             try
             {
                 // Check if Penumbra is available
-                penumbraApiVersion = pluginInterface.GetIpcSubscriber<int>("Penumbra.ApiVersion");
-                var version = penumbraApiVersion.InvokeFunc();
+                var version = PenumbraIpc.ApiVersion.InvokeFunc();
                 
                 if (version < 5)
                 {
@@ -272,12 +272,10 @@ namespace SimpleCharacterSelectPlugin
                 
                 // Use the correct SetCollection API signature
                 // Only set "Current" to update the Penumbra UI display (collection assignment already works)
-                var setCollectionIpc = pluginInterface.GetIpcSubscriber<byte, Guid?, bool, bool, (int, (Guid Id, string Name)?)>("Penumbra.SetCollection");
-                
                 log.Debug($"Setting Penumbra UI current collection - Name: {collectionName}, GUID: {targetCollection.Key}");
                 
                 // Set the current/UI collection for display only
-                var (resultInt, oldCollection) = setCollectionIpc.InvokeFunc(
+                var (resultInt, oldCollection) = PenumbraIpc.SetCollection.InvokeFunc(
                     (byte)ApiCollectionType.Current,  // Set as current collection (controls UI display only)
                     targetCollection.Key,       // Collection GUID
                     false,                      // Don't allow creation
@@ -331,7 +329,7 @@ namespace SimpleCharacterSelectPlugin
 
                 // Step 1: Get the collection assigned to "Your Character" type
                 var getCollectionIpc = pluginInterface.GetIpcSubscriber<byte, (Guid Id, string Name)?>("Penumbra.GetCollection");
-                var yourCharacterCollection = getCollectionIpc.InvokeFunc((byte)ApiCollectionType.Yourself);
+                var yourCharacterCollection = PenumbraIpc.GetCollection.InvokeFunc((byte)ApiCollectionType.Yourself);
 
                 if (yourCharacterCollection == null)
                 {

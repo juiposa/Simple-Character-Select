@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Plugin.Ipc;
+using SimpleCharacterSelectPlugin.IPC;
 
 namespace SimpleCharacterSelectPlugin.Managers
 {
@@ -13,14 +14,6 @@ namespace SimpleCharacterSelectPlugin.Managers
     public class IntegrationListProvider : IDisposable
     {
         private readonly Plugin plugin;
-
-        // IPC Subscribers
-        private ICallGateSubscriber<Dictionary<Guid, string>>? penumbraGetCollectionsIpc;
-        private ICallGateSubscriber<Dictionary<Guid, string>>? glamourerGetDesignsIpc;
-        private ICallGateSubscriber<IList<(Guid, string, string, IList<(string, ushort, byte, ushort)>, int, bool)>>? customizePlusGetProfileListIpc;
-        private ICallGateSubscriber<List<(Guid, string)>>? moodlesGetPresetsIpc;
-        private ICallGateSubscriber<string, uint, object[]>? honorificGetTitleListIpc;
-
 
         // Cached lists
         private List<string> cachedPenumbraCollections = new();
@@ -42,59 +35,6 @@ namespace SimpleCharacterSelectPlugin.Managers
         public IntegrationListProvider(Plugin plugin)
         {
             this.plugin = plugin;
-            InitializeIpcSubscribers();
-        }
-
-        private void InitializeIpcSubscribers()
-        {
-            try
-            {
-                penumbraGetCollectionsIpc = Plugin.PluginInterface.GetIpcSubscriber<Dictionary<Guid, string>>("Penumbra.GetCollections.V5");
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Debug($"[IntegrationListProvider] Penumbra IPC not available: {ex.Message}");
-            }
-
-            try
-            {
-                glamourerGetDesignsIpc = Plugin.PluginInterface.GetIpcSubscriber<Dictionary<Guid, string>>("Glamourer.GetDesignList.V2");
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Debug($"[IntegrationListProvider] Glamourer IPC not available: {ex.Message}");
-            }
-
-            try
-            {
-                customizePlusGetProfileListIpc = Plugin.PluginInterface.GetIpcSubscriber<IList<(Guid, string, string, IList<(string, ushort, byte, ushort)>, int, bool)>>("CustomizePlus.Profile.GetList");
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Debug($"[IntegrationListProvider] Customize+ IPC not available: {ex.Message}");
-            }
-
-            try
-            {
-                // Moodles GetRegisteredProfilesV2 returns List<(Guid ID, string FullPath)>
-                moodlesGetPresetsIpc = Plugin.PluginInterface.GetIpcSubscriber<List<(Guid, string)>>("Moodles.GetRegisteredProfilesV2");
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Debug($"[IntegrationListProvider] Moodles IPC not available: {ex.Message}");
-            }
-
-            try
-            {
-                // Honorific GetCharacterTitleList takes (string name, uint world) and returns TitleData[]
-                // We'll store as object[] since TitleData is internal to Honorific
-                honorificGetTitleListIpc = Plugin.PluginInterface.GetIpcSubscriber<string, uint, object[]>("Honorific.GetCharacterTitleList");
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Debug($"[IntegrationListProvider] Honorific IPC not available: {ex.Message}");
-            }
-
         }
 
         /// <summary>Gets available Penumbra collections.</summary>
@@ -107,7 +47,7 @@ namespace SimpleCharacterSelectPlugin.Managers
 
             try
             {
-                var collections = penumbraGetCollectionsIpc?.InvokeFunc();
+                var collections = PenumbraIpc.GetCollections.InvokeFunc();
                 if (collections != null)
                 {
                     cachedPenumbraCollections = collections.Values
@@ -134,7 +74,7 @@ namespace SimpleCharacterSelectPlugin.Managers
 
             try
             {
-                var designs = glamourerGetDesignsIpc?.InvokeFunc();
+                var designs = GlamourerIpc.GetDesigns?.InvokeFunc();
                 if (designs != null)
                 {
                     cachedGlamourerDesigns = designs.Values
@@ -161,7 +101,7 @@ namespace SimpleCharacterSelectPlugin.Managers
 
             try
             {
-                var profiles = customizePlusGetProfileListIpc?.InvokeFunc();
+                var profiles = CustomizeIpc.GetProfileList?.InvokeFunc();
                 if (profiles != null)
                 {
                     // Profile tuple: (Guid id, string name, string characterName, IList<...> characters, int priority, bool enabled)
@@ -192,7 +132,7 @@ namespace SimpleCharacterSelectPlugin.Managers
 
             try
             {
-                var presets = moodlesGetPresetsIpc?.InvokeFunc();
+                var presets = MoodlesIpc.GetPresets?.InvokeFunc();
                 if (presets != null)
                 {
                     // Preset tuple: (Guid ID, string FullPath)
@@ -236,7 +176,7 @@ namespace SimpleCharacterSelectPlugin.Managers
                 var name = localPlayer.Name.TextValue;
                 var worldId = localPlayer.HomeWorld.RowId;
 
-                var titles = honorificGetTitleListIpc?.InvokeFunc(name, worldId);
+                var titles = HonorificIpc.GetCharacterTitleList?.InvokeFunc(name, worldId);
                 if (titles != null)
                 {
                     // TitleData has a Title property - we need to extract it via reflection or dynamic
@@ -298,12 +238,11 @@ namespace SimpleCharacterSelectPlugin.Managers
         {
             try
             {
-                var localPlayer = plugin.ObjectTable?.LocalPlayer;
+                var localPlayer = Plugin.ObjectTable?.LocalPlayer;
                 if (localPlayer == null) return null;
 
                 // Get active profile GUID
-                var activeProfileIpc = PluginInterface.GetIpcSubscriber<ushort, (int, Guid?)>("CustomizePlus.Profile.GetActiveProfileIdOnCharacter");
-                var activeResult = activeProfileIpc.InvokeFunc((ushort)localPlayer.ObjectIndex);
+                var activeResult = CustomizeIpc.GetActiveProfile.InvokeFunc((ushort)localPlayer.ObjectIndex);
 
                 if (activeResult.Item1 != 0 || !activeResult.Item2.HasValue || activeResult.Item2.Value == Guid.Empty)
                     return null;
@@ -311,10 +250,9 @@ namespace SimpleCharacterSelectPlugin.Managers
                 var activeProfileId = activeResult.Item2.Value;
 
                 // Get profile list and find the matching profile
-                var profileListIpc = PluginInterface.GetIpcSubscriber<IList<(Guid, string, string, IList<(string, ushort, byte, ushort)>, int, bool)>>("CustomizePlus.Profile.GetList");
-                var profileList = profileListIpc.InvokeFunc();
+                var profileList = CustomizeIpc.GetProfileList.InvokeFunc();
 
-                if (profileList == null) return null;
+                if (profileList.Count == 0) return null;
 
                 // Find the profile by GUID and return its name (Item2)
                 var activeProfile = profileList.FirstOrDefault(p => p.Item1 == activeProfileId);

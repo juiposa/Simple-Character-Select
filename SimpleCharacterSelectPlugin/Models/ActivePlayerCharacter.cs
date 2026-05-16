@@ -15,7 +15,7 @@ public class ActivePlayerCharacter
         Pc = playerCharacter;
     }
 
-    private bool RequiresUpdate()
+    public bool RequiresUpdate()
     {
         return queuedCharacter != null ||  queuedDesignIndex != -1;
     }
@@ -23,13 +23,23 @@ public class ActivePlayerCharacter
     public void QueueUpdate(Character character, int designIndex = -1)
     {
         queuedCharacter = character;
-        queuedDesignIndex = designIndex;
+        queuedDesignIndex = designIndex >= 0 ? designIndex : character.Data.DefaultDesignIndex;
     }
     
     //apply queued updates to PlayerCharacter and return it to be
     public PlayerCharacter ApplyUpdate()
     {
-        
+        if (queuedCharacter != null)
+        {
+            Pc.ActiveCharacter = queuedCharacter;
+            queuedCharacter = null;
+        }
+
+        if (queuedDesignIndex != -1)
+        {
+            Pc.ActiveDesign =  queuedDesignIndex;
+            queuedDesignIndex = -1;
+        }
+        return Pc;
     }
-    
 }

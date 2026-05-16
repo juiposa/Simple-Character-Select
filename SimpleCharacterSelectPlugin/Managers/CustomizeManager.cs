@@ -1,9 +1,23 @@
+using System;
+using SimpleCharacterSelectPlugin.IPC;
+
 namespace SimpleCharacterSelectPlugin.Managers;
 
-public class CustomizeManager
+public static class CustomizeManager
 {
-    public static bool ApplyCustomizeProfile()
+    private static void ApplyCustomizePlusProfile(string profileName)
     {
-        return true;
+        try
+        {
+            var local = Plugin.ObjectTable.LocalPlayer;
+            if (local == null) return;
+            
+            var result = CustomizeIpc.SetTempProfile?.InvokeFunc((ushort)local.ObjectIndex, profileName);
+            Plugin.Log.Debug($"[ApplyCustomizePlusProfile] Applied '{profileName}', error: {result?.Item1}, guid: {result?.Item2}");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning($"[ApplyCustomizePlusProfile] Failed: {ex.Message}");
+        }
     }
 }

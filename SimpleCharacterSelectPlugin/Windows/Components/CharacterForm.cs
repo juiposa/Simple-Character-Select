@@ -148,13 +148,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             float labelWidth = 130 * scale;
             float inputWidth = 250 * scale;
             float inputOffset = 10 * scale;
-            
+
+            CharacterDesign defaultDesign = currentCharacter.GetDefaultDesign();
             string tempName = currentCharacter.Data.Name;
-            string tempPenumbra = currentCharacter.Data.PenumbraCollection;
-            string tempGlamourer = currentCharacter.Data.GlamourerDesign;
+            string tempPenumbra = defaultDesign.PenumbraCollection;
+            string tempGlamourer = defaultDesign.GlamourerDesign;
             Vector3 tempColor = currentCharacter.Data.NameplateColor;
             string tempTag = currentCharacter.Data.Tag;
-            Honorific tempHonorific = currentCharacter.Data.Honorific;
+            Honorific tempHonorific = defaultDesign.Honorific;
 
             // Character Name
             DrawFormField("Character Name*", labelWidth, inputWidth, inputOffset, () =>
@@ -220,7 +221,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     plugin.WindowState.PenumbraFieldPos = ImGui.GetItemRectMin();
                     plugin.WindowState.PenumbraFieldSize = ImGui.GetItemRectSize();
 
-                    currentCharacter.Data.PenumbraCollection = tempPenumbra;
+                    defaultDesign.PenumbraCollection = tempPenumbra;
                 }
                 else
                 {
@@ -242,7 +243,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     plugin.WindowState.GlamourerFieldPos = ImGui.GetItemRectMin();
                     plugin.WindowState.GlamourerFieldSize = ImGui.GetItemRectSize();
 
-                    currentCharacter.Data.GlamourerDesign = tempGlamourer;
+                    defaultDesign.GlamourerDesign = tempGlamourer;
                 }
                 else
                 {
@@ -253,13 +254,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }, "Select the Glamourer design for this character. Right-click to clear.\nYou can add additional designs later.", scale);
 
             ImGui.Separator();
-
-            // Automation (if enabled)
-            if (plugin.Configuration.EnableAutomations)
-            {
-                DrawAutomationField(labelWidth, inputWidth, inputOffset, scale);
-                ImGui.Separator();
-            }
 
             // Customize+ Profile
             DrawCustomizeField(labelWidth, inputWidth, inputOffset, scale);
@@ -278,7 +272,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Separator();
 
             // Assigned Gearset (only if enabled)
-            if (plugin.Configuration.EnableGearsetAssignments)
+            if (plugin.Configuration.EnableGearsetCharacterSwitching)
             {
                 DrawGearsetField(labelWidth, inputWidth, inputOffset, scale);
                 ImGui.Separator();
@@ -321,25 +315,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Optional content after tooltip
             afterTooltip?.Invoke();
         }
-        
-        private void DrawAutomationField(float labelWidth, float inputWidth, float inputOffset, float scale)
-        {
-            string tempCharacterAutomation = currentCharacter.Data.CharacterAutomation;
-
-            DrawFormField("Glam. Automation", labelWidth, inputWidth, inputOffset, () =>
-            {
-                // Glamourer doesn't expose an IPC to get automation names, so use plain text input
-                ImGui.SetNextItemWidth(inputWidth);
-                if (ImGui.InputText("##Glam.Automation", ref tempCharacterAutomation, 100))
-                {
-                    currentCharacter.Data.CharacterAutomation = tempCharacterAutomation;
-                }
-            }, "Enter the name of a Glamourer Automation for this character.\nMust match the automation name EXACTLY as shown in Glamourer.\nDesign-level automations override this if both are set.", scale);
-        }
 
         private void DrawCustomizeField(float labelWidth, float inputWidth, float inputOffset, float scale)
         {
-            string tempCustomize = currentCharacter.Data.CustomizeProfile;
+            CharacterDesign dd = currentCharacter.GetDefaultDesign();
+            string tempCustomize = dd.CustomizeProfile; 
 
             DrawFormField("Customize+ Profile", labelWidth, inputWidth, inputOffset, () =>
             {
@@ -348,7 +328,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 if (AutocompleteCombo.Draw("##CustomizeProfile", ref tempCustomize, customizeOptions, inputWidth, "Select profile...", currentActive: currentCustomize))
                 {
-                    currentCharacter.Data.CustomizeProfile = tempCustomize;
+                    dd.CustomizeProfile = tempCustomize;
                 }
             }, "Select the Customize+ profile for this character. Right-click to clear.", scale);
         }
@@ -415,7 +395,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             if (changed)
             {
-                UpdateHonorificData(currentCharacter);
+                currentCharacter.SetDefaultDesign(UpdateHonorificData(currentCharacter.GetDefaultDesign()));
             }
         }
 
@@ -537,7 +517,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 if (AutocompleteCombo.Draw("##MoodlePreset", ref tempMoodlePreset, moodleOptions, inputWidth, "Select preset..."))
                 {
-                    currentCharacter.Data.MoodlePreset = tempMoodlePreset;
+                    var dd = currentCharacter.GetDefaultDesign();
+                    dd.MoodlePreset =  tempMoodlePreset;
+                    currentCharacter.SetDefaultDesign(dd);
                 }
             }, "Select the Moodle preset for this character. Right-click to clear.", scale);
         }
@@ -769,9 +751,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void DrawActionButtons(float scale)
         {
+            CharacterDesign defaultDesign = currentCharacter.GetDefaultDesign();
             string tempName = currentCharacter.Data.Name;
-            string tempPenumbra = currentCharacter.Data.PenumbraCollection;
-            string tempGlamourer = currentCharacter.Data.GlamourerDesign;
+            string tempPenumbra = defaultDesign.PenumbraCollection;
+            string tempGlamourer = defaultDesign.GlamourerDesign;
 
             bool canSaveCharacter = !string.IsNullOrWhiteSpace(tempName) &&
                                    !string.IsNullOrWhiteSpace(tempPenumbra) &&
@@ -785,7 +768,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             if (ImGui.Button(IsEditWindowOpen ? "Save Changes" : "Save Character", new Vector2(0, 30 * scale)))
             {
-                CharacterManager.SaveCharacter(selectedCharacterIndex, currentCharacter, plugin.Configuration, plugin.Logger);
+                CharacterManager.SaveCharacter(selectedCharacterIndex, currentCharacter, plugin.Configuration);
                 CloseForm();
             }
 
@@ -805,16 +788,17 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             uiStyles.PopDarkButtonStyle();
         }
 
-        private void UpdateHonorificData(Character character)
+        private CharacterDesign UpdateHonorificData(CharacterDesign design)
         {   
-            character.Data.Honorific.Title = tempHonorificTitle;
-            character.Data.Honorific.Prefix = tempHonorificPrefix;
-            character.Data.Honorific.Suffix = tempHonorificSuffix;
-            character.Data.Honorific.Color = tempHonorificColor;
-            character.Data.Honorific.Glow = tempHonorificGlow;
-            character.Data.Honorific.Color3 = tempHonorificGradientSet == -1 ? tempHonorificColor3 : null;;
-            character.Data.Honorific.GradientSet = tempHonorificGradientSet;
-            character.Data.Honorific.AnimationStyle = tempHonorificAnimationStyle;
+            design.Honorific.Title = tempHonorificTitle;
+            design.Honorific.Prefix = tempHonorificPrefix;
+            design.Honorific.Suffix = tempHonorificSuffix;
+            design.Honorific.Color = tempHonorificColor;
+            design.Honorific.Glow = tempHonorificGlow;
+            design.Honorific.Color3 = tempHonorificGradientSet == -1 ? tempHonorificColor3 : null;;
+            design.Honorific.GradientSet = tempHonorificGradientSet;
+            design.Honorific.AnimationStyle = tempHonorificAnimationStyle;
+            return design;
         }
 
         /// <summary>
@@ -1116,26 +1100,26 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             var character = plugin.Characters[index];
             currentCharacter = character;
             
-            OpenCharacterWindow(character);
+            OpenCharacterWindow(character.GetDefaultDesign());
             
             IsEditWindowOpen = true;
         }
 
-        public void OpenCharacterWindow(Character character)
+        public void OpenCharacterWindow(CharacterDesign design)
         {
             string pluginDirectory = plugin.PluginDirectory;
             string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
             
             // Copy to temp fields
-            tempHonorificTitle = character.Data.Honorific.Title;
-            tempHonorificPrefix = character.Data.Honorific.Prefix;
-            tempHonorificSuffix = character.Data.Honorific.Suffix;
-            tempHonorificColor = character.Data.Honorific.Color;
-            tempHonorificGlow = character.Data.Honorific.Glow;
-            tempHonorificColor3 = character.Data.Honorific.Color3 ?? new Vector3(0.5f, 0.5f, 1.0f);
-            tempHonorificGradientSet = character.Data.Honorific.GradientSet;
-            tempHonorificAnimationStyle = character.Data.Honorific.AnimationStyle;
-            tempMoodlePreset = character.Data.MoodlePreset;
+            tempHonorificTitle = design.Honorific.Title;
+            tempHonorificPrefix = design.Honorific.Prefix;
+            tempHonorificSuffix = design.Honorific.Suffix;
+            tempHonorificColor = design.Honorific.Color;
+            tempHonorificGlow = design.Honorific.Glow;
+            tempHonorificColor3 = design.Honorific.Color3 ?? new Vector3(0.5f, 0.5f, 1.0f);
+            tempHonorificGradientSet = design.Honorific.GradientSet;
+            tempHonorificAnimationStyle = design.Honorific.AnimationStyle;
+            tempMoodlePreset = design.MoodlePreset;
         }
     }
 }

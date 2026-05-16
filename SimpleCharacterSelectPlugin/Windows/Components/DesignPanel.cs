@@ -52,21 +52,16 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         
         // Design editing state
         private bool isEditDesignWindowOpen = false;
-        private bool isAdvancedModeDesign = false;
-        private bool isAdvancedModeWindowOpen = false;
         private bool isNewDesign = false;
-        private bool isSecretDesignMode = false;
 
         // Edit fields
         private string editedDesignName = "";
-        private string editedDesignMacro = "";
+        private string editedPenumbraCollection = "";
         private string editedGlamourerDesign = "";
         private string editedAutomation = "";
         private string editedCustomizeProfile = "";
         private int? editedGearset = null;
         private string editedDesignPreviewPath = "";
-        private string advancedDesignMacroText = "";
-        private string originalAdvancedMacroText = "";
         private string originalDesignName = "";
         private string? pendingDesignImagePath = null;
         private string? pendingPastedImagePath = null;
@@ -134,9 +129,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             DrawDesignPanelContent(totalScale, scaledPanelWidth);
             DrawResizeHandle(totalScale, scaledPanelWidth, scaledMinWidth, scaledMaxWidth, scaledHandleWidth);
-
-            DrawImportWindow(totalScale);
-            //DrawSnapshotDialog(totalScale);
         }
 
         private void DrawResizeHandle(float totalScale, float scaledPanelWidth, float scaledMinWidth, float scaledMaxWidth, float scaledHandleWidth)
@@ -332,9 +324,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 bool shiftHeld = io.KeyShift;
                 
                 AddNewDesign();
-                editedDesignMacro = GenerateDesignMacro(character);
-                if (isAdvancedModeDesign)
-                    advancedDesignMacroText = editedDesignMacro;
             }
 
             plugin.WindowState.DesignPanelAddButtonPos = ImGui.GetItemRectMin();
@@ -572,14 +561,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             DrawGlamourerField(character, inputWidth, scale);
 
-            if (plugin.Configuration.EnableAutomations)
-            {
-                DrawAutomationField(inputWidth, scale);
-            }
+            // if (plugin.Configuration.EnableAutomations) //TODO automations
+            // {
+            //     DrawAutomationField(inputWidth, scale);
+            // }
 
             DrawCustomizeField(inputWidth, scale);
 
-            if (plugin.Configuration.EnableGearsetAssignments)
+            if (plugin.Configuration.EnableGearsetCharacterSwitching)
             {
                 DrawGearsetField(inputWidth, scale);
             }
@@ -618,7 +607,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             if (AutocompleteCombo.Draw("##GlamourerDesign", ref editedGlamourerDesign, glamourerOptions, inputWidth, "Select design..."))
             {
                 plugin.WindowState.EditedGlamourerDesign = editedGlamourerDesign;
-                editedDesignMacro = GenerateDesignMacro(character);
             }
             plugin.WindowState.DesignGlamourerFieldPos = ImGui.GetItemRectMin();
             plugin.WindowState.DesignGlamourerFieldSize = ImGui.GetItemRectSize();
@@ -672,7 +660,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             if (AutocompleteCombo.Draw("##CustomizePlus", ref editedCustomizeProfile, customizeOptions, inputWidth, "Select profile...", currentActive: currentCustomize))
             {
-                editedDesignMacro = GenerateDesignMacro(plugin.Characters[activeCharacterIndex]);
             }
         }
 
@@ -697,22 +684,22 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetCursorPosX(10 * scale);
             ImGui.SetNextItemWidth(inputWidth);
 
-            // Get available gearsets
-            //var gearsets = plugin.GetPlayerGearsets();
+            // Get available gearsets TODO
+            var gearsets = GearsetManager.GetPlayerGearsets();
 
             // Build display text for current selection
             string currentDisplay = "None (use character setting)";
             if (editedGearset.HasValue)
             {
-                //var matchingGearset = gearsets.FirstOrDefault(g => g.Number == editedGearset.Value);
-                // if (matchingGearset.Number > 0)
-                // {
-                //     //currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
-                // }
-                // else
-                // {
-                //     currentDisplay = $"Gearset {editedGearset.Value}";
-                // }
+                // var matchingGearset = gearsets.FirstOrDefault(g => g.Number == editedGearset.Value);
+                //  if (matchingGearset.Number > 0)
+                //  {
+                //      //currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
+                //  }
+                //  else
+                //  {
+                //      currentDisplay = $"Gearset {editedGearset.Value}";
+                //  }
             }
 
             if (ImGui.BeginCombo("##AssignedGearset", currentDisplay))
@@ -1332,7 +1319,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 name = TruncateWithEllipsis(name, availW);
 
             // Design name
-            bool isActive = IsDesignCurrentlyActive(character, design);
+            bool isActive = true; //TODO
             var textColor = isActive ? new Vector4(0.2f, 0.9f, 0.2f, 1f) : new Vector4(0.9f, 0.9f, 0.9f, 1f); // Green for active, light gray for inactive
             ImGui.PushStyleColor(ImGuiCol.Text, textColor);
             ImGui.TextUnformatted(name);
@@ -1364,7 +1351,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             if (ImGui.Button("\uf00c", new Vector2(btnSize, btnSize)))
             {
                 // Switch gearset if assigned (design overrides character)
-                if (plugin.Configuration.EnableGearsetAssignments)
+                if (plugin.Configuration.EnableGearsetCharacterSwitching)
                 {
                     var effectiveGearset = design.AssignedGearset ?? character.Data.AssignedGearset;
                     if (effectiveGearset.HasValue)
@@ -1372,37 +1359,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         //plugin.SwitchToGearset(effectiveGearset.Value);
                     }
                 }
-
-                // Check if this is a Secret Mode (Conflict Resolution) design
-                if (design.SecretModState != null && design.SecretModState.Any())
-                {
-                    // Ensure the correct Penumbra collection is assigned before CR modifies it
-                    if (!string.IsNullOrWhiteSpace(character.Data.PenumbraCollection))
-                    {
-                        plugin.EnsurePenumbraCollectionAssignment(character.Data.PenumbraCollection);
-                    }
-                }
-                else
-                {
-                    // Regular design - just execute the macro
-                    GameCommandManager.ExecuteMacro(design.Macro, character, design.Name);
-                    // Track last used design and character for auto-reapplication and UI feedback
-                    plugin.Configuration.LastUsedDesignByCharacter[character.Data.Name] = design.Name;
-                    plugin.Configuration.LastUsedDesignCharacterKey = character.Data.Name;
-                    plugin.Configuration.LastUsedCharacterKey = character.Data.Name;
-                    
-                    // Update player-specific character tracking for green highlighting
-                    if (Plugin.ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
-                    {
-                        string localName = player.Name.TextValue;
-                        string worldName = player.HomeWorld.Value.Name.ToString();
-                        string fullKey = $"{localName}@{worldName}";
-                        string pluginCharacterKey = $"{character.Data.Name}@{worldName}";
-                        plugin.Configuration.LastUsedCharacterByPlayer[fullKey] = pluginCharacterKey;
-                    }
-                    
-                    plugin.Configuration.Save();
-                }
+                
+                
+                plugin.Configuration.Save();
+                
             }
             ImGui.PopStyleColor();
             ImGui.PopFont();
@@ -1500,86 +1460,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.SaveConfiguration();
                 draggedFolder = null;
             }
-        }
-
-        private void DrawImportWindow(float scale)
-        {
-            if (!isImportWindowOpen || targetForDesignImport == null)
-                return;
-
-            var windowSize = new Vector2(400 * scale, 450 * scale);
-            ImGui.SetNextWindowSize(windowSize, ImGuiCond.FirstUseEver);
-
-            if (ImGui.Begin("Import Designs", ref isImportWindowOpen, ImGuiWindowFlags.NoCollapse))
-            {
-                ApplyScaledStyles(scale);
-
-                ImGui.Text($"Import designs to: {targetForDesignImport.Data.Name}");
-                ImGui.Separator();
-
-                ImGui.BeginChild("ImportScrollArea", new Vector2(0, -40 * scale), false);
-
-                var charactersWithDesigns = plugin.Characters
-                    .Where(c => c != targetForDesignImport && c.Data.Designs.Count > 0)
-                    .OrderBy(c => c.Data.Name)
-                    .ToList();
-
-                foreach (var character in charactersWithDesigns)
-                {
-                    if (ImGui.CollapsingHeader($"{character.Data.Name} ({character.Data.Designs.Count} designs)"))
-                    {
-                        float indentAmount = 15f * scale;
-                        ImGui.Indent(indentAmount);
-
-                        foreach (var design in character.Data.Designs)
-                        {
-                            float buttonSize = 18f * scale;
-
-                            // Green plus symbol — use design GUID for unique ID (names can collide)
-                            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.2f, 0.8f, 0.2f, 1.0f));
-                            ImGui.PushFont(UiBuilder.IconFont);
-
-                            if (ImGui.Selectable($"\uf067##import_{design.Id}", false, ImGuiSelectableFlags.None, new Vector2(buttonSize, buttonSize)))
-                            {
-                                // Clone the entire design using JSON serialization (exact copy like copy-paste in config)
-                                var json = JsonConvert.SerializeObject(design);
-                                var clone = JsonConvert.DeserializeObject<CharacterDesign>(json);
-                                clone.Name = design.Name + " (Copy)";
-                                clone.Id = Guid.NewGuid();
-                                clone.DateAdded = DateTime.UtcNow;
-                                clone.FolderId = null; // reset so it appears at root level
-
-                                targetForDesignImport.Data.Designs.Add(clone);
-                                plugin.SaveConfiguration();
-                            }
-
-                            ImGui.PopFont();
-                            ImGui.PopStyleColor();
-
-                            if (ImGui.IsItemHovered())
-                            {
-                                ImGui.SetTooltip($"Import '{design.Name}'");
-                            }
-
-                            ImGui.SameLine();
-                            ImGui.Text(design.Name);
-                        }
-
-                        ImGui.Unindent(indentAmount);
-                    }
-                }
-
-                ImGui.EndChild();
-
-                ImGui.Separator();
-                if (ImGui.Button("Close"))
-                {
-                    isImportWindowOpen = false;
-                }
-
-                PopScaledStyles();
-            }
-            ImGui.End();
         }
         
         // Utility methods
@@ -1696,8 +1576,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             plugin.WindowState.IsEditDesignWindowOpen = true;
             editedDesignName = "";
             editedGlamourerDesign = "";
-            editedDesignMacro = "";
-            isAdvancedModeDesign = false;
             editedAutomation = "";
             editedCustomizeProfile = "";
             editedGearset = null;
@@ -1713,44 +1591,21 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             plugin.WindowState.IsEditDesignWindowOpen = true;
             originalDesignName = design.Name;
             editedDesignName = design.Name;
-            editedDesignMacro = design.IsAdvancedMode ? design.AdvancedMacro ?? "" : design.Macro ?? "";
             editedGlamourerDesign = !string.IsNullOrWhiteSpace(design.GlamourerDesign)
                 ? design.GlamourerDesign
-                : ExtractGlamourerDesignFromMacro(design.Macro ?? "");
+                : "";
 
-            editedAutomation = design.Automation ?? "";
-            editedCustomizeProfile = design.CustomizePlusProfile ?? "";
+            editedAutomation = design.GlamourerDesign ?? "";
+            editedCustomizeProfile = design.CustomizeProfile ?? "";
             editedGearset = design.AssignedGearset;
             editedDesignPreviewPath = design.PreviewImagePath ?? "";
-            isAdvancedModeDesign = design.IsAdvancedMode;
-            isAdvancedModeWindowOpen = design.IsAdvancedMode;
-            advancedDesignMacroText = design.AdvancedMacro ?? "";
-            
-            // Check if this is a Secret Mode (Conflict Resolution) design
-            if ((design.SecretModState != null && design.SecretModState.Any()) ||
-                (design.ModOptionSettings != null && design.ModOptionSettings.Any()) ||
-                (design.SecretModPinOverrides != null && design.SecretModPinOverrides.Any()))
-            {
-                isSecretDesignMode = true;
-                // Load the existing mod state into temporary storage for editing
-                if (design.SecretModState != null)
-                {
-                    temporaryDesignSecretModState = new Dictionary<string, bool>(design.SecretModState);
-                }
-                if (design.SecretModPinOverrides != null)
-                {
-                    temporaryDesignSecretModPinOverrides = new HashSet<string>(design.SecretModPinOverrides);
-                }
-            }
         }
 
         private void CloseDesignEditor()
         {
             isEditDesignWindowOpen = false;
             plugin.WindowState.IsEditDesignWindowOpen = false;
-            isAdvancedModeWindowOpen = false;
             isNewDesign = false;
-            isSecretDesignMode = false;
             
             ResetEditFields();
         }
@@ -1758,12 +1613,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private void ResetEditFields()
         {
             editedDesignName = "";
-            editedDesignMacro = "";
             editedGlamourerDesign = "";
             editedAutomation = "";
             editedCustomizeProfile = "";
             editedDesignPreviewPath = "";
-            advancedDesignMacroText = "";
             originalDesignName = "";
             temporaryDesignSecretModState = null;
             temporaryDesignSecretModPinOverrides = null;
@@ -1782,73 +1635,27 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 // Update existing design
                 existingDesign.Name = editedDesignName;
-                bool wasPreviouslyAdvanced = existingDesign.IsAdvancedMode;
-                bool keepAdvanced = wasPreviouslyAdvanced && !isAdvancedModeDesign;
-
-                // For advanced mode with empty macro, generate from form fields
-                string advancedMacroToUse = advancedDesignMacroText;
-                if ((isAdvancedModeDesign || keepAdvanced) && string.IsNullOrWhiteSpace(advancedMacroToUse))
-                {
-                    advancedMacroToUse = GenerateDesignMacro(character);
-                }
-
-                existingDesign.Macro = keepAdvanced
-                    ? advancedMacroToUse
-                    : (isAdvancedModeDesign ? advancedMacroToUse : GenerateDesignMacro(character));
-
-                existingDesign.AdvancedMacro = isAdvancedModeDesign || keepAdvanced
-                    ? advancedMacroToUse
-                    : "";
-
-                existingDesign.IsAdvancedMode = isAdvancedModeDesign || keepAdvanced;
-                existingDesign.Automation = editedAutomation;
+                existingDesign.PenumbraCollection = editedPenumbraCollection;
+                existingDesign.GlamourerAutomation = editedAutomation;
                 existingDesign.GlamourerDesign = editedGlamourerDesign;
-                existingDesign.CustomizePlusProfile = editedCustomizeProfile;
+                existingDesign.CustomizeProfile = editedCustomizeProfile;
                 existingDesign.AssignedGearset = editedGearset;
                 existingDesign.PreviewImagePath = editedDesignPreviewPath;
-
-                // Apply any Secret Mode state that was configured during editing
-                if (temporaryDesignSecretModState != null)
-                {
-                    existingDesign.SecretModState = temporaryDesignSecretModState;
-                }
-                if (temporaryDesignSecretModPinOverrides != null)
-                {
-                    existingDesign.SecretModPinOverrides = temporaryDesignSecretModPinOverrides;
-                }
             }
             else
             {
-                // Add new design - generate macro from fields if advanced mode has empty macro
-                string macroForNewDesign = isAdvancedModeDesign
-                    ? (string.IsNullOrWhiteSpace(advancedDesignMacroText) ? GenerateDesignMacro(character) : advancedDesignMacroText)
-                    : GenerateDesignMacro(character);
-
-                var newDesign = new CharacterDesign(
-                    editedDesignName,
-                    macroForNewDesign,
-                    isAdvancedModeDesign,
-                    isAdvancedModeDesign ? macroForNewDesign : "",
-                    editedGlamourerDesign,
-                    editedAutomation,
-                    editedCustomizeProfile,
-                    editedDesignPreviewPath
-                )
+                var newDesign = new CharacterDesign
                 {
+                    Name = editedDesignName,
+                    PenumbraCollection = editedPenumbraCollection,
+                    GlamourerDesign = editedGlamourerDesign,
+                    GlamourerAutomation = editedAutomation,
+                    CustomizeProfile = editedCustomizeProfile,
+                    PreviewImagePath = editedDesignPreviewPath,
+                    IsFavorite = false,
                     DateAdded = DateTime.UtcNow,
                     AssignedGearset = editedGearset
                 };
-
-                // Apply any Secret Mode state that was configured during editing
-                if (temporaryDesignSecretModState != null)
-                {
-                    newDesign.SecretModState = temporaryDesignSecretModState;
-                }
-                if (temporaryDesignSecretModPinOverrides != null)
-                {
-                    newDesign.SecretModPinOverrides = temporaryDesignSecretModPinOverrides;
-                }
-
                 character.Data.Designs.Add(newDesign);
             }
 
@@ -2000,58 +1807,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             return renderItems;
         }
 
-        private string GenerateDesignMacro(Character character)
-        {
-            if (string.IsNullOrWhiteSpace(editedGlamourerDesign))
-                return "";
-
-            string macro = $"/glamour apply {editedGlamourerDesign} | self";
-
-            // Conditionally include automation line
-            if (plugin.Configuration.EnableAutomations)
-            {
-                string automationToUse = !string.IsNullOrWhiteSpace(editedAutomation)
-                    ? editedAutomation
-                    : (!string.IsNullOrWhiteSpace(character.Data.CharacterAutomation)
-                        ? character.Data.CharacterAutomation
-                        : "None");
-
-                macro += $"\n/glamour automation enable {automationToUse}";
-            }
-
-            // Always disable Customize+ first
-            macro += "\n/customize profile disable <me>";
-
-            // Determine Customize+ profile
-            string customizeProfileToUse = !string.IsNullOrWhiteSpace(editedCustomizeProfile)
-                ? editedCustomizeProfile
-                : !string.IsNullOrWhiteSpace(character.Data.CustomizeProfile)
-                    ? character.Data.CustomizeProfile
-                    : string.Empty;
-
-            // Enable only if needed
-            if (!string.IsNullOrWhiteSpace(customizeProfileToUse))
-                macro += $"\n/customize profile enable <me>, {customizeProfileToUse}";
-
-            // Redraw line
-            macro += "\n/penumbra redraw self";
-
-            return macro;
-        }
-
-        private string ExtractGlamourerDesignFromMacro(string macro)
-        {
-            string[] lines = macro.Split('\n');
-            foreach (var line in lines)
-            {
-                if (line.StartsWith("/glamour apply ", StringComparison.OrdinalIgnoreCase))
-                {
-                    return line.Replace("/glamour apply ", "").Replace(" | self", "").Trim();
-                }
-            }
-            return "";
-        }
-
         private static string TruncateWithEllipsis(string text, float maxWidth)
         {
             while (ImGui.CalcTextSize(text + "...").X > maxWidth && text.Length > 0)
@@ -2077,9 +1832,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 return true;
                 
             // Search in automation
-            if (!string.IsNullOrWhiteSpace(design.Automation) && 
-                design.Automation.ToLowerInvariant().Contains(query))
-                return true;
+            // if (!string.IsNullOrWhiteSpace(design.Automation) && 
+            //     design.Automation.ToLowerInvariant().Contains(query))
+            //     return true;
                 
             // Search in tags
             if (design.Tag?.ToLowerInvariant().Contains(query) == true)
@@ -2110,132 +1865,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
                 
             return false;
-        }
-
-        private void CheckClipboardForImage()
-        {
-            try
-            {
-                // Clipboard operations need to be on STA thread
-                var thread = new Thread(() =>
-                {
-                    try
-                    {
-                        // Check if clipboard contains image data
-                        snapshotHasClipboardImage = System.Windows.Forms.Clipboard.ContainsImage();
-                    }
-                    catch (Exception ex)
-                    {
-                        Plugin.Log.Warning($"Failed to check clipboard for image: {ex.Message}");
-                        snapshotHasClipboardImage = false;
-                    }
-                });
-                thread.SetApartmentState(ApartmentState.STA);
-                thread.Start();
-                thread.Join();
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Warning($"Failed to check clipboard for image: {ex.Message}");
-                snapshotHasClipboardImage = false;
-            }
-        }
-
-        private async Task<string> SaveClipboardImageForDesign(Guid designId)
-        {
-            try
-            {
-                string imagePath = "";
-                
-                // Clipboard operations need to be on STA thread
-                var thread = new Thread(() =>
-                {
-                    try
-                    {
-                        if (!System.Windows.Forms.Clipboard.ContainsImage())
-                            return;
-
-                        var image = System.Windows.Forms.Clipboard.GetImage();
-                        if (image == null)
-                            return;
-
-                        // Create designs directory if it doesn't exist
-                        var designsDir = Path.Combine(Plugin.PluginInterface.ConfigDirectory.FullName, "Designs");
-                        Directory.CreateDirectory(designsDir);
-
-                        // Save image with design ID as filename
-                        imagePath = Path.Combine(designsDir, $"{designId}.png");
-                        
-                        using (var bitmap = new System.Drawing.Bitmap(image))
-                        {
-                            bitmap.Save(imagePath, ImageFormat.Png);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Plugin.Log.Error($"Failed to save clipboard image: {ex}");
-                        imagePath = "";
-                    }
-                });
-                
-                thread.SetApartmentState(ApartmentState.STA);
-                thread.Start();
-                thread.Join();
-
-                return imagePath;
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Failed to save clipboard image: {ex}");
-                return string.Empty;
-            }
-        }
-
-        private bool IsDesignCurrentlyActive(Character character, CharacterDesign design)
-        {
-            // Only show active design for the currently active SCS character
-            var currentActiveCharacter = GetCurrentActiveCharacter();
-            if (currentActiveCharacter == null || currentActiveCharacter.Data.Name != character.Data.Name)
-                return false;
-
-            if (plugin?.Configuration?.LastUsedDesignByCharacter == null)
-                return false;
-
-            if (!plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Data.Name, out var lastUsedDesignName))
-                return false;
-
-            return design.Name.Equals(lastUsedDesignName, StringComparison.OrdinalIgnoreCase);
-        }
-        
-        
-        // TODO this may be redundant
-        private Character? GetCurrentActiveCharacter()
-        {
-            // Use the same logic as the plugin uses to determine current character
-            Character? currentCharacter = null;
-
-            // Try player-specific mapping first
-            if (Plugin.ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
-            {
-                string localName = player.Name.TextValue;
-                string worldName = player.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-                
-                if (plugin.Configuration.LastUsedCharacterByPlayer.TryGetValue(fullKey, out var lastUsedCharacterName))
-                {
-                    // lastUsedCharacterName is in format "CharacterName@WorldName", extract just the character name
-                    var characterName = lastUsedCharacterName.Contains("@") ? lastUsedCharacterName.Split('@')[0] : lastUsedCharacterName;
-                    currentCharacter = plugin.Characters.FirstOrDefault(c => c.Data.Name.Equals(characterName, StringComparison.OrdinalIgnoreCase));
-                }
-            }
-
-            // Fallback to global last used
-            if (currentCharacter == null && !string.IsNullOrEmpty(plugin.Configuration.LastUsedCharacterKey))
-            {
-                currentCharacter = plugin.Characters.FirstOrDefault(c => c.Data.Name.Equals(plugin.Configuration.LastUsedCharacterKey, StringComparison.OrdinalIgnoreCase));
-            }
-
-            return currentCharacter;
         }
     }
 }

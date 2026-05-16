@@ -704,7 +704,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 if (realIndex >= 0)
                 {
                     // Always open edit window (either with converted or original macro)
-                    plugin.OpenEditCharacterWindow(realIndex);
+                    plugin.MainWindow.OpenEditCharacterWindow(realIndex);
                 }
             }
             if (useIcons)
@@ -1093,22 +1093,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 plugin.WindowState.IsDesignPanelOpen = false;
             }
-
-            // Switch Penumbra collection if specified
-            if (!string.IsNullOrEmpty(character.Data.PenumbraCollection))
-            {
-                plugin.SwitchPenumbraCollection(character.Data.PenumbraCollection);
-            }
-
-            GameCommandManager.ExecuteMacro(character.Data.Macros, character, null);
-
+            
             // Switch gearset if assigned at character level
-            if (plugin.Configuration.EnableGearsetAssignments && character.Data.AssignedGearset.HasValue)
+            if (plugin.Configuration.EnableGearsetCharacterSwitching && character.Data.AssignedGearset.HasValue)
             {
                 //plugin.SwitchToGearset(character.Data.AssignedGearset.Value); TODO
             }
-
-            plugin.SetActiveCharacter(character);
+            
+            DesignManager.ApplyProfile(plugin.ActivePlayer.Pc, character, -1);
             
             plugin.QuickSwitchWindow.UpdateSelectionFromCharacter(character);
         }

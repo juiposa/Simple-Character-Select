@@ -30,7 +30,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private bool mainCharacterSettingsOpen = false;
         private bool dialogueSettingsOpen = false;
         private bool characterAssignmentSettingsOpen = false;
-        private bool jobAssignmentSettingsOpen = false;
+        private bool gearsetAssignmentSettingsOpen = false;
         private bool conflictResolutionSettingsOpen = false;
         private bool backupSettingsOpen = false;
         private string? pendingExpandSection = null; // Section to force-expand on next draw
@@ -177,62 +177,60 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Scrollable content area for all settings
             if (ImGui.BeginChild("AllSettings", new Vector2(0, 0), false))
             {
-                // Rainbow colour order: Red -> Orange -> Yellow -> Lime -> Green -> Cyan -> Blue -> Indigo -> Purple -> Pink
-
-                // Visual Settings Section (Red)
-                visualSettingsOpen = DrawModernCollapsingHeader("Visual Settings", new Vector4(1.0f, 0.35f, 0.35f, 1.0f), visualSettingsOpen, FeatureKeys.CustomTheme);
+                // Visual Settings Section
+                visualSettingsOpen = DrawModernCollapsingHeader("Visual Settings", new Vector4(1.0f, 0.35f, 0.35f, 1.0f), visualSettingsOpen);
                 if (visualSettingsOpen)
                 {
                     DrawVisualSettings(labelWidth, inputWidth);
                 }
 
-                // Glamourer Automations Section (Orange)
-                automationSettingsOpen = DrawModernCollapsingHeader("Glamourer Automations", new Vector4(1.0f, 0.6f, 0.2f, 1.0f), automationSettingsOpen);
-                if (automationSettingsOpen)
-                {
-                    DrawAutomationSettings();
-                }
+                // Glamourer Automations Section TODO readd if needed
+                // automationSettingsOpen = DrawModernCollapsingHeader("Glamourer Automations", new Vector4(1.0f, 0.6f, 0.2f, 1.0f), automationSettingsOpen);
+                // if (automationSettingsOpen)
+                // {
+                //     DrawAutomationSettings();
+                // }
 
-                // Behavior Settings Section (Yellow)
+                // Behavior Settings Section
                 behaviorSettingsOpen = DrawModernCollapsingHeader("Behavior Settings", new Vector4(1.0f, 0.9f, 0.3f, 1.0f), behaviorSettingsOpen);
                 if (behaviorSettingsOpen)
                 {
                     DrawBehaviorSettings();
                 }
 
-                // Random Groups Section (Yellow-Green)
+                // Random Groups Section
                 randomGroupsSettingsOpen = DrawModernCollapsingHeader("Random Groups", new Vector4(0.85f, 0.95f, 0.3f, 1.0f), randomGroupsSettingsOpen);
                 if (randomGroupsSettingsOpen)
                 {
                     DrawRandomGroupsSettings();
                 }
 
-                // Honorific Section (Lime)
-                honorificSettingsOpen = DrawModernCollapsingHeader("Honorific", new Vector4(0.7f, 1.0f, 0.3f, 1.0f), honorificSettingsOpen, FeatureKeys.Honorific);
+                // Honorific Section
+                honorificSettingsOpen = DrawModernCollapsingHeader("Honorific", new Vector4(0.7f, 1.0f, 0.3f, 1.0f), honorificSettingsOpen);
                 if (honorificSettingsOpen)
                 {
                     DrawHonorificSettings();
                 }
 
-                // Main Character Section (Green)
+                // Main Character Section
                 mainCharacterSettingsOpen = DrawModernCollapsingHeader("Main Character", new Vector4(0.3f, 0.9f, 0.4f, 1.0f), mainCharacterSettingsOpen);
                 if (mainCharacterSettingsOpen)
                 {
                     DrawMainCharacterSettings(labelWidth, inputWidth);
                 }
 
-                // Character Assignments (Cyan)
+                // Character Assignments
                 characterAssignmentSettingsOpen = DrawModernCollapsingHeader("Character Assignments", new Vector4(0.3f, 0.9f, 0.9f, 1.0f), characterAssignmentSettingsOpen);
                 if (characterAssignmentSettingsOpen)
                 {
                     DrawCharacterAssignmentSettings();
                 }
 
-                // Job Assignments (Teal)
-                jobAssignmentSettingsOpen = DrawModernCollapsingHeader("Job Assignments", new Vector4(0.2f, 0.8f, 0.85f, 1.0f), jobAssignmentSettingsOpen, FeatureKeys.JobAssignments);
-                if (jobAssignmentSettingsOpen)
+                // Gearset Assignments
+                gearsetAssignmentSettingsOpen = DrawModernCollapsingHeader("Gearset Assignments", new Vector4(0.2f, 0.8f, 0.85f, 1.0f), gearsetAssignmentSettingsOpen);
+                if (gearsetAssignmentSettingsOpen)
                 {
-                    //DrawJobAssignmentSettings();
+                    DrawGearsetAssignmentSettings();
                 }
 
                 // Immersive Dialogue (Blue)
@@ -408,33 +406,25 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void DrawAutomationSettings()
         {
-            // Warning
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.7f, 0.3f, 1f));
-            ImGui.TextWrapped("Warning: Requires 'None' automation in Glamourer");
-            ImGui.PopStyleColor();
-            ImGui.Spacing();
-
-            bool automationToggle = plugin.Configuration.EnableAutomations;
-            if (ImGui.Checkbox("Enable Automations", ref automationToggle))
-            {
-                plugin.Configuration.EnableAutomations = automationToggle;
-                UpdateAutomationSettings(automationToggle);
-            }
-            DrawTooltip("Enable support for Glamourer Automations in Characters & Designs.\n\nWhen enabled, you'll be able to assign an Automation to each character & design.\nCharacters & Designs without automations will require a fallback Automation in Glamourer named: \"None\"\nYou also must enter your player character name in Glamourer next to \"Any World\" and Set to character.Data.");
-
-            ImGui.Spacing();
+            // // Warning
+            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.7f, 0.3f, 1f));
+            // ImGui.TextWrapped("Warning: Requires 'None' automation in Glamourer");
+            // ImGui.PopStyleColor();
+            // ImGui.Spacing();
+            //
+            // bool automationToggle = plugin.Configuration.EnableAutomations;
+            // if (ImGui.Checkbox("Enable Automations", ref automationToggle))
+            // {
+            //     plugin.Configuration.EnableAutomations = automationToggle;
+            //     UpdateAutomationSettings(automationToggle);
+            // }
+            // DrawTooltip("Enable support for Glamourer Automations in Characters & Designs.\n\nWhen enabled, you'll be able to assign an Automation to each character & design.\nCharacters & Designs without automations will require a fallback Automation in Glamourer named: \"None\"\nYou also must enter your player character name in Glamourer next to \"Any World\" and Set to character.Data.");
+            //
+            // ImGui.Spacing();
         }
 
         private void DrawBehaviorSettings()
         {
-            bool rememberMainWindow = plugin.Configuration.RememberMainWindowState;
-            if (ImGui.Checkbox("Remember Main Window state on startup", ref rememberMainWindow))
-            {
-                plugin.Configuration.RememberMainWindowState = rememberMainWindow;
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("When enabled, the Main Window will automatically open on startup if it was open when you last closed the game or disabled the plugin.");
-
             bool enableCompactQuickSwitch = plugin.Configuration.QuickSwitchCompact;
             if (ImGui.Checkbox("Compact Quick Switch Bar", ref enableCompactQuickSwitch))
             {
@@ -452,26 +442,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             DrawTooltip("When enabled, pressing Escape won't close the Quick Switch window.\nThis also prevents Quick Switch from stealing focus when opened.");
 
             bool enableAutoload = plugin.Configuration.EnableLastUsedCharacterAutoload;
-            if (ImGui.Checkbox("Auto-Apply Last Used Character on Login", ref enableAutoload))
+            if (ImGui.Checkbox("Auto-Apply Last Used Design on Login", ref enableAutoload))
             {
                 plugin.Configuration.EnableLastUsedCharacterAutoload = enableAutoload;
                 plugin.Configuration.Save();
             }
-            DrawTooltip("Automatically applies the last character you used when logging into the game.");
-
-            // Design auto-reapplication setting - only show if character auto-reapplication is enabled
-            if (enableAutoload)
-            {
-                ImGui.Indent(20f);
-                bool enableDesignAutoload = plugin.Configuration.EnableLastUsedDesignAutoload;
-                if (ImGui.Checkbox("Also Apply Last Used Design", ref enableDesignAutoload))
-                {
-                    plugin.Configuration.EnableLastUsedDesignAutoload = enableDesignAutoload;
-                    plugin.Configuration.Save();
-                }
-                DrawTooltip("When enabled, also automatically applies the last design you used for that character when logging in.\nRequires 'Auto-Apply Last Used Character on Login' to be enabled.");
-                ImGui.Unindent(20f);
-            }
+            DrawTooltip("Automatically applies the last character and design you used when logging into the game.");
 
             bool applyIdle = plugin.Configuration.ApplyIdleOnLogin;
             if (ImGui.Checkbox("Apply idle pose on login", ref applyIdle))
@@ -496,15 +472,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.Configuration.Save();
             }
             DrawTooltip("When enabled, random selection will only choose from favourited characters and designs.\nRequires at least one favourited character to work.");
-
-            // File Browser preference
-            bool useImGuiFilePicker = plugin.Configuration.UseImGuiFilePicker;
-            if (ImGui.Checkbox("Use In-Game File Browser", ref useImGuiFilePicker))
-            {
-                plugin.Configuration.UseImGuiFilePicker = useImGuiFilePicker;
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("Use an in-game file browser instead of the Windows file dialog.\nRecommended for Linux/Wine users or if you prefer not to leave the game window.");
             
             ImGui.Spacing();
         }
@@ -795,9 +762,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     plugin.Configuration.EnableAdvancedTitleReplacement = true;
                     //plugin.Configuration.EnableSmartGrammarInDialogue = true; TODO
                     plugin.Configuration.ShowDialogueReplacementPreview = false; // Keep off by default
-
-                    // Initialize the processor on-demand (deferred from startup for performance)
-                    plugin.EnsureDialogueProcessorInitialized();
                 }
 
                 plugin.Configuration.Save();
@@ -887,7 +851,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.Spacing();
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f));
                 var characterName = plugin.Characters.FirstOrDefault()?.Data.Name ?? "Warrior of Light";
-                ImGui.Text($"Preview: \"Sir {characterName}\" -> \"{plugin.Configuration.GetGenderNeutralFormalTitle()} {characterName}\"");
+                ImGui.Text($"Preview: \"Sir {characterName}\" -> \"{GenderManager.GetGenderNeutralTitle()} {characterName}\"");
                 ImGui.PopStyleColor();
 
                 ImGui.Unindent();
@@ -1091,7 +1055,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SetNextItemWidth(300f);
                 if (ImGui.InputTextWithHint("##RealCharManual", "First Last@WorldName", ref newCharacterName, 100))
                 {
-                    newCharacter = PlayerCharacter.NewCharacter(newCharacterName);
+                    newCharacter = CharacterManager.NewPlayerCharacter(newCharacterName);
                     // TODO if name matches existing
                 }
                 DrawTooltip("Enter the exact character name and world as it appears in-game.\nExample: James Stone@Hyperion");
@@ -1258,331 +1222,328 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private int newJobAssignmentDesignIndex = 0;
 
         // Job data for UI
-
-
-
-
-        // TODO readd
-        // private void DrawJobAssignmentSettings()
-        // {
-        //     // Enable toggle for Job-based switching
-        //     bool enableJobAssignments = plugin.Configuration.EnableJobAssignments;
-        //     if (ImGui.Checkbox("Enable Job-Based Character Switching", ref enableJobAssignments))
-        //     {
-        //         plugin.Configuration.EnableJobAssignments = enableJobAssignments;
-        //         plugin.Configuration.Save();
-        //     }
-        //     DrawTooltip("Automatically switch SCS character/design when you change jobs in-game.\nJob-specific assignments take priority over role assignments.");
-        //
-        //     // Warning about Glamourer Automations conflict
-        //     if (enableJobAssignments)
-        //     {
-        //         ImGui.SameLine();
-        //         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.3f, 1.0f));
-        //         ImGui.PushFont(UiBuilder.IconFont);
-        //         ImGui.Text(FontAwesomeIcon.ExclamationTriangle.ToIconString());
-        //         ImGui.PopFont();
-        //         ImGui.PopStyleColor();
-        //         DrawTooltip("WARNING: This feature will conflict with Glamourer's Automations!\n\nBoth features trigger on job change and will fight each other.\nDisable Glamourer Automations if using this feature, or vice versa.");
-        //     }
-        //
-        //     // Enable toggle for Gearset assignments
-        //     bool enableGearsetAssignments = plugin.Configuration.EnableGearsetAssignments;
-        //     if (ImGui.Checkbox("Enable Gearset Assignments", ref enableGearsetAssignments))
-        //     {
-        //         plugin.Configuration.EnableGearsetAssignments = enableGearsetAssignments;
-        //         plugin.Configuration.Save();
-        //     }
-        //     DrawTooltip("Allow assigning a gearset to each character/design.\nWhen applied, it will automatically switch to that gearset.\nConfigure gearsets in the Add/Edit Character or Design forms.");
-        //
-        //     if (!enableJobAssignments && !enableGearsetAssignments)
-        //     {
-        //         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.65f, 1.0f));
-        //         ImGui.TextWrapped("Enable a feature above to configure job/gearset assignments.");
-        //         ImGui.PopStyleColor();
-        //         ImGui.Spacing();
-        //         return;
-        //     }
-        //
-        //     // Only show job assignment UI if that feature is enabled
-        //     if (!enableJobAssignments)
-        //     {
-        //         ImGui.Spacing();
-        //         return;
-        //     }
-        //
-        //     ImGui.Spacing();
-        //
-        //     // Info text
-        //     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.8f, 0.9f, 1.0f));
-        //     ImGui.TextWrapped("Assign SCS characters or designs to specific jobs or roles. When you switch to that job, SCS will automatically apply the assigned character/design.");
-        //     ImGui.PopStyleColor();
-        //
-        //     ImGui.Spacing();
-        //     ImGui.Separator();
-        //     ImGui.Spacing();
-        //
-        //     // Current assignments list
-        //     if (plugin.Configuration.JobAssignments.Count > 0)
-        //     {
-        //         ImGui.Text("Current Assignments:");
-        //         ImGui.Spacing();
-        //
-        //         // Calculate button width for layout
-        //         float removeButtonWidth = ImGui.CalcTextSize("Remove").X + ImGui.GetStyle().FramePadding.X * 2 + 4;
-        //         float buttonSpacing = ImGui.GetStyle().ItemSpacing.X;
-        //         float jobAvailableWidth = ImGui.GetContentRegionAvail().X;
-        //         float jobMaxTextWidth = jobAvailableWidth - removeButtonWidth - buttonSpacing - 10;
-        //
-        //         string? keyToRemove = null;
-        //
-        //         foreach (var kvp in plugin.Configuration.JobAssignments)
-        //         {
-        //             // Parse the key
-        //             string displayKey;
-        //             if (kvp.Key.StartsWith("Job_"))
-        //             {
-        //                 var jobIdStr = kvp.Key.Substring(4);
-        //                 if (uint.TryParse(jobIdStr, out var jobId))
-        //                 {
-        //                     var jobInfo = JobData.FirstOrDefault(j => j.Id == jobId);
-        //                     displayKey = jobInfo.Name ?? $"Job {jobId}";
-        //                 }
-        //                 else
-        //                 {
-        //                     displayKey = kvp.Key;
-        //                 }
-        //             }
-        //             else if (kvp.Key.StartsWith("Role_"))
-        //             {
-        //                 displayKey = $"Role: {kvp.Key.Substring(5)}";
-        //             }
-        //             else
-        //             {
-        //                 displayKey = kvp.Key;
-        //             }
-        //
-        //             // Parse the value
-        //             var (charName, designName) = plugin.ParseJobAssignment(kvp.Value);
-        //             string displayValue = !string.IsNullOrEmpty(designName)
-        //                 ? $"{charName} : {designName}"
-        //                 : charName ?? "(Invalid)";
-        //
-        //             // Build full display text
-        //             string fullText = $"{displayKey} → {displayValue}";
-        //             string fullTooltip = fullText;
-        //
-        //             // Truncate if too long
-        //             string truncatedText = fullText;
-        //             bool wasTruncated = false;
-        //             if (ImGui.CalcTextSize(fullText).X > jobMaxTextWidth)
-        //             {
-        //                 wasTruncated = true;
-        //                 while (truncatedText.Length > 3 && ImGui.CalcTextSize(truncatedText + "...").X > jobMaxTextWidth)
-        //                 {
-        //                     truncatedText = truncatedText.Substring(0, truncatedText.Length - 1);
-        //                 }
-        //                 truncatedText += "...";
-        //             }
-        //
-        //             // Draw coloured text segments
-        //             var arrowIndex = truncatedText.IndexOf(" → ");
-        //             if (arrowIndex > 0)
-        //             {
-        //                 var keyPart = truncatedText.Substring(0, arrowIndex);
-        //                 var restPart = truncatedText.Substring(arrowIndex);
-        //
-        //                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.7f, 1.0f));
-        //                 ImGui.Text(keyPart);
-        //                 ImGui.PopStyleColor();
-        //
-        //                 ImGui.SameLine(0, 0);
-        //                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.9f, 0.7f, 1.0f));
-        //                 ImGui.Text(restPart);
-        //                 ImGui.PopStyleColor();
-        //             }
-        //             else
-        //             {
-        //                 ImGui.Text(truncatedText);
-        //             }
-        //
-        //             // Show full text in tooltip if truncated
-        //             if (wasTruncated && ImGui.IsItemHovered())
-        //             {
-        //                 ImGui.SetTooltip(fullTooltip);
-        //             }
-        //
-        //             // Position button on the right
-        //             ImGui.SameLine(jobAvailableWidth - removeButtonWidth);
-        //             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.6f, 0.3f, 0.3f, 0.6f));
-        //             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.4f, 0.4f, 0.8f));
-        //             if (ImGui.SmallButton($"Remove##{kvp.Key}"))
-        //             {
-        //                 keyToRemove = kvp.Key;
-        //             }
-        //             ImGui.PopStyleColor(2);
-        //         }
-        //
-        //         if (keyToRemove != null)
-        //         {
-        //             plugin.Configuration.JobAssignments.Remove(keyToRemove);
-        //             plugin.Configuration.Save();
-        //         }
-        //
-        //         ImGui.Spacing();
-        //         ImGui.Separator();
-        //         ImGui.Spacing();
-        //     }
-        //
-        //     // Add new assignment section
-        //     ImGui.Text("Add New Assignment:");
-        //     ImGui.Spacing();
-        //
-        //     // Assignment type (Job or Role)
-        //     ImGui.Text("Type:");
-        //     ImGui.SameLine();
-        //     ImGui.RadioButton("Specific Job", ref newJobAssignmentType, 0);
-        //     ImGui.SameLine();
-        //     ImGui.RadioButton("Job Role", ref newJobAssignmentType, 1);
-        //     DrawTooltip("Specific Job: Triggers only for that exact job.\nJob Role: Triggers for all jobs in that role (e.g., all tanks).");
-        //
-        //     ImGui.Spacing();
-        //
-        //     // Job/Role selection
-        //     if (newJobAssignmentType == 0)
-        //     {
-        //         // Job dropdown - grouped by role
-        //         ImGui.Text("Job:");
-        //         ImGui.SameLine();
-        //         ImGui.SetNextItemWidth(200f);
-        //
-        //         var jobNames = JobData.Select(j => $"{j.Name} ({j.Role})").ToArray();
-        //         if (ImGui.Combo("##JobSelect", ref newJobAssignmentJobIndex, jobNames, jobNames.Length))
-        //         {
-        //             // Selection changed
-        //         }
-        //     }
-        //     else
-        //     {
-        //         // Role dropdown
-        //         ImGui.Text("Role:");
-        //         ImGui.SameLine();
-        //         ImGui.SetNextItemWidth(200f);
-        //         ImGui.Combo("##RoleSelect", ref newJobAssignmentRoleIndex, RoleNames, RoleNames.Length);
-        //     }
-        //
-        //     ImGui.Spacing();
-        //
-        //     // Character selection
-        //     var characterNames = plugin.Characters.Select(c => c.Data.Name).ToArray();
-        //     if (characterNames.Length == 0)
-        //     {
-        //         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.4f, 1.0f));
-        //         ImGui.TextWrapped("No SCS characters found. Create a character first.");
-        //         ImGui.PopStyleColor();
-        //         ImGui.Spacing();
-        //         return;
-        //     }
-        //
-        //     ImGui.Text("Character:");
-        //     ImGui.SameLine();
-        //     ImGui.SetNextItemWidth(200f);
-        //     if (ImGui.Combo("##CharacterSelect", ref newJobAssignmentCharacterIndex, characterNames, characterNames.Length))
-        //     {
-        //         // Reset design selection when character changes
-        //         newJobAssignmentDesignIndex = 0;
-        //         newJobAssignmentUseDesign = false;
-        //     }
-        //
-        //     // Ensure valid index
-        //     if (newJobAssignmentCharacterIndex >= characterNames.Length)
-        //         newJobAssignmentCharacterIndex = 0;
-        //
-        //     ImGui.Spacing();
-        //
-        //     // Design selection (optional)
-        //     var selectedCharacter = plugin.Characters.ElementAtOrDefault(newJobAssignmentCharacterIndex);
-        //     if (selectedCharacter != null && selectedCharacter.Data.Designs.Count > 0)
-        //     {
-        //         ImGui.Checkbox("Use specific design", ref newJobAssignmentUseDesign);
-        //         DrawTooltip("If checked, apply a specific design. Otherwise, just apply the character.Data.");
-        //
-        //         if (newJobAssignmentUseDesign)
-        //         {
-        //             var designNames = selectedCharacter.Data.Designs.Select(d => d.Name).ToArray();
-        //             ImGui.Text("Design:");
-        //             ImGui.SameLine();
-        //             ImGui.SetNextItemWidth(200f);
-        //             ImGui.Combo("##DesignSelect", ref newJobAssignmentDesignIndex, designNames, designNames.Length);
-        //
-        //             if (newJobAssignmentDesignIndex >= designNames.Length)
-        //                 newJobAssignmentDesignIndex = 0;
-        //         }
-        //     }
-        //
-        //     ImGui.Spacing();
-        //
-        //     // Add button
-        //     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.7f, 0.4f, 0.8f));
-        //     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.8f, 0.5f, 0.9f));
-        //     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.5f, 0.9f, 0.6f, 1.0f));
-        //
-        //     if (ImGui.Button("+ Add Assignment"))
-        //     {
-        //         // Build the key
-        //         string key;
-        //         if (newJobAssignmentType == 0)
-        //         {
-        //             // Specific job
-        //             var selectedJob = JobData.ElementAtOrDefault(newJobAssignmentJobIndex);
-        //             key = $"Job_{selectedJob.Id}";
-        //         }
-        //         else
-        //         {
-        //             // Role
-        //             key = $"Role_{RoleNames[newJobAssignmentRoleIndex]}";
-        //         }
-        //
-        //         // Build the value
-        //         string value;
-        //         if (newJobAssignmentUseDesign && selectedCharacter != null)
-        //         {
-        //             var design = selectedCharacter.Data.Designs.ElementAtOrDefault(newJobAssignmentDesignIndex);
-        //             if (design != null)
-        //             {
-        //                 value = $"Design:{selectedCharacter.Data.Name}:{design.Name}";
-        //             }
-        //             else
-        //             {
-        //                 value = $"Character:{selectedCharacter.Data.Name}";
-        //             }
-        //         }
-        //         else if (selectedCharacter != null)
-        //         {
-        //             value = $"Character:{selectedCharacter.Data.Name}";
-        //         }
-        //         else
-        //         {
-        //             value = "";
-        //         }
-        //
-        //         if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
-        //         {
-        //             plugin.Configuration.JobAssignments[key] = value;
-        //             plugin.Configuration.Save();
-        //         }
-        //     }
-        //     ImGui.PopStyleColor(3);
-        //
-        //     ImGui.Spacing();
-        //
-        //     // Info note
-        //     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.7f, 1.0f));
-        //     ImGui.TextWrapped("Note: Job-specific assignments take priority over role assignments. If both 'Reapply Last Design on Job Change' and Job Assignments are enabled, Job Assignments are checked first.");
-        //     ImGui.PopStyleColor();
-        //
-        //     ImGui.Spacing();
-        // }
+        private void DrawGearsetAssignmentSettings()
+        {
+            // // Enable Gearset -> Character switching
+            // bool enableGCSwitch = plugin.Configuration.EnableGearsetCharacterSwitching;
+            // if (ImGui.Checkbox("Enable Gearset -> Character Assignments", ref enableGCSwitch))
+            // {
+            //     plugin.Configuration.EnableGearsetCharacterSwitching = enableGCSwitch;
+            //     plugin.Configuration.Save();
+            // }
+            // DrawTooltip("Allow assigning a character/design to each gearset.\nWhen the gearset is applied, it will automatically switch to that character/design.\nConfigure gearsets in the Add/Edit Character or Design forms.");
+            //
+            // // Enable Gearset -> Character switching
+            // bool enableCGSwitch = plugin.Configuration.EnableGearsetCharacterSwitching;
+            // if (ImGui.Checkbox("Enable Character -> Gearset Assignments", ref enableCGSwitch))
+            // {
+            //     plugin.Configuration.EnableCharacterGearsetSwitching = enableCGSwitch;
+            //     plugin.Configuration.Save();
+            // }
+            // DrawTooltip("Allow assigning a gearset to each character/design.\nWhen the character/design is applied, it will automatically switch to that gearset.\nConfigure gearsets in the Add/Edit Character or Design forms.");
+            //
+            // // Warning about Glamourer Automations conflict
+            // // if (enableJobAssignments) TODO readd with Automations
+            // // {
+            // //     ImGui.SameLine();
+            // //     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.3f, 1.0f));
+            // //     ImGui.PushFont(UiBuilder.IconFont);
+            // //     ImGui.Text(FontAwesomeIcon.ExclamationTriangle.ToIconString());
+            // //     ImGui.PopFont();
+            // //     ImGui.PopStyleColor();
+            // //     DrawTooltip("WARNING: This feature will conflict with Glamourer's Automations!\n\nBoth features trigger on job change and will fight each other.\nDisable Glamourer Automations if using this feature, or vice versa.");
+            // // }
+            //
+            //
+            //
+            // if (!enableGCSwitch && !enableCGSwitch)
+            // {
+            //     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.65f, 1.0f));
+            //     ImGui.TextWrapped("Enable a feature above to configure job/gearset assignments.");
+            //     ImGui.PopStyleColor();
+            //     ImGui.Spacing();
+            //     return;
+            // }
+            //
+            // // Only show gearset -> character assignment UI if that feature is enabled
+            // if (!enableGCSwitch)
+            // {
+            //     ImGui.Spacing();
+            //     return;
+            // }
+            //
+            // ImGui.Spacing();
+            //
+            // // Info text
+            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.8f, 0.9f, 1.0f));
+            // ImGui.TextWrapped("Assign SCS characters or designs to gearset. When you switch to that gearset, SCS will automatically apply the assigned character/design.");
+            // ImGui.PopStyleColor();
+            //
+            // ImGui.Spacing();
+            // ImGui.Separator();
+            // ImGui.Spacing();
+            //
+            // // Current assignments list
+            // if (plugin.Configuration.JobAssignments.Count > 0)
+            // {
+            //     ImGui.Text("Current Assignments:");
+            //     ImGui.Spacing();
+            //
+            //     // Calculate button width for layout
+            //     float removeButtonWidth = ImGui.CalcTextSize("Remove").X + ImGui.GetStyle().FramePadding.X * 2 + 4;
+            //     float buttonSpacing = ImGui.GetStyle().ItemSpacing.X;
+            //     float jobAvailableWidth = ImGui.GetContentRegionAvail().X;
+            //     float jobMaxTextWidth = jobAvailableWidth - removeButtonWidth - buttonSpacing - 10;
+            //
+            //     string? keyToRemove = null;
+            //
+            //     foreach (var kvp in plugin.Configuration.JobAssignments)
+            //     {
+            //         // Parse the key
+            //         string displayKey;
+            //         if (kvp.Key.StartsWith("Job_"))
+            //         {
+            //             var jobIdStr = kvp.Key.Substring(4);
+            //             if (uint.TryParse(jobIdStr, out var jobId))
+            //             {
+            //                 var jobInfo = JobData.FirstOrDefault(j => j.Id == jobId);
+            //                 displayKey = jobInfo.Name ?? $"Job {jobId}";
+            //             }
+            //             else
+            //             {
+            //                 displayKey = kvp.Key;
+            //             }
+            //         }
+            //         else if (kvp.Key.StartsWith("Role_"))
+            //         {
+            //             displayKey = $"Role: {kvp.Key.Substring(5)}";
+            //         }
+            //         else
+            //         {
+            //             displayKey = kvp.Key;
+            //         }
+            //
+            //         // Parse the value
+            //         var (charName, designName) = plugin.ParseJobAssignment(kvp.Value);
+            //         string displayValue = !string.IsNullOrEmpty(designName)
+            //             ? $"{charName} : {designName}"
+            //             : charName ?? "(Invalid)";
+            //
+            //         // Build full display text
+            //         string fullText = $"{displayKey} → {displayValue}";
+            //         string fullTooltip = fullText;
+            //
+            //         // Truncate if too long
+            //         string truncatedText = fullText;
+            //         bool wasTruncated = false;
+            //         if (ImGui.CalcTextSize(fullText).X > jobMaxTextWidth)
+            //         {
+            //             wasTruncated = true;
+            //             while (truncatedText.Length > 3 && ImGui.CalcTextSize(truncatedText + "...").X > jobMaxTextWidth)
+            //             {
+            //                 truncatedText = truncatedText.Substring(0, truncatedText.Length - 1);
+            //             }
+            //             truncatedText += "...";
+            //         }
+            //
+            //         // Draw coloured text segments
+            //         var arrowIndex = truncatedText.IndexOf(" → ");
+            //         if (arrowIndex > 0)
+            //         {
+            //             var keyPart = truncatedText.Substring(0, arrowIndex);
+            //             var restPart = truncatedText.Substring(arrowIndex);
+            //
+            //             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.7f, 1.0f));
+            //             ImGui.Text(keyPart);
+            //             ImGui.PopStyleColor();
+            //
+            //             ImGui.SameLine(0, 0);
+            //             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.9f, 0.7f, 1.0f));
+            //             ImGui.Text(restPart);
+            //             ImGui.PopStyleColor();
+            //         }
+            //         else
+            //         {
+            //             ImGui.Text(truncatedText);
+            //         }
+            //
+            //         // Show full text in tooltip if truncated
+            //         if (wasTruncated && ImGui.IsItemHovered())
+            //         {
+            //             ImGui.SetTooltip(fullTooltip);
+            //         }
+            //
+            //         // Position button on the right
+            //         ImGui.SameLine(jobAvailableWidth - removeButtonWidth);
+            //         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.6f, 0.3f, 0.3f, 0.6f));
+            //         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.4f, 0.4f, 0.8f));
+            //         if (ImGui.SmallButton($"Remove##{kvp.Key}"))
+            //         {
+            //             keyToRemove = kvp.Key;
+            //         }
+            //         ImGui.PopStyleColor(2);
+            //     }
+            //
+            //     if (keyToRemove != null)
+            //     {
+            //         plugin.Configuration.JobAssignments.Remove(keyToRemove);
+            //         plugin.Configuration.Save();
+            //     }
+            //
+            //     ImGui.Spacing();
+            //     ImGui.Separator();
+            //     ImGui.Spacing();
+            // }
+            //
+            // // Add new assignment section
+            // ImGui.Text("Add New Assignment:");
+            // ImGui.Spacing();
+            //
+            // // Assignment type (Job or Role)
+            // ImGui.Text("Type:");
+            // ImGui.SameLine();
+            // ImGui.RadioButton("Specific Job", ref newJobAssignmentType, 0);
+            // ImGui.SameLine();
+            // ImGui.RadioButton("Job Role", ref newJobAssignmentType, 1);
+            // DrawTooltip("Specific Job: Triggers only for that exact job.\nJob Role: Triggers for all jobs in that role (e.g., all tanks).");
+            //
+            // ImGui.Spacing();
+            //
+            // // Job/Role selection
+            // if (newJobAssignmentType == 0)
+            // {
+            //     // Job dropdown - grouped by role
+            //     ImGui.Text("Job:");
+            //     ImGui.SameLine();
+            //     ImGui.SetNextItemWidth(200f);
+            //
+            //     var jobNames = JobData.Select(j => $"{j.Name} ({j.Role})").ToArray();
+            //     if (ImGui.Combo("##JobSelect", ref newJobAssignmentJobIndex, jobNames, jobNames.Length))
+            //     {
+            //         // Selection changed
+            //     }
+            // }
+            // else
+            // {
+            //     // Role dropdown
+            //     ImGui.Text("Role:");
+            //     ImGui.SameLine();
+            //     ImGui.SetNextItemWidth(200f);
+            //     ImGui.Combo("##RoleSelect", ref newJobAssignmentRoleIndex, RoleNames, RoleNames.Length);
+            // }
+            //
+            // ImGui.Spacing();
+            //
+            // // Character selection
+            // var characterNames = plugin.Characters.Select(c => c.Data.Name).ToArray();
+            // if (characterNames.Length == 0)
+            // {
+            //     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.4f, 1.0f));
+            //     ImGui.TextWrapped("No SCS characters found. Create a character first.");
+            //     ImGui.PopStyleColor();
+            //     ImGui.Spacing();
+            //     return;
+            // }
+            //
+            // ImGui.Text("Character:");
+            // ImGui.SameLine();
+            // ImGui.SetNextItemWidth(200f);
+            // if (ImGui.Combo("##CharacterSelect", ref newJobAssignmentCharacterIndex, characterNames, characterNames.Length))
+            // {
+            //     // Reset design selection when character changes
+            //     newJobAssignmentDesignIndex = 0;
+            //     newJobAssignmentUseDesign = false;
+            // }
+            //
+            // // Ensure valid index
+            // if (newJobAssignmentCharacterIndex >= characterNames.Length)
+            //     newJobAssignmentCharacterIndex = 0;
+            //
+            // ImGui.Spacing();
+            //
+            // // Design selection (optional)
+            // var selectedCharacter = plugin.Characters.ElementAtOrDefault(newJobAssignmentCharacterIndex);
+            // if (selectedCharacter != null && selectedCharacter.Data.Designs.Count > 0)
+            // {
+            //     ImGui.Checkbox("Use specific design", ref newJobAssignmentUseDesign);
+            //     DrawTooltip("If checked, apply a specific design. Otherwise, just apply the character.Data.");
+            //
+            //     if (newJobAssignmentUseDesign)
+            //     {
+            //         var designNames = selectedCharacter.Data.Designs.Select(d => d.Name).ToArray();
+            //         ImGui.Text("Design:");
+            //         ImGui.SameLine();
+            //         ImGui.SetNextItemWidth(200f);
+            //         ImGui.Combo("##DesignSelect", ref newJobAssignmentDesignIndex, designNames, designNames.Length);
+            //
+            //         if (newJobAssignmentDesignIndex >= designNames.Length)
+            //             newJobAssignmentDesignIndex = 0;
+            //     }
+            // }
+            //
+            // ImGui.Spacing();
+            //
+            // // Add button
+            // ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.7f, 0.4f, 0.8f));
+            // ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.8f, 0.5f, 0.9f));
+            // ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.5f, 0.9f, 0.6f, 1.0f));
+            //
+            // if (ImGui.Button("+ Add Assignment"))
+            // {
+            //     // Build the key
+            //     string key;
+            //     if (newJobAssignmentType == 0)
+            //     {
+            //         // Specific job
+            //         var selectedJob = JobData.ElementAtOrDefault(newJobAssignmentJobIndex);
+            //         key = $"Job_{selectedJob.Id}";
+            //     }
+            //     else
+            //     {
+            //         // Role
+            //         key = $"Role_{RoleNames[newJobAssignmentRoleIndex]}";
+            //     }
+            //
+            //     // Build the value
+            //     string value;
+            //     if (newJobAssignmentUseDesign && selectedCharacter != null)
+            //     {
+            //         var design = selectedCharacter.Data.Designs.ElementAtOrDefault(newJobAssignmentDesignIndex);
+            //         if (design != null)
+            //         {
+            //             value = $"Design:{selectedCharacter.Data.Name}:{design.Name}";
+            //         }
+            //         else
+            //         {
+            //             value = $"Character:{selectedCharacter.Data.Name}";
+            //         }
+            //     }
+            //     else if (selectedCharacter != null)
+            //     {
+            //         value = $"Character:{selectedCharacter.Data.Name}";
+            //     }
+            //     else
+            //     {
+            //         value = "";
+            //     }
+            //
+            //     if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+            //     {
+            //         plugin.Configuration.JobAssignments[key] = value;
+            //         plugin.Configuration.Save();
+            //     }
+            // }
+            // ImGui.PopStyleColor(3);
+            //
+            // ImGui.Spacing();
+            //
+            // // Info note
+            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.7f, 1.0f));
+            // ImGui.TextWrapped("Note: Job-specific assignments take priority over role assignments. If both 'Reapply Last Design on Job Change' and Job Assignments are enabled, Job Assignments are checked first.");
+            // ImGui.PopStyleColor();
+            //
+            // ImGui.Spacing();
+        }
 
         private void DrawFixedSetting(string label, float labelWidth, float inputWidth, Action drawControl)
         {
@@ -1596,23 +1557,23 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void UpdateAutomationSettings(bool enableAutomations)
         {
-            bool changed = false;
-
-            // Character-level Automation Handling
-            foreach (var character in plugin.Characters)
-            {
-                if (!enableAutomations)
-                {
-                    character.Data.CharacterAutomation = string.Empty;
-                }
-                else if (string.IsNullOrWhiteSpace(character.Data.CharacterAutomation))
-                {
-                    character.Data.CharacterAutomation = "None";
-                }
-            }
-
-            if (changed)
-                plugin.SaveConfiguration();
+            // bool changed = false;
+            //
+            // // Character-level Automation Handling
+            // foreach (var character in plugin.Characters)
+            // {
+            //     if (!enableAutomations)
+            //     {
+            //         character.Data.CharacterAutomation = string.Empty;
+            //     }
+            //     else if (string.IsNullOrWhiteSpace(character.Data.CharacterAutomation))
+            //     {
+            //         character.Data.CharacterAutomation = "None";
+            //     }
+            // }
+            //
+            // if (changed)
+            //     plugin.SaveConfiguration();
         }
 
         private float GetSafeScale(float baseScale)
@@ -2090,7 +2051,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             mainCharacterSettingsOpen = false;
             dialogueSettingsOpen = false;
             characterAssignmentSettingsOpen = false;
-            jobAssignmentSettingsOpen = false;
+            gearsetAssignmentSettingsOpen = false;
             conflictResolutionSettingsOpen = false;
             backupSettingsOpen = false;
 
@@ -2119,7 +2080,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     characterAssignmentSettingsOpen = true;
                     break;
                 case "Job Assignments":
-                    jobAssignmentSettingsOpen = true;
+                    gearsetAssignmentSettingsOpen = true;
                     break;
                 case "Backup & Restore":
                     backupSettingsOpen = true;
