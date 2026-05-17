@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using FFXIVClientStructs.FFXIV.Common.Component.BGCollision;
+using Serilog;
+using SimpleCharacterSelectPlugin.Integration;
 using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin.Managers;
@@ -24,6 +27,7 @@ public static class DesignManager
      }
      public static void ApplyProfile(PlayerCharacter pc, Character character, int designIndex)
      {
+         Plugin.Log.Debug($"Applying profile {character.Data.Name} {designIndex}");
          pc.ActiveCharacter = character;
          if (designIndex >= 0 && designIndex < character.Data.Designs.Count && designIndex != pc.ActiveDesign)
          {
@@ -34,14 +38,18 @@ public static class DesignManager
              pc.ActiveDesign = character.Data.DefaultDesignIndex;
          }
          
-         // apply penumbra
-         // apply glamourer
+         var designToApply = character.GetDesign(designIndex);
+         
+         PenumbraIntegration.SwitchCollection(designToApply.PenumbraCollection);
+         GlamourerIntegration.ApplyGlamourerDesign(designToApply.GlamourerDesign);
+         CustomizeIntegration.ApplyCustomizePlusProfile(designToApply.CustomizeProfileTuple);
+         MoodlesIntegration.ApplyMoodlesProfile(designToApply.MoodlePresetTuple);
          // apply C+
          // apply moodles
          // apply honorific
-         
+
          //switch gearset if needed
-    }
+     }
      
     private  static bool TryApplyGearsetAssignment(uint gaersetId)
     {

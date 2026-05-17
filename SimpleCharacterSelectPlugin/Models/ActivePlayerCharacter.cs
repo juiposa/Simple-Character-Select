@@ -1,17 +1,20 @@
 using System.Transactions;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 
 namespace SimpleCharacterSelectPlugin.Models;
 
 // Currently logged into PlayerCharacter, for keeping session state
 public class ActivePlayerCharacter
 {
+    public IPlayerCharacter InGameCharacter { get; }
     public PlayerCharacter Pc { get; set; }
     
     private Character? queuedCharacter = null;
     private int queuedDesignIndex = -1;
     
-    public ActivePlayerCharacter(PlayerCharacter playerCharacter)
+    public ActivePlayerCharacter(IPlayerCharacter ingamePc, PlayerCharacter playerCharacter)
     {
+        InGameCharacter = ingamePc;
         Pc = playerCharacter;
     }
 
@@ -22,12 +25,13 @@ public class ActivePlayerCharacter
 
     public void QueueUpdate(Character character, int designIndex = -1)
     {
+        Plugin.Log.Debug($"Update queued: {character.Data.Name} {designIndex}");
         queuedCharacter = character;
         queuedDesignIndex = designIndex >= 0 ? designIndex : character.Data.DefaultDesignIndex;
     }
     
-    //apply queued updates to PlayerCharacter and return it to be
-    public PlayerCharacter ApplyUpdate()
+    //apply queued updates
+    public void ApplyUpdate()
     {
         if (queuedCharacter != null)
         {
@@ -40,6 +44,5 @@ public class ActivePlayerCharacter
             Pc.ActiveDesign =  queuedDesignIndex;
             queuedDesignIndex = -1;
         }
-        return Pc;
     }
 }

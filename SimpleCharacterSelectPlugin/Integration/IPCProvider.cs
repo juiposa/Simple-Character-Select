@@ -1,11 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using Dalamud.Plugin;
-using Dalamud.Plugin.Ipc;
-using SimpleCharacterSelectPlugin.Managers;
 
-namespace SimpleCharacterSelectPlugin
+namespace SimpleCharacterSelectPlugin.Integration
 {
     /// <summary>
     /// IPC Provider for Simple Character Select to allow other plugins to interact with character switching

@@ -1100,9 +1100,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 //plugin.SwitchToGearset(character.Data.AssignedGearset.Value); TODO
             }
             
-            DesignManager.ApplyProfile(plugin.ActivePlayer.Pc, character, -1);
+            plugin.ActivePlayer.QueueUpdate(character);
             
-            plugin.QuickSwitchWindow.UpdateSelectionFromCharacter(character);
+            plugin.QuickSwitchWindow.RefreshSelection();
         }
         
         private List<Character> GetFilteredCharacters()

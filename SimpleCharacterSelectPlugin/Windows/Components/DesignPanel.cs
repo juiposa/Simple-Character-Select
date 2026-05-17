@@ -59,7 +59,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private string editedPenumbraCollection = "";
         private string editedGlamourerDesign = "";
         private string editedAutomation = "";
-        private string editedCustomizeProfile = "";
+        private (Guid, string) editedCustomizeProfile = (Guid.Empty, "");
         private int? editedGearset = null;
         private string editedDesignPreviewPath = "";
         private string originalDesignName = "";
@@ -82,21 +82,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private DesignFolder? draggedFolder = null;
         private CharacterDesign? draggedDesign = null;
         private Vector3? newFolderSelectedColor = null;
-
-        // Import window
-        private bool isImportWindowOpen = false;
-        private Character? targetForDesignImport = null;
-
-        // Snapshot dialog
-        private bool isSnapshotDialogOpen = false;
-        private string snapshotDesignName = "";
-        private bool snapshotUseConflictResolution = true;
-        private Character? snapshotTargetCharacter = null;
-        private HashSet<string> snapshotDetectedMods = new();
-        private string? snapshotDetectedCustomizePlusProfile = null;
-        private bool snapshotHasClipboardImage = false;
-        private bool snapshotIsProcessing = false;
-        private string snapshotStatusMessage = "";
+        
 
         public DesignPanel(Plugin plugin, UIStyles uiStyles)
         {
@@ -655,11 +641,16 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
 
             ImGui.SetCursorPosX(10 * scale);
-            var customizeOptions = plugin.IntegrationListProvider?.GetCustomizePlusProfiles() ?? Array.Empty<string>();
+            var customizeProfiles = plugin.IntegrationListProvider?.GetCustomizePlusProfiles().ToArray();
+            var customizeOptions = customizeProfiles?.Select(v => v.Item2).ToArray() ?? Array.Empty<string>();
             var currentCustomize = plugin.IntegrationListProvider?.GetCurrentCustomizePlusProfile();
-
-            if (AutocompleteCombo.Draw("##CustomizePlus", ref editedCustomizeProfile, customizeOptions, inputWidth, "Select profile...", currentActive: currentCustomize))
+            var tempCustomize = "";
+            if (AutocompleteCombo.Draw("##CustomizeProfile", ref tempCustomize, customizeOptions, inputWidth, "Select profile...", currentActive: currentCustomize))
             {
+                if (customizeProfiles != null && customizeProfiles.Length > 0)
+                {
+                    editedCustomizeProfile = Array.Find(customizeProfiles, v => v.Item2 == tempCustomize);
+                }
             }
         }
 
@@ -1577,7 +1568,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             editedDesignName = "";
             editedGlamourerDesign = "";
             editedAutomation = "";
-            editedCustomizeProfile = "";
+            editedCustomizeProfile = (Guid.Empty, "");
             editedGearset = null;
             editedDesignPreviewPath = "";
             plugin.WindowState.EditedDesignName = editedDesignName;
@@ -1596,7 +1587,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 : "";
 
             editedAutomation = design.GlamourerDesign ?? "";
-            editedCustomizeProfile = design.CustomizeProfile ?? "";
+            editedCustomizeProfile = design.CustomizeProfileTuple;
             editedGearset = design.AssignedGearset;
             editedDesignPreviewPath = design.PreviewImagePath ?? "";
         }
@@ -1615,7 +1606,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             editedDesignName = "";
             editedGlamourerDesign = "";
             editedAutomation = "";
-            editedCustomizeProfile = "";
+            editedCustomizeProfile = (Guid.Empty, "");
             editedDesignPreviewPath = "";
             originalDesignName = "";
             temporaryDesignSecretModState = null;
@@ -1638,7 +1629,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 existingDesign.PenumbraCollection = editedPenumbraCollection;
                 existingDesign.GlamourerAutomation = editedAutomation;
                 existingDesign.GlamourerDesign = editedGlamourerDesign;
-                existingDesign.CustomizeProfile = editedCustomizeProfile;
+                existingDesign.CustomizeProfileTuple = editedCustomizeProfile;
                 existingDesign.AssignedGearset = editedGearset;
                 existingDesign.PreviewImagePath = editedDesignPreviewPath;
             }
@@ -1650,7 +1641,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     PenumbraCollection = editedPenumbraCollection,
                     GlamourerDesign = editedGlamourerDesign,
                     GlamourerAutomation = editedAutomation,
-                    CustomizeProfile = editedCustomizeProfile,
+                    CustomizeProfileTuple = editedCustomizeProfile,
                     PreviewImagePath = editedDesignPreviewPath,
                     IsFavorite = false,
                     DateAdded = DateTime.UtcNow,

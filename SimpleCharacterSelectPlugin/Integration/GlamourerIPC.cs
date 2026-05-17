@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Dalamud.Plugin.Ipc;
 
-namespace SimpleCharacterSelectPlugin.IPC;
+namespace SimpleCharacterSelectPlugin.Integration;
 
 public static class GlamourerIpc
 {

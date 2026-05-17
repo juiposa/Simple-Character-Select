@@ -35,7 +35,7 @@ using Dalamud.Interface;
 using Dalamud.Game.Gui.NamePlate;
 using Dalamud.Game.ClientState.Party;
 using SimpleCharacterSelectPlugin;
-using SimpleCharacterSelectPlugin.IPC;
+using SimpleCharacterSelectPlugin.Integration;
 using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin
@@ -108,8 +108,6 @@ namespace SimpleCharacterSelectPlugin
         public PoseManager PoseManager { get; private set; } = null!;
         public byte NewCharacterIdlePoseIndex { get; set; } = 0;
         private DateTime loginTime;
-        // Penumbra Integration
-        public PenumbraIntegration PenumbraIntegration { get; private set; } = null!;
         
         // Integration List Provider for autocomplete dropdowns
         public IntegrationListProvider? IntegrationListProvider { get; private set; }
@@ -135,6 +133,9 @@ namespace SimpleCharacterSelectPlugin
             loginTime = DateTime.Now;
             Instance = this;
             GameInteropProvider = gameInteropProvider;
+
+            MoodlesIpc.Initialize();
+            
 
             // Run backup on background thread to prevent UI freeze
             var existingConfig = PluginInterface.GetPluginConfig() as Configuration;
@@ -163,8 +164,6 @@ namespace SimpleCharacterSelectPlugin
 
             Logger = Log;
 
-            // Cache initialization will happen after UserOverrideManager is ready
-
             // Load Forms assembly in background to avoid ~750ms main thread stall
             Task.Run(() =>
             {
@@ -181,8 +180,6 @@ namespace SimpleCharacterSelectPlugin
 
             PoseManager = new PoseManager(ClientState, Framework, ChatGui, CommandManager, ObjectTable, this);
             
-            // Initialize Penumbra integration services
-            PenumbraIntegration = new PenumbraIntegration(PluginInterface, Log, ClientState);
 
             // Initialize integration list provider for autocomplete dropdowns
             IntegrationListProvider = new IntegrationListProvider(this);
@@ -241,24 +238,36 @@ namespace SimpleCharacterSelectPlugin
 
                 if (!Configuration.PlayerCharacters.ContainsKey(fullKey)) //new PC, create an entry for it
                 {
-                    var newPc = CharacterManager.NewPlayerCharacter(fullKey);
+                    var newPc = CharacterManager.MustNewPlayerCharacter(player, fullKey);
                     Configuration.PlayerCharacters[fullKey] = newPc;
-                    ActivePlayer.Pc = newPc;
+                    ActivePlayer = new ActivePlayerCharacter(player, newPc);
+                    Configuration.Save();
+                    Log.Info($"New player character created: {newPc.FullName}");
+                }
+                else // else load the existing one
+                {
+                    Log.Debug($"Loading existing character: {player.Name.TextValue}");
+                    ActivePlayer = new ActivePlayerCharacter(player, Configuration.PlayerCharacters[fullKey]);
+                    Log.Info($"Player character loaded: {ActivePlayer.Pc.FullName}");
                 }
 
                 if (!Configuration.EnableLastUsedCharacterAutoload)
                     return;
                 
+                Log.Debug($"Loading last used character: {ActivePlayer.Pc.ActiveCharacter?.Data.Name}");
                 CharacterManager.ApplyLastUsedOrAssignedCharacter(ActivePlayer.Pc);
                 QuickSwitchWindow.RefreshSelection();
                 StartupComplete = true;
+                Configuration.Save();
                 return;
             }
 
             if (ActivePlayer.RequiresUpdate()) // trigger an update
             {
+                Log.Debug("Updating player character");
                 DesignManager.ApplyUpdate(ActivePlayer);
                 QuickSwitchWindow.RefreshSelection();
+                Configuration.Save();
                 return;
             }
             

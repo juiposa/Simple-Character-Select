@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin;
@@ -8,6 +9,7 @@ namespace SimpleCharacterSelectPlugin;
 // tracking the state of a player character
 public class PlayerCharacter
 {
+    public IPlayerCharacter? InGameCharacter { get; set; }
     public string Name { get; set; } = "";
     public string World { get; set; } = "";
     public string FullName => $"{Name}@{World}";
@@ -25,8 +27,9 @@ public class PlayerCharacter
     {
     }
     
-    public PlayerCharacter(string name, string world)
+    public PlayerCharacter(IPlayerCharacter? ingame, string name, string world)
     {
+        InGameCharacter = ingame;
         Name = name;
         World = world; 
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Numerics;
 using SimpleCharacterSelectPlugin.Managers;
 
@@ -7,33 +8,37 @@ namespace SimpleCharacterSelectPlugin.Models
     [Serializable]
     public class Character
     {
-        public CharacterData Data { get; set; }
-        private CharacterData savedData;
+        public CharacterData Data { get; set; } = new();
 
-        public Character()
+        public void Save(CharacterData? newData)
         {
-            Data = new CharacterData();
-            savedData = new CharacterData();
-        }
-        
-        public void Save()
-        {
-            savedData = Data.Clone();
-        }
-
-        public void LoadFromConfig(string json)
-        {
-            
-        }
-        
-        public void ResetEdits()
-        {
-            Data = savedData.Clone(); //TODO doesn't work as intended
+            if (newData == null)
+            {
+                Data = new CharacterData();
+                return;
+            }
+            Data = newData.Clone();
         }
 
         public CharacterDesign GetDefaultDesign()
         {
-            return Data.Designs[Data.DefaultDesignIndex];
+            return Data.Designs.ElementAtOrDefault(Data.DefaultDesignIndex) ?? new CharacterDesign();
+        }
+
+        public CharacterDesign GetDesign(int designIndex)
+        {
+            if (designIndex < 0)
+            {
+                return GetDefaultDesign();
+            }
+
+            if (designIndex + 1 > Data.Designs.Count)
+            {
+                Plugin.Log.Warning("CharacterDesign not found, using default design");
+                return GetDefaultDesign();
+            }
+            CharacterDesign design = Data.Designs[designIndex];
+            return design;
         }
 
         public void SetDefaultDesign(CharacterDesign characterDesign)

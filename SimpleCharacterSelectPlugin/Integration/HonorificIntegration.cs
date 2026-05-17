@@ -1,8 +1,8 @@
 using SimpleCharacterSelectPlugin.Models;
 
-namespace SimpleCharacterSelectPlugin.Managers;
+namespace SimpleCharacterSelectPlugin.Integration;
 
-public static class HonorificManager
+public static class HonorificIntegration
 {
     public static void ApplyTitle(Honorific title)
     {

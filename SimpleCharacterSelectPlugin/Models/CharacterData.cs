@@ -53,7 +53,7 @@ public class CharacterData
         
         clone.Name = this.Name;
         clone.ImagePath = this.ImagePath;
-        clone.Designs = this.Designs.Slice(0, this.Designs.Count);
+        clone.Designs = this.Designs.Select(v => v.Clone()).ToList();
         clone.DefaultDesignIndex = this.DefaultDesignIndex;
         clone.NameplateColor = this.NameplateColor.AsVector4().AsVector3();
         clone.IsFavorite = this.IsFavorite;
