@@ -9,12 +9,12 @@ namespace SimpleCharacterSelectPlugin.Integration;
 
 public static class HonorificIntegration
 {
+    private const string RemoveCommand = "/honorific force clear";
     public static void ApplyTitle(Honorific? title)
     {
         try
         {
-            var clearCommand = "/honorific force clear"; //at least clear it
-            GameCommandManager.ExecuteCommand(clearCommand);
+            GameCommandManager.ExecuteCommand(RemoveCommand);
             
             if (title == null || title.Title == "")
                 return;
@@ -37,6 +37,19 @@ public static class HonorificIntegration
         catch (Exception ex)
         {
             Plugin.Log.Warning($"Honorific Failed: {ex.Message}");
+        }
+    }
+    
+    public static void RevertHonorific()
+    {
+        try
+        {
+            GameCommandManager.ExecuteCommand(RemoveCommand);
+            Plugin.Log.Debug($"Honorific Cleared");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning($"Honorific Revert Failed: {ex.Message}");
         }
     }
 

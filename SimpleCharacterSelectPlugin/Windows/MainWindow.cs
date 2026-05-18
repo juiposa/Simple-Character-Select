@@ -9,6 +9,7 @@ using SimpleCharacterSelectPlugin.Windows.Styles;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using SimpleCharacterSelectPlugin.Managers;
 
 namespace SimpleCharacterSelectPlugin.Windows
 {
@@ -153,9 +154,10 @@ namespace SimpleCharacterSelectPlugin.Windows
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (5 * totalScale) );
 
             // Revert button
-            if (uiStyles.IconButton("\uf0e2", "Revert All SCS Changes\n\nReverts:\n• Glamourer → Game state\n• Honorific → Cleared\n• Moodles → All removed\n• Customize+ → Disabled\n• Penumbra → Your Character collection\n• SCS → No active character", new Vector2(iconButtonSize, iconButtonSize)))
+            if (uiStyles.IconButton("\uf0e2", "Revert All SCS Changes", new Vector2(iconButtonSize, iconButtonSize)))
             {
-                //plugin.RevertAllChanges();
+                plugin.ActivePlayer.Pc.ActiveCharacter = null;
+                DesignManager.RevertAllChanges();
             }
 
             ImGui.SameLine();
@@ -245,21 +247,21 @@ namespace SimpleCharacterSelectPlugin.Windows
                 ImGui.EndTooltip();
             }
             
-            ImGui.SameLine();
-
-            string randomIcon;
-            Vector4? iconColor = null;
-            randomIcon = "\uf522"; // Dice
-
-            string randomTooltip = plugin.Configuration.RandomSelectionFavoritesOnly
-                ? "Randomly selects from favourited characters and designs only"
-                : "Randomly selects from all characters and designs";
-
-            if (uiStyles.IconButtonWithColor(randomIcon, randomTooltip, null, 1.0f, iconColor))
-            {
-                Vector2 effectPos = ImGui.GetItemRectMin() + ImGui.GetItemRectSize() / 2;
-                plugin.SelectRandomCharacterAndDesign();
-            }
+            // ImGui.SameLine(); //TODO Readd if someone asks for it
+            //
+            // string randomIcon;
+            // Vector4? iconColor = null;
+            // randomIcon = "\uf522"; // Dice
+            //
+            // string randomTooltip = plugin.Configuration.RandomSelectionFavoritesOnly
+            //     ? "Randomly selects from favourited characters and designs only"
+            //     : "Randomly selects from all characters and designs";
+            //
+            // if (uiStyles.IconButtonWithColor(randomIcon, randomTooltip, null, 1.0f, iconColor))
+            // {
+            //     Vector2 effectPos = ImGui.GetItemRectMin() + ImGui.GetItemRectSize() / 2;
+            //     plugin.SelectRandomCharacterAndDesign();
+            // }
 
         }
 

@@ -34,7 +34,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private CharacterDesign editCharDefaultDesign;
 
         // Temp fields for live updates
-        // TODO refactor
         private string tempHonorificTitle = "";
         private string tempHonorificPrefix = "Prefix";
         private string tempHonorificSuffix = "Suffix";
@@ -155,7 +154,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             Vector3 tempColor = editCharacterData.NameplateColor;
             string tempTag = editCharacterData.Tag;
             Honorific tempHonorific = editCharDefaultDesign.Honorific.Clone();
-
+            
             // Character Name
             DrawFormField("Character Name*", labelWidth, inputWidth, inputOffset, () =>
             {
@@ -586,7 +585,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
         }
         
-        // TODO
         private void DrawGearsetField(float labelWidth, float inputWidth, float inputOffset, float scale)
         {
             ImGui.SetCursorPosX(10 * scale);
@@ -775,13 +773,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 if (editCharacterData.Designs.Count == 0)
                 {
                     Plugin.Log.Debug("No current design, creating new default");
+                    editCharacterData.SetTags();
                     editCharacterData.DefaultDesignIndex = 0;
                     editCharacterData.Designs.Add(editCharDefaultDesign);
                 }
                 else
                 {
                     Plugin.Log.Debug($"Saving existing default design {editCharacterData.Name} {editCharDefaultDesign.Name}");
-                    
+                    editCharacterData.SetTags();
                     editCharacterData.Designs[currentCharacter.Data.DefaultDesignIndex] = editCharDefaultDesign;
                 }
                 CharacterManager.SaveCharacter(selectedCharacterIndex, currentCharacter, editCharacterData, plugin.Configuration);
@@ -1116,6 +1115,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             var character = plugin.Characters[index];
             currentCharacter = character;
             editCharacterData = character.Data.Clone();
+            editCharacterData.Tag = string.Join(", ", editCharacterData.Tags);
             var design = editCharacterData.Designs[editCharacterData.DefaultDesignIndex];
             editCharDefaultDesign = design;
             

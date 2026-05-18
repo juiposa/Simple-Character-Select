@@ -59,7 +59,6 @@ namespace SimpleCharacterSelectPlugin
         public bool EnableSafeMode { get; set; } = false;
         public bool QuickSwitchCompact { get; set; } = false;
         public bool QuickSwitchIgnoreEscape { get; set; } = true;
-        public bool EnableCharacterHoverEffects { get; set; } = false;
         public List<string> PinnedFileBrowserPaths { get; set; } = new();
         public string? LastBrowserDirectory { get; set; }
         

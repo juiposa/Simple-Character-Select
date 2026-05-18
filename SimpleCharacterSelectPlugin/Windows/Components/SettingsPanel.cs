@@ -26,7 +26,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private bool automationSettingsOpen = false;
         private bool behaviorSettingsOpen = false;
         private bool randomGroupsSettingsOpen = false;
-        private bool honorificSettingsOpen = false;
         private bool mainCharacterSettingsOpen = false;
         private bool dialogueSettingsOpen = false;
         private bool characterAssignmentSettingsOpen = false;
@@ -198,19 +197,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     DrawBehaviorSettings();
                 }
 
-                // Random Groups Section
-                randomGroupsSettingsOpen = DrawModernCollapsingHeader("Random Groups", new Vector4(0.85f, 0.95f, 0.3f, 1.0f), randomGroupsSettingsOpen);
-                if (randomGroupsSettingsOpen)
-                {
-                    DrawRandomGroupsSettings();
-                }
-
-                // Honorific Section
-                honorificSettingsOpen = DrawModernCollapsingHeader("Honorific", new Vector4(0.7f, 1.0f, 0.3f, 1.0f), honorificSettingsOpen);
-                if (honorificSettingsOpen)
-                {
-                    DrawHonorificSettings();
-                }
+                // Random Groups Section TODO readd if anyone asks for it
+                // randomGroupsSettingsOpen = DrawModernCollapsingHeader("Random Groups", new Vector4(0.85f, 0.95f, 0.3f, 1.0f), randomGroupsSettingsOpen);
+                // if (randomGroupsSettingsOpen)
+                // {
+                //     DrawRandomGroupsSettings();
+                // }
 
                 // Main Character Section
                 mainCharacterSettingsOpen = DrawModernCollapsingHeader("Main Character", new Vector4(0.3f, 0.9f, 0.4f, 1.0f), mainCharacterSettingsOpen);
@@ -223,21 +215,21 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 characterAssignmentSettingsOpen = DrawModernCollapsingHeader("Character Assignments", new Vector4(0.3f, 0.9f, 0.9f, 1.0f), characterAssignmentSettingsOpen);
                 if (characterAssignmentSettingsOpen)
                 {
-                    DrawCharacterAssignmentSettings();
+                    DrawSoonge();
                 }
 
                 // Gearset Assignments
                 gearsetAssignmentSettingsOpen = DrawModernCollapsingHeader("Gearset Assignments", new Vector4(0.2f, 0.8f, 0.85f, 1.0f), gearsetAssignmentSettingsOpen);
                 if (gearsetAssignmentSettingsOpen)
                 {
-                    DrawGearsetAssignmentSettings();
+                    DrawSoonge();
                 }
 
                 // Immersive Dialogue (Blue)
                 dialogueSettingsOpen = DrawModernCollapsingHeader("Immersive Dialogue", new Vector4(0.4f, 0.6f, 1.0f, 1.0f), dialogueSettingsOpen);
                 if (dialogueSettingsOpen)
                 {
-                    DrawDialogueSettings();
+                    DrawSoonge();
                 }
 
                 // Backup & Restore (Pink/Magenta)
@@ -374,15 +366,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 DrawTooltip("Choose how characters are sorted in the main grid.");
             });
 
-            // Character Hover Effects
-            bool enableHoverEffects = plugin.Configuration.EnableCharacterHoverEffects;
-            if (ImGui.Checkbox("Character Hover Effects", ref enableHoverEffects))
-            {
-                plugin.Configuration.EnableCharacterHoverEffects = enableHoverEffects;
-                plugin.SaveConfiguration();
-            }
-            DrawTooltip("Characters grow slightly when hovered over for visual feedback.");
-
             ImGui.Spacing();
         }
 
@@ -449,13 +432,13 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
             DrawTooltip("Automatically applies the last character and design you used when logging into the game.");
 
-            bool applyIdle = plugin.Configuration.ApplyIdleOnLogin;
-            if (ImGui.Checkbox("Apply idle pose on login", ref applyIdle))
-            {
-                plugin.Configuration.ApplyIdleOnLogin = applyIdle;
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("Automatically applies your idle pose after logging in. Disable if you're seeing pose bugs.");
+            // bool applyIdle = plugin.Configuration.ApplyIdleOnLogin; //TODO readd if anyone asks for it
+            // if (ImGui.Checkbox("Apply idle pose on login", ref applyIdle))
+            // {
+            //     plugin.Configuration.ApplyIdleOnLogin = applyIdle;
+            //     plugin.Configuration.Save();
+            // }
+            // DrawTooltip("Automatically applies your idle pose after logging in. Disable if you're seeing pose bugs.");
 
             bool reapplyDesign = plugin.Configuration.ReapplyDesignOnJobChange;
             if (ImGui.Checkbox("Reapply last design on job change", ref reapplyDesign))
@@ -465,13 +448,13 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
             DrawTooltip("If checked, Simple Character Select will reapply the last used design when you switch jobs.");
 
-            bool randomFavoritesOnly = plugin.Configuration.RandomSelectionFavoritesOnly;
-            if (ImGui.Checkbox("Random Selection: Favourites Only", ref randomFavoritesOnly))
-            {
-                plugin.Configuration.RandomSelectionFavoritesOnly = randomFavoritesOnly;
-                plugin.Configuration.Save();
-            }
-            DrawTooltip("When enabled, random selection will only choose from favourited characters and designs.\nRequires at least one favourited character to work.");
+            // bool randomFavoritesOnly = plugin.Configuration.RandomSelectionFavoritesOnly;
+            // if (ImGui.Checkbox("Random Selection: Favourites Only", ref randomFavoritesOnly))
+            // {
+            //     plugin.Configuration.RandomSelectionFavoritesOnly = randomFavoritesOnly;
+            //     plugin.Configuration.Save();
+            // }
+            // DrawTooltip("When enabled, random selection will only choose from favourited characters and designs.\nRequires at least one favourited character to work.");
             
             ImGui.Spacing();
         }
@@ -720,6 +703,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Spacing();
         }
 
+
+        private void DrawSoonge()
+        {
+            ImGui.TextWrapped("This feature will be returning in the near future.");
+        }
         private void DrawDialogueSettings()
         {   
             //TODO readd
@@ -866,52 +854,52 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             if (!plugin.Configuration.EnableLastUsedCharacterAutoload)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.7f, 0.3f, 1f));
-
+            
                 // Warning icon
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.Text("\uf071"); // FontAwesome warning triangle
                 ImGui.PopFont();
-
+            
                 ImGui.SameLine();
                 ImGui.TextWrapped("Auto-Apply Last Used Character on Login is disabled - Character Assignments require this feature.");
                 ImGui.PopStyleColor();
-
+            
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.8f, 1f));
                 ImGui.TextWrapped("Enable Auto-Apply Last Used Character on Login in the Automation Settings section to use assignments.");
                 ImGui.PopStyleColor();
-
+            
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
             }
-
+            
             // Warning if Main Character Only Mode is enabled
             if (plugin.Configuration.EnableMainCharacterOnly)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.7f, 0.3f, 1f));
-
+            
                 // Warning icon
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.Text("\uf071"); // FontAwesome warning triangle
                 ImGui.PopFont();
-
+            
                 ImGui.SameLine();
                 ImGui.TextWrapped("Main Character Only Mode is enabled - Character Assignments will be ignored.");
                 ImGui.PopStyleColor();
-
+            
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.8f, 1f));
                 ImGui.TextWrapped("Disable Main Character Only Mode in the Main Character section to use assignments.");
                 ImGui.PopStyleColor();
-
+            
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
             }
-
+            
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.9f, 1.0f, 1f));
             ImGui.TextWrapped("Assign specific SCS Characters to auto-apply when logging into specific player characters.");
             ImGui.PopStyleColor();
-
+            
             ImGui.Spacing();
             
             Character? currentlySelectedChar = null;
@@ -925,7 +913,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 ImGui.Text("Current Assignments:");
                 ImGui.Spacing();
-
+            
                 // Calculate button widths for layout
                 float editButtonWidth = ImGui.CalcTextSize("Edit").X + ImGui.GetStyle().FramePadding.X * 2 + 4;
                 float removeButtonWidth = ImGui.CalcTextSize("Remove").X + ImGui.GetStyle().FramePadding.X * 2 + 4;
@@ -933,12 +921,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 float totalButtonWidth = editButtonWidth + removeButtonWidth + buttonSpacing * 2;
                 float availableWidth = ImGui.GetContentRegionAvail().X;
                 float maxTextWidth = availableWidth - totalButtonWidth - 10; // 10px padding
-
+            
                 foreach (var a in assignedCharacters)
                 {
                     // Build the full display text
                     string displayText = $"{a.FullName} → {a.AssignedCharacter!.Data.Name}";
-
+            
                     // Truncate if too long
                     string truncatedText = displayText;
                     if (ImGui.CalcTextSize(displayText).X > maxTextWidth)
@@ -949,18 +937,18 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         }
                         truncatedText += "...";
                     }
-
+            
                     // Draw coloured text segments
                     var arrowIndex = truncatedText.IndexOf(" → ");
                     if (arrowIndex > 0)
                     {
                         var inGamePart = truncatedText.Substring(0, arrowIndex);
                         var restPart = truncatedText.Substring(arrowIndex);
-
+            
                         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.9f, 0.7f, 1f));
                         ImGui.Text(inGamePart);
                         ImGui.PopStyleColor();
-
+            
                         ImGui.SameLine(0, 0);
                         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.6f, 1f));
                         ImGui.Text(restPart);
@@ -970,66 +958,66 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     {
                         ImGui.Text(truncatedText);
                     }
-
+            
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.SetTooltip(displayText);
                     }
-
+            
                     // Position buttons on the right
                     ImGui.SameLine(availableWidth - totalButtonWidth + buttonSpacing);
-
+            
                     // Edit button
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.6f, 0.8f, 0.6f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.7f, 0.9f, 0.8f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.5f, 0.8f, 1.0f, 1.0f));
-
+            
                     if (ImGui.SmallButton($"Edit##{a.FullName}"))
                     {
                         DrawEditAssignment(a);
                     }
                     ImGui.PopStyleColor(3);
-
+            
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.SetTooltip($"Edit assignment for {a.FullName}");
                     }
-
+            
                     ImGui.SameLine();
-
+            
                     // Remove button
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.8f, 0.3f, 0.3f, 0.6f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.9f, 0.4f, 0.4f, 0.8f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1.0f, 0.5f, 0.5f, 1.0f));
-
+            
                     if (ImGui.SmallButton($"Remove##{a.FullName}"))
                     {
                         a.AssignedCharacter = null;
                         plugin.Configuration.PlayerCharacters[a.FullName] = a;
                     }
                     ImGui.PopStyleColor(3);
-
+            
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.SetTooltip($"Remove assignment for {a.FullName}");
                     }
                 }
-
+            
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
             }
-
+            
             // Add new assignment section
             ImGui.Text("Add New Assignment:");
             ImGui.Spacing();
-
+            
             // Get list of known real characters from existing tracking
             var knownPCs = plugin.Configuration.PlayerCharacters;
-
+            
             ImGui.Text("Player Character:");
             ImGui.SetNextItemWidth(300f);
-
+            
             if (knownPCs.Any())
             {
                 // Dropdown of known characters
@@ -1048,7 +1036,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     ImGui.EndCombo();
                 }
                 DrawTooltip("Select from characters the plugin has seen before, or type manually below.");
-
+            
                 // Manual input as backup
                 string newCharacterName = "";
                 ImGui.Text("Or enter manually:");
@@ -1060,7 +1048,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 }
                 DrawTooltip("Enter the exact character name and world as it appears in-game.\nExample: James Stone@Hyperion");
             }
-
+            
             ImGui.Spacing();
             
             ImGui.Text("SCS Character:");
@@ -1072,10 +1060,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 {
                     currentlySelectedChar = null;
                 }
-
+            
                 // Add separator
                 ImGui.Separator();
-
+            
                 // Add all SCS characters
                 foreach (var character in plugin.Characters)
                 {
@@ -1090,19 +1078,19 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.EndCombo();
             }
             DrawTooltip("Choose which SCS character should auto-apply for this player character.\nSelect 'None' to prevent any auto-application for this player character.");
-
+            
             bool canAdd = currentlySelectedPc != null && currentlySelectedChar != null && !plugin.Configuration.PlayerCharacters.ContainsKey(currentlySelectedPc.FullName);
-
+            
             if (!canAdd)
                 ImGui.BeginDisabled();
-
+            
             if (ImGui.Button("Add Assignment"))
             {
                 plugin.Configuration.PlayerCharacters[currentlySelectedPc.FullName] = currentlySelectedPc;
                 plugin.Configuration.Save();
                 Plugin.Log.Debug($"[CharacterAssignment] Added: {currentlySelectedPc.FullName} → {currentlySelectedChar?.Data.Name}");
             }
-
+            
             if (!canAdd)
             {
                 ImGui.EndDisabled();
@@ -1224,6 +1212,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         // Job data for UI
         private void DrawGearsetAssignmentSettings()
         {
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.4f, 1f));
+            ImGui.TextWrapped("This feature will be returning in the near future.");
+            ImGui.PopStyleColor();
             // // Enable Gearset -> Character switching
             // bool enableGCSwitch = plugin.Configuration.EnableGearsetCharacterSwitching;
             // if (ImGui.Checkbox("Enable Gearset -> Character Assignments", ref enableGCSwitch))
@@ -2047,7 +2038,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             visualSettingsOpen = false;
             automationSettingsOpen = false;
             behaviorSettingsOpen = false;
-            honorificSettingsOpen = false;
             mainCharacterSettingsOpen = false;
             dialogueSettingsOpen = false;
             characterAssignmentSettingsOpen = false;
@@ -2067,9 +2057,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 case "Behavior Settings":
                     behaviorSettingsOpen = true;
                     break;
-                case "Honorific":
-                    honorificSettingsOpen = true;
-                    break;
                 case "Main Character":
                     mainCharacterSettingsOpen = true;
                     break;
@@ -2079,7 +2066,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 case "Character Assignments":
                     characterAssignmentSettingsOpen = true;
                     break;
-                case "Job Assignments":
+                case "Gearset Assignments":
                     gearsetAssignmentSettingsOpen = true;
                     break;
                 case "Backup & Restore":

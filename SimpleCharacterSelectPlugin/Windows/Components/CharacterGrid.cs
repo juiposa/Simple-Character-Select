@@ -402,12 +402,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         }
                     }
 
-                    float hoverScale = plugin.Configuration.EnableCharacterHoverEffects
-                        ? 1f + (0.05f * hoverAmount)
-                        : 1f;
-
-                    float finalWidth = displayWidth * hoverScale;
-                    float finalHeight = displayHeight * hoverScale;
+                    float finalWidth = displayWidth;
+                    float finalHeight = displayHeight;
 
                     float paddingX = (imageAreaSize.X - finalWidth) / 2;
                     float paddingY = (imageAreaSize.Y - finalHeight) / 2;

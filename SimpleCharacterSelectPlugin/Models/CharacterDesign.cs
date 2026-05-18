@@ -33,7 +33,7 @@ namespace SimpleCharacterSelectPlugin
             newDesign.GlamourerDesign = GlamourerDesign;
             newDesign.GlamourerAutomation = GlamourerAutomation;
             newDesign.CustomizeProfileTuple = CustomizeProfileTuple;
-            newDesign.Honorific = Honorific.Clone();
+            newDesign.Honorific = Honorific?.Clone();
             newDesign.AssignedGearset =  AssignedGearset;
             newDesign.MoodlePresetTuple = MoodlePresetTuple;
             newDesign.DateAdded = DateAdded.AddDays(0);

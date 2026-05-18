@@ -45,6 +45,11 @@ namespace SimpleCharacterSelectPlugin.Models
         {
             Data.Designs[Data.DefaultDesignIndex] = characterDesign;
         }
+
+        public int GetDesignIndex(CharacterDesign characterDesign)
+        {
+            return Data.Designs.IndexOf(characterDesign);
+        }
     }
     public class DesignFolder
     {

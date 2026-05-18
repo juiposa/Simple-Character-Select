@@ -28,7 +28,21 @@ public static class CustomizeIntegration
         }
         catch (Exception ex)
         {
-            Plugin.Log.Warning($"Customize+ Failed: {ex.Message}");
+            Plugin.Log.Warning($"Customize+ Apply Failed: {ex.Message}");
         }
     }
+
+    public static void RevertCustomizePlusProfile(ushort localObjectIndex)
+    {
+        try
+        {
+            var result = CustomizeIpc.DeleteTemporaryProfileOnCharacter?.InvokeFunc((ushort)localObjectIndex);
+            Plugin.Log.Debug($"Customize+ Cleared");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning($"Customize+ Revert Failed: {ex.Message}");
+        }
+    }
+    
 }

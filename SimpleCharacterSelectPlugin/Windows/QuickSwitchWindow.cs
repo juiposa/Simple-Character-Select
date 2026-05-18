@@ -211,7 +211,7 @@ namespace SimpleCharacterSelectPlugin.Windows
 
             if (selectedCharacterIndex >= 0)
             {
-                if (ImGui.Button("Apply", new Vector2(50, ImGui.GetFrameHeight())))
+                if (ImGui.Button("Apply", new Vector2(50 * scale, ImGui.GetFrameHeight())))
                 {
                     ApplySelection();
                 }
@@ -219,7 +219,7 @@ namespace SimpleCharacterSelectPlugin.Windows
             else
             {
                 ImGui.BeginDisabled();
-                ImGui.Button("Apply", new Vector2(50, ImGui.GetFrameHeight()));
+                ImGui.Button("Apply", new Vector2(50 * scale, ImGui.GetFrameHeight()));
                 ImGui.EndDisabled();
             }
 

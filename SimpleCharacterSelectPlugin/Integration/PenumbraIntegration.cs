@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Penumbra.Api.Api;
+using SimpleCharacterSelectPlugin.Managers;
 
 namespace SimpleCharacterSelectPlugin.Integration
 {
@@ -26,6 +28,7 @@ namespace SimpleCharacterSelectPlugin.Integration
         InvalidArgument = 11,
         UnknownError = 255
     }
+
     /// <summary>
     /// Handles integration with Penumbra API for collection management and mod tagging
     /// </summary>
@@ -37,13 +40,14 @@ namespace SimpleCharacterSelectPlugin.Integration
             {
                 // Check if Penumbra is available
                 var version = PenumbraIpc.ApiVersion.InvokeFunc();
-                
+
                 if (version < 5)
                 {
                     Plugin.Log.Debug($"Penumbra API version {version} is too old, requires version 5+");
                     return false;
                 }
-                //Plugin.Log.Debug($"Penumbra API v{version} is live");
+
+                Plugin.Log.Debug($"Penumbra API v{version} is live");
             }
             catch (Exception ex)
             {
@@ -53,7 +57,7 @@ namespace SimpleCharacterSelectPlugin.Integration
 
             return true;
         }
-        
+
         // Switch penumbra collection and set the Penumbra UI to it
         public static void SwitchCollection(string collectionName)
         {
@@ -62,47 +66,58 @@ namespace SimpleCharacterSelectPlugin.Integration
                 Plugin.Log.Warning("Penumbra API not available for collection switching");
                 return;
             }
-            
+
             var local = Plugin.ObjectTable.LocalPlayer;
             if (local == null) return;
-            
+
             try
             {
                 // First, get all available collections to find the GUID
                 var collections = GetAvailableCollections();
                 var targetCollection = collections.FirstOrDefault(kvp => kvp.Value == collectionName);
-                
+
                 if (targetCollection.Key == Guid.Empty)
                 {
                     Plugin.Log.Warning($"Collection '{collectionName}' not found in available collections");
                     return;
                 }
-                
+
                 // Use the correct SetCollection API signature
                 // Only set "Current" to update the Penumbra UI display (collection assignment already works)
-                Plugin.Log.Debug($"Setting Penumbra UI current collection - Name: {collectionName}, GUID: {targetCollection.Key}");
+                Plugin.Log.Debug(
+                    $"Setting Penumbra UI current collection - Name: {collectionName}, GUID: {targetCollection.Key}");
 
-                PenumbraIpc.SetCollectionForObject.InvokeFunc(
+                var (resultInt, _) = PenumbraIpc.SetCollectionForObject.InvokeFunc(
                     local.ObjectIndex,
                     targetCollection.Key,
                     false,
                     false
                 );
-                
-                var (resultInt, oldCollection) = PenumbraIpc.SetCollection.InvokeFunc(
-                    (byte)ApiCollectionType.Current,  
-                    targetCollection.Key,       
-                    false,                      
-                    false                       
-                );
-                
+
+                if ((PenumbraApiEc)resultInt == PenumbraApiEc.Success)
+                {
+                    Plugin.Log.Debug($"Penumbra setCollection redraw: {resultInt}");
+                    GameCommandManager.ExecuteCommand("/penumbra redraw self");
+                }
+
+                if (targetCollection.Key != Guid.Empty)
+                {
+                    (resultInt, _) = PenumbraIpc.SetCollection.InvokeFunc(
+                        (byte)ApiCollectionType.Current,
+                        targetCollection.Key,
+                        false,
+                        false
+                    );
+                }
+
                 var result = (PenumbraApiEc)resultInt;
-                
-                Plugin.Log.Debug($"SetCollection(Current) result: {result}");
-                
+
+                Plugin.Log.Debug($"Penumbra setCollection result: {result}");
+
                 if (result == PenumbraApiEc.Success || result == PenumbraApiEc.NothingChanged)
                 {
-                    Plugin.Log.Information($"Successfully switched Penumbra UI to collection: {collectionName} (GUID: {targetCollection.Key})");
+                    Plugin.Log.Information(
+                        $"Successfully switched Penumbra to collection: {collectionName} (GUID: {targetCollection.Key})");
                     return;
                 }
                 else
@@ -117,78 +132,76 @@ namespace SimpleCharacterSelectPlugin.Integration
                 return;
             }
         }
-        
-        public static bool ResetCollectionToDefault(ushort objectIndex)
+
+        public static void ResetCollectionToDefault(ushort objectIndex)
         {
             if (!IsPenumbraAvailable())
             {
                 Plugin.Log.Warning("Penumbra API not available for collection reset");
-                return false;
+                return;
             }
 
             try
             {
                 // Step 1: Get the collection assigned to "Your Character" type
-                var yourCharacterCollection = PenumbraIpc.GetCollection.InvokeFunc((byte)ApiCollectionType.Yourself);
+                var fallbackCollection = PenumbraIpc.GetCollection.InvokeFunc((byte)ApiCollectionType.Yourself);
 
-                if (yourCharacterCollection == null)
+                if (fallbackCollection == null)
                 {
-                    Plugin.Log.Warning("No collection assigned to 'Your Character' in Penumbra");
-                    return false;
+                    Plugin.Log.Warning("No collection assigned to 'Your Character' in Penumbra, presuming Default");
+                    fallbackCollection = PenumbraIpc.GetCollection.InvokeFunc((byte)ApiCollectionType.Default);
                 }
 
-                Plugin.Log.Debug($"Found 'Your Character' collection: {yourCharacterCollection.Value.Name} ({yourCharacterCollection.Value.Id})");
+                Plugin.Log.Debug(
+                    $"Found fallback collection: {fallbackCollection.Value.Name} ({fallbackCollection.Value.Id})");
 
                 // Step 2: Apply that collection to the player object
                 var (resultInt, oldCollection) = PenumbraIpc.SetCollectionForObject.InvokeFunc(
-                    objectIndex,                        // The player's object index
-                    yourCharacterCollection.Value.Id,   // The GUID of "Your Character" collection
-                    false,                              // Don't allow creation
-                    false                               // Don't allow deletion
+                    objectIndex, // The player's object index
+                    fallbackCollection.Value.Id, // The GUID of "Your Character" collection
+                    false, // Don't allow creation
+                    false // Don't allow deletion
                 );
 
                 var result = (PenumbraApiEc)resultInt;
 
-                Plugin.Log.Debug($"ResetCollectionToDefault result: {result}, old collection: {oldCollection?.Name ?? "none"}");
+                Plugin.Log.Debug(
+                    $"ResetCollectionToDefault result: {result}, old collection: {oldCollection?.Name ?? "none"}");
 
                 if (result == PenumbraApiEc.Success || result == PenumbraApiEc.NothingChanged)
                 {
-                    Plugin.Log.Information($"Successfully switched to 'Your Character' collection: {yourCharacterCollection.Value.Name}");
+                    Plugin.Log.Debug(
+                        $"Successfully switched to 'Your Character' collection: {fallbackCollection.Value.Name}");
 
                     // Also update the Penumbra UI to display this collection
                     var (uiResultInt, _) = PenumbraIpc.SetCollection.InvokeFunc(
-                        (byte)ApiCollectionType.Current,      // Set as current collection (UI display)
-                        yourCharacterCollection.Value.Id,     // Collection GUID
-                        false,                                // Don't allow creation
-                        false                                 // Don't allow deletion
+                        (byte)ApiCollectionType.Current, // Set as current collection (UI display)
+                        fallbackCollection.Value.Id, // Collection GUID
+                        false, // Don't allow creation
+                        false // Don't allow deletion
                     );
 
                     var uiResult = (PenumbraApiEc)uiResultInt;
                     Plugin.Log.Debug($"SetCollection(Current) UI update result: {uiResult}");
 
-                    return true;
+                    GameCommandManager.ExecuteCommand("/penumbra redraw self");
                 }
                 else
                 {
                     Plugin.Log.Warning($"Failed to reset Penumbra collection: {result}");
-                    return false;
                 }
             }
             catch (Exception ex)
             {
                 Plugin.Log.Error($"Error resetting Penumbra collection: {ex.Message}");
-                return false;
             }
         }
 
-        /// <summary>
-        /// Get list of all available Penumbra collections
-        /// </summary>
         public static Dictionary<Guid, string> GetAvailableCollections()
         {
             if (!IsPenumbraAvailable())
                 return new Dictionary<Guid, string>();
-            
+
             try
             {
                 return PenumbraIpc.GetCollections.InvokeFunc();
@@ -199,7 +212,7 @@ namespace SimpleCharacterSelectPlugin.Integration
                 return new Dictionary<Guid, string>();
             }
         }
-        
+
         /// <summary>
         /// Get the collection actually affecting the player character (most accurate method)
         /// </summary>
@@ -207,29 +220,30 @@ namespace SimpleCharacterSelectPlugin.Integration
         {
             if (!IsPenumbraAvailable())
                 return (false, Guid.Empty, string.Empty);
-            
+
             try
             {
                 // Use GetCollectionForObject with object ID 0 (player) - most accurate method
-                var (objectValid, individualSet, (id, name)) = PenumbraIpc.GetCollectionsForObject.InvokeFunc(0); // 0 = player object
-                
+                var (objectValid, individualSet, (id, name)) =
+                    PenumbraIpc.GetCollectionsForObject.InvokeFunc(0); // 0 = player object
+
                 if (objectValid)
                 {
                     return (true, id, name);
                 }
-                
+
                 Plugin.Log.Warning("Player object not valid for collection detection");
                 return (false, Guid.Empty, string.Empty);
             }
             catch (Exception ex)
             {
                 Plugin.Log.Debug($"GetCollectionForObject.V5 failed: {ex.Message}, trying fallback");
-                
+
                 // Fallback to the older method
                 return GetCurrentCollectionFallback();
             }
         }
-        
+
         /// <summary>
         /// Fallback collection detection method
         /// </summary>
@@ -238,23 +252,26 @@ namespace SimpleCharacterSelectPlugin.Integration
             try
             {
                 // Try the GetCollection method
-                var result = PenumbraIpc.GetCollection.InvokeFunc(0); // 0 = current character/yourself (ApiCollectionType.Current)
-                
+                var result =
+                    PenumbraIpc.GetCollection
+                        .InvokeFunc(0); // 0 = current character/yourself (ApiCollectionType.Current)
+
                 if (result?.Item1 != null && result?.Item2 != null)
                 {
                     Plugin.Log.Information($"Fallback: got current collection: {result.Value.Item2}");
                     return (true, result.Value.Item1, result.Value.Item2);
                 }
-                
+
                 // Final fallback: use first available collection
                 var collections = GetAvailableCollections();
                 if (collections.Any())
                 {
                     var firstCollection = collections.First();
-                    Plugin.Log.Information($"Final fallback: using first available collection: {firstCollection.Value}");
+                    Plugin.Log.Information(
+                        $"Final fallback: using first available collection: {firstCollection.Value}");
                     return (true, firstCollection.Key, firstCollection.Value);
                 }
-                
+
                 return (false, Guid.Empty, string.Empty);
             }
             catch (Exception ex)
@@ -263,7 +280,7 @@ namespace SimpleCharacterSelectPlugin.Integration
                 return (false, Guid.Empty, string.Empty);
             }
         }
-        
+
         /// <summary>
         /// Get the current collection ID safely (legacy method for backward compatibility)
         /// </summary>
@@ -272,5 +289,4 @@ namespace SimpleCharacterSelectPlugin.Integration
             return GetPlayerCollection();
         }
     }
-    
 }

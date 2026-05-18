@@ -14,6 +14,7 @@ namespace SimpleCharacterSelectPlugin.Integration
 
         // Cached lists
         public List<string> CachedPenumbraCollections = new();
+        public string CachedCurrentPenumbraCollection = "";
         public List<string> CachedGlamourerDesigns = new();
         public List<(Guid, string)> CachedCustomizePlusProfiles = new();
         public List<(Guid, string)> CachedMoodlesPresets = new();
@@ -190,14 +191,19 @@ namespace SimpleCharacterSelectPlugin.Integration
         }
 
         /// <summary>Gets the currently active Penumbra collection for the local player.</summary>
-        public string? GetCurrentPenumbraCollection()
+        public string? GetCurrentPenumbraCollection(bool forceRefresh = false)
         {
+            if (!forceRefresh && DateTime.Now - lastPenumbraRefresh < CacheDuration)
+            {
+                return CachedCurrentPenumbraCollection;
+            }
             try
             {
                 var result = PenumbraIntegration.GetCurrentCollection();
                 if (string.IsNullOrEmpty(result.collectionName))
                 {
-                    return result.collectionName;
+                    CachedCurrentPenumbraCollection = result.collectionName;
+                    return CachedCurrentPenumbraCollection;
                 }
             }
             catch

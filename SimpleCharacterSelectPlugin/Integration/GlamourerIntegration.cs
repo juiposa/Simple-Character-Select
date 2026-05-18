@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 
 namespace SimpleCharacterSelectPlugin.Integration;
 
@@ -37,7 +38,21 @@ public class GlamourerIntegration
         }
         catch (Exception ex)
         {
-            Plugin.Log.Warning($"Glamourer Failed: {ex.Message}");
+            Plugin.Log.Warning($"Glamourer Apply Failed: {ex.Message}");
+        }
+    }
+
+    public static void RevertGlamourerState(ushort localObjectIndex)
+    {
+        try
+        {
+            const ulong designDefaultFlags = 0x07uL;
+            var result = GlamourerIpc.RevertState?.InvokeFunc(localObjectIndex, 0u, designDefaultFlags);
+            Plugin.Log.Debug($"Glamourer Reverted result: {result}");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning($"Glamourer Revert Failed: {ex.Message}");
         }
     }
 }

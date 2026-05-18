@@ -5,11 +5,12 @@ namespace SimpleCharacterSelectPlugin.Integration;
 
 public class MoodlesIntegration
 {
+    private const string RemoveCommand = "/moodle remove self preset all";
     public static void ApplyMoodlesProfile((Guid, string) preset)
     {
-        /// moodle apply self preset "ABC"
         try
         {
+            GameCommandManager.ExecuteCommand(RemoveCommand);
             if (preset.Item1 == Guid.Empty)
                 return;
             
@@ -25,6 +26,19 @@ public class MoodlesIntegration
         catch (Exception ex)
         {
             Plugin.Log.Warning($"Moodles Failed: {ex.Message}");
+        }
+    }
+
+    public static void RevertMoodles()
+    {
+        try
+        {
+            GameCommandManager.ExecuteCommand(RemoveCommand);
+            Plugin.Log.Debug($"Moodles Cleared");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning($"Moodles Revert Failed: {ex.Message}");
         }
     }
 }

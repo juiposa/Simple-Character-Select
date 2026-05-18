@@ -29,6 +29,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         public bool IsOpen { get; private set; } = false;
         private int activeCharacterIndex = -1;
+        private Character? currentCharacter;
 
         // Resizable panel
         public float PanelWidth { get; private set; } = 300f; // Default width
@@ -65,10 +66,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private string originalDesignName = "";
         private string? pendingDesignImagePath = null;
         private string? pendingPastedImagePath = null;
-        
-        // Temporary Secret Mode state for new designs
-        private Dictionary<string, bool>? temporaryDesignSecretModState = null;
-        private HashSet<string>? temporaryDesignSecretModPinOverrides = null;
 
         // Design sorting
         private enum DesignSortType { Favorites, Alphabetical, Recent, Oldest, Manual }
@@ -221,6 +218,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         public void Open(int characterIndex)
         {
             activeCharacterIndex = characterIndex;
+            currentCharacter = plugin.Configuration.Characters[characterIndex];
             IsOpen = true;
             plugin.WindowState.IsDesignPanelOpen = true;
         }
@@ -229,6 +227,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             IsOpen = false;
             activeCharacterIndex = -1;
+            currentCharacter = null;
             plugin.WindowState.IsDesignPanelOpen = false;
             
             CloseDesignEditor();
@@ -326,25 +325,25 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             ImGui.SameLine(0, spacing);
 
-            // Folder Button
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.7f, 0.3f, 1.0f)); // Yellow
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.9f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1f));
-
-            ImGui.PushFont(UiBuilder.IconFont);
-            if (ImGui.Button("\uf07b##AddFolder"))
-                ImGui.OpenPopup("CreateFolderPopup");
-            ImGui.PopFont();
-
-            ImGui.PopStyleColor(4);
-
-            DrawFolderCreationPopup(character, scale);
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Add Folder");
-            }
+            // Folder Button TODO readd if anyone asks for it
+            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.7f, 0.3f, 1.0f)); // Yellow
+            // ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.9f));
+            // ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1f));
+            // ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1f));
+            //
+            // ImGui.PushFont(UiBuilder.IconFont);
+            // if (ImGui.Button("\uf07b##AddFolder"))
+            //     ImGui.OpenPopup("CreateFolderPopup");
+            // ImGui.PopFont();
+            //
+            // ImGui.PopStyleColor(4);
+            //
+            // DrawFolderCreationPopup(character, scale);
+            //
+            // if (ImGui.IsItemHovered())
+            // {
+            //     ImGui.SetTooltip("Add Folder");
+            // }
 
             // Search button
             ImGui.SameLine(0, spacing);
@@ -538,14 +537,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetNextItemWidth(inputWidth);
             if (ImGui.InputText("##DesignName", ref editedDesignName, 100))
             {
-                plugin.WindowState.EditedDesignName = editedDesignName;
             }
             plugin.WindowState.DesignNameFieldPos = ImGui.GetItemRectMin();
             plugin.WindowState.DesignNameFieldSize = ImGui.GetItemRectSize();
 
             ImGui.Separator();
-
-            DrawGlamourerField(character, inputWidth, scale);
+            
+            DrawPenumbraField(inputWidth, scale);
+            
+            DrawGlamourerField(inputWidth, scale);
 
             // if (plugin.Configuration.EnableAutomations) //TODO automations
             // {
@@ -568,7 +568,36 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.EndChild();
         }
 
-        private void DrawGlamourerField(Character character, float inputWidth, float scale)
+        private void DrawPenumbraField(float inputWidth, float scale)
+        {
+            ImGui.Text("Penumbra Collection*");
+
+            // Tooltip
+            ImGui.SameLine();
+            ImGui.PushFont(UiBuilder.IconFont);
+            ImGui.Text("\uf05a");
+            ImGui.PopFont();
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.BeginTooltip();
+                ImGui.PushTextWrapPos(300 * scale);
+                ImGui.TextUnformatted("Select the Glamourer design for this outfit. Right-click to clear.");
+                ImGui.PopTextWrapPos();
+                ImGui.EndTooltip();
+            }
+
+            ImGui.SetCursorPosX(10 * scale);
+            var penumbraOptions = plugin.IntegrationListProvider?.GetPenumbraCollections() ?? Array.Empty<string>();
+
+            if (AutocompleteCombo.Draw("##PenumbraCollection", ref editedPenumbraCollection, penumbraOptions, inputWidth, "Select collection..."))
+            {
+            }
+            // plugin.WindowState.DesignGlamourerFieldPos = ImGui.GetItemRectMin();
+            // plugin.WindowState.DesignGlamourerFieldSize = ImGui.GetItemRectSize();
+        }
+
+        private void DrawGlamourerField(float inputWidth, float scale)
         {
             ImGui.Text("Glamourer Design*");
 
@@ -592,10 +621,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             if (AutocompleteCombo.Draw("##GlamourerDesign", ref editedGlamourerDesign, glamourerOptions, inputWidth, "Select design..."))
             {
-                plugin.WindowState.EditedGlamourerDesign = editedGlamourerDesign;
             }
-            plugin.WindowState.DesignGlamourerFieldPos = ImGui.GetItemRectMin();
-            plugin.WindowState.DesignGlamourerFieldSize = ImGui.GetItemRectSize();
+            // plugin.WindowState.DesignGlamourerFieldPos = ImGui.GetItemRectMin();
+            // plugin.WindowState.DesignGlamourerFieldSize = ImGui.GetItemRectSize();
         }
 
         private void DrawAutomationField(float inputWidth, float scale)
@@ -644,7 +672,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             var customizeProfiles = plugin.IntegrationListProvider?.GetCustomizePlusProfiles().ToArray();
             var customizeOptions = customizeProfiles?.Select(v => v.Item2).ToArray() ?? Array.Empty<string>();
             var currentCustomize = plugin.IntegrationListProvider?.GetCurrentCustomizePlusProfile();
-            var tempCustomize = "";
+            var tempCustomize = editedCustomizeProfile.Item2;
             if (AutocompleteCombo.Draw("##CustomizeProfile", ref tempCustomize, customizeOptions, inputWidth, "Select profile...", currentActive: currentCustomize))
             {
                 if (customizeProfiles != null && customizeProfiles.Length > 0)
@@ -1350,10 +1378,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         //plugin.SwitchToGearset(effectiveGearset.Value);
                     }
                 }
-                
-                
-                plugin.Configuration.Save();
-                
+
+                var index = character.Data.Designs.IndexOf(design);
+                Plugin.Log.Debug($"DesignWindow applying design {character.Data.Name}");
+                plugin.ActivePlayer.QueueUpdate(character, index);
+            
+                plugin.QuickSwitchWindow.RefreshSelection();
             }
             ImGui.PopStyleColor();
             ImGui.PopFont();
@@ -1566,13 +1596,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             isEditDesignWindowOpen = true;
             plugin.WindowState.IsEditDesignWindowOpen = true;
             editedDesignName = "";
+            editedPenumbraCollection = currentCharacter?.GetDefaultDesign().PenumbraCollection ?? "";
             editedGlamourerDesign = "";
             editedAutomation = "";
             editedCustomizeProfile = (Guid.Empty, "");
             editedGearset = null;
             editedDesignPreviewPath = "";
-            plugin.WindowState.EditedDesignName = editedDesignName;
-            plugin.WindowState.EditedGlamourerDesign = editedGlamourerDesign;
         }
 
         private void OpenEditDesignWindow(Character character, CharacterDesign design)
@@ -1582,6 +1611,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             plugin.WindowState.IsEditDesignWindowOpen = true;
             originalDesignName = design.Name;
             editedDesignName = design.Name;
+            editedPenumbraCollection = design.PenumbraCollection;
             editedGlamourerDesign = !string.IsNullOrWhiteSpace(design.GlamourerDesign)
                 ? design.GlamourerDesign
                 : "";
@@ -1609,8 +1639,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             editedCustomizeProfile = (Guid.Empty, "");
             editedDesignPreviewPath = "";
             originalDesignName = "";
-            temporaryDesignSecretModState = null;
-            temporaryDesignSecretModPinOverrides = null;
         }
 
         private void SaveDesign(Character character)

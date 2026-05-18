@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 
 namespace SimpleCharacterSelectPlugin.Models;
@@ -26,19 +27,13 @@ public class CharacterData
     public byte DozePoseIndex { get; set; } = 255;
     public string? Pronouns { get; set; }
     public List<string> Tags { get; set; } = new();
-    [JsonIgnore]
-    public string Tag
+    public string Tag { get; set; } = "";
+    public void SetTags()
     {
-        get => Tags.FirstOrDefault() ?? "";
-        set
-        {
-            Tags.Clear();
-            if (!string.IsNullOrWhiteSpace(value))
-                Tags.Add(value);
-        }
+        var tags = Regex.Replace(Tag, @"\s+", "");
+        Tags = tags.Split(",").Distinct().ToList();
+        Tag = "";
     }
-    public List<string> KnownTags { get; set; } = new();
-    public List<string> DesignTags { get; set; } = new List<string>();
 
     /// <summary>Gearset to switch to when applying this character (null = don't switch).</summary>
     public int? AssignedGearset { get; set; } = null;
@@ -65,8 +60,6 @@ public class CharacterData
         clone.DozePoseIndex = this.DozePoseIndex;
         clone.Pronouns = this.Pronouns;
         clone.Tags = this.Tags.Slice(0, this.Tags.Count);
-        clone.KnownTags = this.KnownTags.Slice(0, this.KnownTags.Count);
-        clone.DesignTags = this.DesignTags.Slice(0, this.DesignTags.Count);
         clone.AssignedGearset = this.AssignedGearset;
         clone.DesignFolders = this.DesignFolders.Slice(0, this.DesignFolders.Count);
         clone.OverrideAccentColor = this.OverrideAccentColor.HasValue ? this.OverrideAccentColor.Value.AsVector4().AsVector3() : default;

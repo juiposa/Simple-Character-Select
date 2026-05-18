@@ -36,7 +36,7 @@ public class Commands
         {
             HelpMessage = "Opens the Simple Character Select UI"
         });
-        // TODO switch and revert
+
     }
     
     private void OnCommand(string command, string args)
@@ -53,42 +53,46 @@ public class Commands
     
     private void OnQuickSwitchCommand(string command, string args)
     {
-        //QuickSwitchWindow.IsOpen = !QuickSwitchWindow.IsOpen; // Toggle Window On/Off
+        plugin.QuickSwitchWindow.Toggle();
     }
     
     private void OnSelectCommand(string command, string args)
     {
-        // Handle random selection
-        if (args.Trim().StartsWith("random", StringComparison.OrdinalIgnoreCase))
+        // Handle random selection //TODO readd if someone asks for it
+        // if (args.Trim().StartsWith("random", StringComparison.OrdinalIgnoreCase))
+        // {
+        //     var randomArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        //     if (randomArgs.Length == 1)
+        //     {
+        //         // /select random - random character and design
+        //         //SelectRandomCharacterAndDesign();
+        //     }
+        //     else if (randomArgs.Length >= 2)
+        //     {
+        //         // Could be /select random GROUPNAME or /select random CHARACTER
+        //         var targetName = string.Join(" ", randomArgs.Skip(1));
+        //
+        //         // Check if it's a group name first
+        //         //var group = Configuration.RandomGroups.FirstOrDefault(g =>
+        //         //    g.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase));
+        //
+        //         // if (group != null)
+        //         // {
+        //         //     // /select random GROUPNAME - random from group
+        //         //     //SelectRandomFromGroup(group);
+        //         // }
+        //         // else
+        //         // {
+        //         //     // /select random CHARACTER - random design only from specific character
+        //         //     //SelectRandomDesignOnly(targetName);
+        //         // }
+        //     }
+        //     return;
+        // }
+
+        if (args.Trim().StartsWith("revert", StringComparison.OrdinalIgnoreCase))
         {
-            var randomArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (randomArgs.Length == 1)
-            {
-                // /select random - random character and design
-                //SelectRandomCharacterAndDesign();
-                //TODO random
-            }
-            else if (randomArgs.Length >= 2)
-            {
-                // Could be /select random GROUPNAME or /select random CHARACTER
-                var targetName = string.Join(" ", randomArgs.Skip(1));
-        
-                // Check if it's a group name first
-                //var group = Configuration.RandomGroups.FirstOrDefault(g =>
-                //    g.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase));
-        
-                // if (group != null)
-                // {
-                //     // /select random GROUPNAME - random from group
-                //     //SelectRandomFromGroup(group);
-                // }
-                // else
-                // {
-                //     // /select random CHARACTER - random design only from specific character
-                //     //SelectRandomDesignOnly(targetName);
-                // }
-            }
-            return;
+            DesignManager.RevertAllChanges();
         }
         
         // Rest of the existing method remains the same...
@@ -99,7 +103,7 @@ public class Commands
 
         if (matches.Length < 1)
         {
-            Plugin.ChatGui.PrintError($"[Simple Character Select] Invalid usage. Use {CommandName} <Character Name> [Design], {CommandName} random [Name]");
+            Plugin.ChatGui.PrintError($"[Simple Character Select] Invalid usage. Use {CommandName} <Character Name> [Design], {CommandName} revert");
             return;
         }
         
@@ -139,15 +143,5 @@ public class Commands
     public void RemoveHandlers()
     {
         commandManager.RemoveHandler(CommandName);
-    }
-    
-
-
-    /// <summary>
-    /// Reverts all SCS changes - Glamourer, Honorific, Moodles, Penumbra collection, and clears active character.
-    /// </summary>
-    public static void RevertAllChanges()
-    {
-        
     }
 }

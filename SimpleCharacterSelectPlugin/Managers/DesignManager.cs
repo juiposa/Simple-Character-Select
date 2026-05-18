@@ -45,11 +45,20 @@ public static class DesignManager
          CustomizeIntegration.ApplyCustomizePlusProfile(designToApply.CustomizeProfileTuple);
          MoodlesIntegration.ApplyMoodlesProfile(designToApply.MoodlePresetTuple);
          HonorificIntegration.ApplyTitle(designToApply.Honorific);
-         // apply C+
-         // apply moodles
-         // apply honorific
 
          //switch gearset if needed
+     }
+     
+     public static void RevertAllChanges()
+     {
+        var local = Plugin.ObjectTable.LocalPlayer;
+        if (local == null) return;
+
+        PenumbraIntegration.ResetCollectionToDefault(local.ObjectIndex);
+        GlamourerIntegration.RevertGlamourerState(local.ObjectIndex);
+        CustomizeIntegration.RevertCustomizePlusProfile(local.ObjectIndex);
+        MoodlesIntegration.RevertMoodles();
+        HonorificIntegration.RevertHonorific();
      }
      
     private  static bool TryApplyGearsetAssignment(uint gearsetId)
