@@ -3,8 +3,8 @@
     <PropertyGroup>
         <TargetFramework>net10.0-windows</TargetFramework>
         <!-- Windows-specific target framework -->
-        <Version>0.0.3</Version>
-        <Description>Instant Character Switching Made Simple. Create and save character profiles, then switch between them instantly. Applies Penumbra Collections, Glamourer Designs, Customize+ Profiles, Honorifics, Moodles, and Idles. Perfect for roleplayers, gposers, and anyone who loves seamless character customization.</Description>
+        <Version>0.0.4</Version>
+        <Description></Description>
         <PackageProjectUrl></PackageProjectUrl>
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
         <IsPackable>false</IsPackable>
