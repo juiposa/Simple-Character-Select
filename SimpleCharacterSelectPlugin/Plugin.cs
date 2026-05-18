@@ -252,14 +252,15 @@ namespace SimpleCharacterSelectPlugin
                     ActivePlayer = new ActivePlayerCharacter(player, Configuration.PlayerCharacters[fullKey]);
                     Log.Info($"Player character loaded: {ActivePlayer.Pc.FullName}");
                 }
-
+                
+                StartupComplete = true;
+                
                 if (!Configuration.EnableLastUsedCharacterAutoload)
                     return;
                 
                 Log.Debug($"Loading last used character: {ActivePlayer.Pc.ActiveCharacter?.Data.Name}");
                 CharacterManager.ApplyLastUsedOrAssignedCharacter(ActivePlayer.Pc);
                 QuickSwitchWindow.RefreshSelection();
-                StartupComplete = true;
                 Configuration.Save();
                 return;
             }
