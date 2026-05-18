@@ -31,7 +31,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private string? pendingImagePath = null;
         private bool noErrors = true;
         private CharacterData editCharacterData = new CharacterData();
-        private CharacterDesign editCharDefaultDesign;
+        private CharacterDesign editCharDefaultDesign = new CharacterDesign();
 
         // Temp fields for live updates
         private string tempHonorificTitle = "";
@@ -148,6 +148,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             float inputWidth = 250 * scale;
             float inputOffset = 10 * scale;
 
+            
+            
+            
             string tempName = editCharacterData.Name;
             string tempPenumbra = editCharDefaultDesign.PenumbraCollection;
             string tempGlamourer = editCharDefaultDesign.GlamourerDesign;
