@@ -20,22 +20,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Styles
             this.plugin = plugin;
         }
 
-        /// <summary>
-        /// Called in PreDraw. Only pushes WindowBg for Custom theme to allow window frame customization.
-        /// Default/Seasonal themes are completely unaffected.
-        /// </summary>
-        public void PushCustomWindowBgIfNeeded()
-        {
-            pushedPreDrawWindowBg = false;
-
-            var customTheme = plugin.Configuration.CustomTheme;
-            if (customTheme.ColorOverrides.TryGetValue("color.windowBg", out var packed) && packed.HasValue)
-            {
-                var color = CustomThemeDefinitions.UnpackColor(packed.Value);
-                ImGui.PushStyleColor(ImGuiCol.WindowBg, color);
-                pushedPreDrawWindowBg = true;
-            }
-        }
 
         /// <summary>
         /// Called in PostDraw. Pops WindowBg if it was pushed in PreDraw.

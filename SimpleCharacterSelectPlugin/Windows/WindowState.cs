@@ -35,11 +35,6 @@ public class WindowState
         public Vector2? SaveDesignButtonSize { get; set; }
         public bool IsDesignPanelOpen { get; set; } = false;
         public bool IsEditDesignWindowOpen { get; set; } = false;
-        public string EditedDesignName { get; set; } = "";
-        public string EditedGlamourerDesign { get; set; } = "";
-
-
-
         public Vector2? SettingsButtonPos { get; set; }
         public Vector2? SettingsButtonSize { get; set; }
         public Vector2? QuickSwitchButtonPos { get; set; }

@@ -165,22 +165,13 @@ public class PoseManager
         {
             // /select idle <0-6> - set pose
             ApplyPose(EmoteController.PoseType.Idle, Convert.ToByte(idleIndex));
-            GameCommandManager.ExecuteMacro("/penumbra redraw self");
-        }
-        else
-        {
-            chatGui.PrintError("[SCS] Usage: /select idle [0-6]");
-        }
+            GameCommandManager.ExecuteCommand("/penumbra redraw self");
+        };
     }
 
     private unsafe void OnFrameworkUpdate(IFramework framework)
     {
-        if (!plugin.Configuration.EnablePoseAutoSave || !clientState.IsLoggedIn)
-            return;
-        if (Plugin.ObjectTable.LocalPlayer == null)
-            return;
 
-        var charPtr = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)Plugin.ObjectTable.LocalPlayer.Address;
     }
 
     private EmoteController.PoseType TranslatePoseState(byte state)

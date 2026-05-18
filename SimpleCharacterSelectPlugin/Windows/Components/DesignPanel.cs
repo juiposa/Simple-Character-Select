@@ -29,6 +29,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         public bool IsOpen { get; private set; } = false;
         private int activeCharacterIndex = -1;
+        private Character? currentCharacter;
 
         // Resizable panel
         public float PanelWidth { get; private set; } = 300f; // Default width
@@ -52,28 +53,19 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         
         // Design editing state
         private bool isEditDesignWindowOpen = false;
-        private bool isAdvancedModeDesign = false;
-        private bool isAdvancedModeWindowOpen = false;
         private bool isNewDesign = false;
-        private bool isSecretDesignMode = false;
 
         // Edit fields
         private string editedDesignName = "";
-        private string editedDesignMacro = "";
+        private string editedPenumbraCollection = "";
         private string editedGlamourerDesign = "";
         private string editedAutomation = "";
-        private string editedCustomizeProfile = "";
+        private (Guid, string) editedCustomizeProfile = (Guid.Empty, "");
         private int? editedGearset = null;
         private string editedDesignPreviewPath = "";
-        private string advancedDesignMacroText = "";
-        private string originalAdvancedMacroText = "";
         private string originalDesignName = "";
         private string? pendingDesignImagePath = null;
         private string? pendingPastedImagePath = null;
-        
-        // Temporary Secret Mode state for new designs
-        private Dictionary<string, bool>? temporaryDesignSecretModState = null;
-        private HashSet<string>? temporaryDesignSecretModPinOverrides = null;
 
         // Design sorting
         private enum DesignSortType { Favorites, Alphabetical, Recent, Oldest, Manual }
@@ -87,21 +79,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private DesignFolder? draggedFolder = null;
         private CharacterDesign? draggedDesign = null;
         private Vector3? newFolderSelectedColor = null;
-
-        // Import window
-        private bool isImportWindowOpen = false;
-        private Character? targetForDesignImport = null;
-
-        // Snapshot dialog
-        private bool isSnapshotDialogOpen = false;
-        private string snapshotDesignName = "";
-        private bool snapshotUseConflictResolution = true;
-        private Character? snapshotTargetCharacter = null;
-        private HashSet<string> snapshotDetectedMods = new();
-        private string? snapshotDetectedCustomizePlusProfile = null;
-        private bool snapshotHasClipboardImage = false;
-        private bool snapshotIsProcessing = false;
-        private string snapshotStatusMessage = "";
+        
 
         public DesignPanel(Plugin plugin, UIStyles uiStyles)
         {
@@ -134,10 +112,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             DrawDesignPanelContent(totalScale, scaledPanelWidth);
             DrawResizeHandle(totalScale, scaledPanelWidth, scaledMinWidth, scaledMaxWidth, scaledHandleWidth);
-
-            DrawImportWindow(totalScale);
-            DrawAdvancedModeWindow(totalScale);
-            DrawSnapshotDialog(totalScale);
         }
 
         private void DrawResizeHandle(float totalScale, float scaledPanelWidth, float scaledMinWidth, float scaledMaxWidth, float scaledHandleWidth)
@@ -244,6 +218,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         public void Open(int characterIndex)
         {
             activeCharacterIndex = characterIndex;
+            currentCharacter = plugin.Configuration.Characters[characterIndex];
             IsOpen = true;
             plugin.WindowState.IsDesignPanelOpen = true;
         }
@@ -252,6 +227,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             IsOpen = false;
             activeCharacterIndex = -1;
+            currentCharacter = null;
             plugin.WindowState.IsDesignPanelOpen = false;
             
             CloseDesignEditor();
@@ -331,29 +307,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 var io = ImGui.GetIO();
                 bool ctrlHeld = io.KeyCtrl;
                 bool shiftHeld = io.KeyShift;
-
-                if (ctrlHeld && shiftHeld && plugin.Configuration.EnableConflictResolution)
-                {
-                    isSecretDesignMode = true;
-                    AddNewDesign();
-                    editedDesignMacro = (!plugin.Configuration.EnableConflictResolution && isSecretDesignMode) ? GenerateSecretDesignMacro(character) : GenerateDesignMacro(character);
-                    if (isAdvancedModeDesign)
-                        advancedDesignMacroText = editedDesignMacro;
-                }
-                else if (shiftHeld)
-                {
-                    isSecretDesignMode = false;
-                    isImportWindowOpen = true;
-                    targetForDesignImport = character;
-                }
-                else
-                {
-                    isSecretDesignMode = false;
-                    AddNewDesign();
-                    editedDesignMacro = GenerateDesignMacro(character);
-                    if (isAdvancedModeDesign)
-                        advancedDesignMacroText = editedDesignMacro;
-                }
+                
+                AddNewDesign();
             }
 
             plugin.WindowState.DesignPanelAddButtonPos = ImGui.GetItemRectMin();
@@ -370,25 +325,25 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             ImGui.SameLine(0, spacing);
 
-            // Folder Button
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.7f, 0.3f, 1.0f)); // Yellow
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.9f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1f));
-
-            ImGui.PushFont(UiBuilder.IconFont);
-            if (ImGui.Button("\uf07b##AddFolder"))
-                ImGui.OpenPopup("CreateFolderPopup");
-            ImGui.PopFont();
-
-            ImGui.PopStyleColor(4);
-
-            DrawFolderCreationPopup(character, scale);
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Add Folder");
-            }
+            // Folder Button TODO readd if anyone asks for it
+            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.7f, 0.3f, 1.0f)); // Yellow
+            // ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.9f));
+            // ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1f));
+            // ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1f));
+            //
+            // ImGui.PushFont(UiBuilder.IconFont);
+            // if (ImGui.Button("\uf07b##AddFolder"))
+            //     ImGui.OpenPopup("CreateFolderPopup");
+            // ImGui.PopFont();
+            //
+            // ImGui.PopStyleColor(4);
+            //
+            // DrawFolderCreationPopup(character, scale);
+            //
+            // if (ImGui.IsItemHovered())
+            // {
+            //     ImGui.SetTooltip("Add Folder");
+            // }
 
             // Search button
             ImGui.SameLine(0, spacing);
@@ -404,49 +359,47 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Search designs");
 
-            // Snapshot button
-            ImGui.SameLine();
-            float availableWidth = ImGui.GetContentRegionAvail().X;
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - (buttonSize * 2) - (5 * scale));
-
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.8f));        // Dark gray
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.4f, 0.4f, 0.9f)); // Medium gray  
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.6f, 0.6f, 1.0f));  // Light gray
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f));          // White text
-            ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));        // Center icon
-
-            if (ImGui.Button($"\uf030##CreateSnapshot"))
-            {
-                if (activeCharacterIndex >= 0 && activeCharacterIndex < plugin.Characters.Count)
-                {
-                    var io = ImGui.GetIO();
-                    var selectedCharacter = plugin.Characters[activeCharacterIndex];
-                    
-                    if (io.KeyCtrl && io.KeyShift)
-                    {
-                        // Ctrl+Shift: Smart snapshot with CR
-                        CreateSmartSnapshot(selectedCharacter, useConflictResolution: true);
-                    }
-                    else
-                    {
-                        // Regular click: Smart snapshot without CR
-                        CreateSmartSnapshot(selectedCharacter, useConflictResolution: false);
-                    }
-                }
-            }
-
-            ImGui.PopStyleVar(1);
-            ImGui.PopStyleColor(4);
-            ImGui.PopFont();
-
-            if (ImGui.IsItemHovered())
-            {
-                string tooltip = "Create Design from Current Look\n• Click: Smart snapshot";
-                if (plugin.Configuration.EnableConflictResolution)
-                    tooltip += "\n• Ctrl+Shift+Click: Smart snapshot with Conflict Resolution";
-                ImGui.SetTooltip(tooltip);
-            }
+            // // Snapshot button TODO probably removing
+            // ImGui.SameLine();
+            // float availableWidth = ImGui.GetContentRegionAvail().X;
+            // ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - (buttonSize * 2) - (5 * scale));
+            //
+            // ImGui.PushFont(UiBuilder.IconFont);
+            // ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.8f));        // Dark gray
+            // ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.4f, 0.4f, 0.9f)); // Medium gray  
+            // ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.6f, 0.6f, 1.0f));  // Light gray
+            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f));          // White text
+            // ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));        // Center icon
+            //
+            // if (ImGui.Button($"\uf030##CreateSnapshot"))
+            // {
+            //     if (activeCharacterIndex >= 0 && activeCharacterIndex < plugin.Characters.Count)
+            //     {
+            //         var io = ImGui.GetIO();
+            //         var selectedCharacter = plugin.Characters[activeCharacterIndex];
+            //         
+            //         if (io.KeyCtrl && io.KeyShift)
+            //         {
+            //             // Ctrl+Shift: Smart snapshot with CR
+            //             CreateSmartSnapshot(selectedCharacter, useConflictResolution: true);
+            //         }
+            //         else
+            //         {
+            //             // Regular click: Smart snapshot without CR
+            //             CreateSmartSnapshot(selectedCharacter, useConflictResolution: false);
+            //         }
+            //     }
+            // }
+            //
+            // ImGui.PopStyleVar(1);
+            // ImGui.PopStyleColor(4);
+            // ImGui.PopFont();
+            //
+            // if (ImGui.IsItemHovered())
+            // {
+            //     string tooltip = "Create Design from Current Look\n• Click: Smart snapshot";
+            //     ImGui.SetTooltip(tooltip);
+            // }
 
             // Close button
             ImGui.SameLine(0, spacing);
@@ -584,23 +537,24 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetNextItemWidth(inputWidth);
             if (ImGui.InputText("##DesignName", ref editedDesignName, 100))
             {
-                plugin.WindowState.EditedDesignName = editedDesignName;
             }
             plugin.WindowState.DesignNameFieldPos = ImGui.GetItemRectMin();
             plugin.WindowState.DesignNameFieldSize = ImGui.GetItemRectSize();
 
             ImGui.Separator();
+            
+            DrawPenumbraField(inputWidth, scale);
+            
+            DrawGlamourerField(inputWidth, scale);
 
-            DrawGlamourerField(character, inputWidth, scale);
-
-            if (plugin.Configuration.EnableAutomations)
-            {
-                DrawAutomationField(inputWidth, scale);
-            }
+            // if (plugin.Configuration.EnableAutomations) //TODO automations
+            // {
+            //     DrawAutomationField(inputWidth, scale);
+            // }
 
             DrawCustomizeField(inputWidth, scale);
 
-            if (plugin.Configuration.EnableGearsetAssignments)
+            if (plugin.Configuration.EnableGearsetCharacterSwitching)
             {
                 DrawGearsetField(inputWidth, scale);
             }
@@ -614,7 +568,36 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.EndChild();
         }
 
-        private void DrawGlamourerField(Character character, float inputWidth, float scale)
+        private void DrawPenumbraField(float inputWidth, float scale)
+        {
+            ImGui.Text("Penumbra Collection*");
+
+            // Tooltip
+            ImGui.SameLine();
+            ImGui.PushFont(UiBuilder.IconFont);
+            ImGui.Text("\uf05a");
+            ImGui.PopFont();
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.BeginTooltip();
+                ImGui.PushTextWrapPos(300 * scale);
+                ImGui.TextUnformatted("Select the Glamourer design for this outfit. Right-click to clear.");
+                ImGui.PopTextWrapPos();
+                ImGui.EndTooltip();
+            }
+
+            ImGui.SetCursorPosX(10 * scale);
+            var penumbraOptions = plugin.IntegrationListProvider?.GetPenumbraCollections() ?? Array.Empty<string>();
+
+            if (AutocompleteCombo.Draw("##PenumbraCollection", ref editedPenumbraCollection, penumbraOptions, inputWidth, "Select collection..."))
+            {
+            }
+            // plugin.WindowState.DesignGlamourerFieldPos = ImGui.GetItemRectMin();
+            // plugin.WindowState.DesignGlamourerFieldSize = ImGui.GetItemRectSize();
+        }
+
+        private void DrawGlamourerField(float inputWidth, float scale)
         {
             ImGui.Text("Glamourer Design*");
 
@@ -638,23 +621,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             if (AutocompleteCombo.Draw("##GlamourerDesign", ref editedGlamourerDesign, glamourerOptions, inputWidth, "Select design..."))
             {
-                plugin.WindowState.EditedGlamourerDesign = editedGlamourerDesign;
-
-                if (!isAdvancedModeDesign)
-                {
-                    // If Conflict Resolution is ON, always use regular macro
-                    // If Conflict Resolution is OFF, use bulktag macro only if user has configured mods
-                    editedDesignMacro = (!plugin.Configuration.EnableConflictResolution && isSecretDesignMode)
-                        ? GenerateSecretDesignMacro(character)
-                        : GenerateDesignMacro(character);
-                }
-                else
-                {
-                    UpdateAdvancedMacroGlamourerFixed(editedGlamourerDesign);
-                }
             }
-            plugin.WindowState.DesignGlamourerFieldPos = ImGui.GetItemRectMin();
-            plugin.WindowState.DesignGlamourerFieldSize = ImGui.GetItemRectSize();
+            // plugin.WindowState.DesignGlamourerFieldPos = ImGui.GetItemRectMin();
+            // plugin.WindowState.DesignGlamourerFieldSize = ImGui.GetItemRectSize();
         }
 
         private void DrawAutomationField(float inputWidth, float scale)
@@ -700,21 +669,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
 
             ImGui.SetCursorPosX(10 * scale);
-            var customizeOptions = plugin.IntegrationListProvider?.GetCustomizePlusProfiles() ?? Array.Empty<string>();
+            var customizeProfiles = plugin.IntegrationListProvider?.GetCustomizePlusProfiles().ToArray();
+            var customizeOptions = customizeProfiles?.Select(v => v.Item2).ToArray() ?? Array.Empty<string>();
             var currentCustomize = plugin.IntegrationListProvider?.GetCurrentCustomizePlusProfile();
-
-            if (AutocompleteCombo.Draw("##CustomizePlus", ref editedCustomizeProfile, customizeOptions, inputWidth, "Select profile...", currentActive: currentCustomize))
+            var tempCustomize = editedCustomizeProfile.Item2;
+            if (AutocompleteCombo.Draw("##CustomizeProfile", ref tempCustomize, customizeOptions, inputWidth, "Select profile...", currentActive: currentCustomize))
             {
-                // Update macro
-                if (!isAdvancedModeDesign)
+                if (customizeProfiles != null && customizeProfiles.Length > 0)
                 {
-                    editedDesignMacro = (isSecretDesignMode && !plugin.Configuration.EnableConflictResolution)
-                        ? GenerateSecretDesignMacro(plugin.Characters[activeCharacterIndex])
-                        : GenerateDesignMacro(plugin.Characters[activeCharacterIndex]);
-                }
-                else
-                {
-                    UpdateAdvancedMacroCustomize();
+                    editedCustomizeProfile = Array.Find(customizeProfiles, v => v.Item2 == tempCustomize);
                 }
             }
         }
@@ -740,22 +703,22 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetCursorPosX(10 * scale);
             ImGui.SetNextItemWidth(inputWidth);
 
-            // Get available gearsets
-            //var gearsets = plugin.GetPlayerGearsets();
+            // Get available gearsets TODO
+            var gearsets = GearsetManager.GetPlayerGearsets();
 
             // Build display text for current selection
             string currentDisplay = "None (use character setting)";
             if (editedGearset.HasValue)
             {
-                //var matchingGearset = gearsets.FirstOrDefault(g => g.Number == editedGearset.Value);
-                // if (matchingGearset.Number > 0)
-                // {
-                //     //currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
-                // }
-                // else
-                // {
-                //     currentDisplay = $"Gearset {editedGearset.Value}";
-                // }
+                // var matchingGearset = gearsets.FirstOrDefault(g => g.Number == editedGearset.Value);
+                //  if (matchingGearset.Number > 0)
+                //  {
+                //      //currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
+                //  }
+                //  else
+                //  {
+                //      currentDisplay = $"Gearset {editedGearset.Value}";
+                //  }
             }
 
             if (ImGui.BeginCombo("##AssignedGearset", currentDisplay))
@@ -1375,7 +1338,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 name = TruncateWithEllipsis(name, availW);
 
             // Design name
-            bool isActive = IsDesignCurrentlyActive(character, design);
+            bool isActive = true; //TODO
             var textColor = isActive ? new Vector4(0.2f, 0.9f, 0.2f, 1f) : new Vector4(0.9f, 0.9f, 0.9f, 1f); // Green for active, light gray for inactive
             ImGui.PushStyleColor(ImGuiCol.Text, textColor);
             ImGui.TextUnformatted(name);
@@ -1407,7 +1370,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             if (ImGui.Button("\uf00c", new Vector2(btnSize, btnSize)))
             {
                 // Switch gearset if assigned (design overrides character)
-                if (plugin.Configuration.EnableGearsetAssignments)
+                if (plugin.Configuration.EnableGearsetCharacterSwitching)
                 {
                     var effectiveGearset = design.AssignedGearset ?? character.Data.AssignedGearset;
                     if (effectiveGearset.HasValue)
@@ -1416,36 +1379,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     }
                 }
 
-                // Check if this is a Secret Mode (Conflict Resolution) design
-                if (design.SecretModState != null && design.SecretModState.Any())
-                {
-                    // Ensure the correct Penumbra collection is assigned before CR modifies it
-                    if (!string.IsNullOrWhiteSpace(character.Data.PenumbraCollection))
-                    {
-                        plugin.EnsurePenumbraCollectionAssignment(character.Data.PenumbraCollection);
-                    }
-                }
-                else
-                {
-                    // Regular design - just execute the macro
-                    GameCommandManager.ExecuteMacro(design.Macro, character, design.Name);
-                    // Track last used design and character for auto-reapplication and UI feedback
-                    plugin.Configuration.LastUsedDesignByCharacter[character.Data.Name] = design.Name;
-                    plugin.Configuration.LastUsedDesignCharacterKey = character.Data.Name;
-                    plugin.Configuration.LastUsedCharacterKey = character.Data.Name;
-                    
-                    // Update player-specific character tracking for green highlighting
-                    if (Plugin.ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
-                    {
-                        string localName = player.Name.TextValue;
-                        string worldName = player.HomeWorld.Value.Name.ToString();
-                        string fullKey = $"{localName}@{worldName}";
-                        string pluginCharacterKey = $"{character.Data.Name}@{worldName}";
-                        plugin.Configuration.LastUsedCharacterByPlayer[fullKey] = pluginCharacterKey;
-                    }
-                    
-                    plugin.Configuration.Save();
-                }
+                var index = character.Data.Designs.IndexOf(design);
+                Plugin.Log.Debug($"DesignWindow applying design {character.Data.Name}");
+                plugin.ActivePlayer.QueueUpdate(character, index);
+            
+                plugin.QuickSwitchWindow.RefreshSelection();
             }
             ImGui.PopStyleColor();
             ImGui.PopFont();
@@ -1475,24 +1413,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.3f, 0.7f, 1f, 1f)); // Blue
             if (ImGui.Button("\uf044", new Vector2(btnSize, btnSize)))
             {
-                bool isCtrlShift = ImGui.GetIO().KeyCtrl && ImGui.GetIO().KeyShift;
-                
                 // Open edit window first
                 OpenEditDesignWindow(character, design);
-                
-                // Then convert to secret mode if Ctrl+Shift was held and Conflict Resolution is enabled
-                if (isCtrlShift && plugin.Configuration.EnableConflictResolution)
-                {
-                    // Set secret mode flag
-                    isSecretDesignMode = true;
-                    
-                    // Generate and set the appropriate macro in the edit fields
-                    editedDesignMacro = (!plugin.Configuration.EnableConflictResolution && isSecretDesignMode) ? GenerateSecretDesignMacro(character) : GenerateDesignMacro(character);
-                    if (isAdvancedModeDesign)
-                    {
-                        advancedDesignMacroText = editedDesignMacro;
-                    }
-                }
             }
             ImGui.PopStyleColor();
             ImGui.PopFont();
@@ -1560,188 +1482,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 draggedFolder = null;
             }
         }
-
-        private void DrawImportWindow(float scale)
-        {
-            if (!isImportWindowOpen || targetForDesignImport == null)
-                return;
-
-            var windowSize = new Vector2(400 * scale, 450 * scale);
-            ImGui.SetNextWindowSize(windowSize, ImGuiCond.FirstUseEver);
-
-            if (ImGui.Begin("Import Designs", ref isImportWindowOpen, ImGuiWindowFlags.NoCollapse))
-            {
-                ApplyScaledStyles(scale);
-
-                ImGui.Text($"Import designs to: {targetForDesignImport.Data.Name}");
-                ImGui.Separator();
-
-                ImGui.BeginChild("ImportScrollArea", new Vector2(0, -40 * scale), false);
-
-                var charactersWithDesigns = plugin.Characters
-                    .Where(c => c != targetForDesignImport && c.Data.Designs.Count > 0)
-                    .OrderBy(c => c.Data.Name)
-                    .ToList();
-
-                foreach (var character in charactersWithDesigns)
-                {
-                    if (ImGui.CollapsingHeader($"{character.Data.Name} ({character.Data.Designs.Count} designs)"))
-                    {
-                        float indentAmount = 15f * scale;
-                        ImGui.Indent(indentAmount);
-
-                        foreach (var design in character.Data.Designs)
-                        {
-                            float buttonSize = 18f * scale;
-
-                            // Green plus symbol — use design GUID for unique ID (names can collide)
-                            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.2f, 0.8f, 0.2f, 1.0f));
-                            ImGui.PushFont(UiBuilder.IconFont);
-
-                            if (ImGui.Selectable($"\uf067##import_{design.Id}", false, ImGuiSelectableFlags.None, new Vector2(buttonSize, buttonSize)))
-                            {
-                                // Clone the entire design using JSON serialization (exact copy like copy-paste in config)
-                                var json = JsonConvert.SerializeObject(design);
-                                var clone = JsonConvert.DeserializeObject<CharacterDesign>(json);
-                                clone.Name = design.Name + " (Copy)";
-                                clone.Id = Guid.NewGuid();
-                                clone.DateAdded = DateTime.UtcNow;
-                                clone.FolderId = null; // reset so it appears at root level
-
-                                targetForDesignImport.Data.Designs.Add(clone);
-                                plugin.SaveConfiguration();
-                            }
-
-                            ImGui.PopFont();
-                            ImGui.PopStyleColor();
-
-                            if (ImGui.IsItemHovered())
-                            {
-                                ImGui.SetTooltip($"Import '{design.Name}'");
-                            }
-
-                            ImGui.SameLine();
-                            ImGui.Text(design.Name);
-                        }
-
-                        ImGui.Unindent(indentAmount);
-                    }
-                }
-
-                ImGui.EndChild();
-
-                ImGui.Separator();
-                if (ImGui.Button("Close"))
-                {
-                    isImportWindowOpen = false;
-                }
-
-                PopScaledStyles();
-            }
-            ImGui.End();
-        }
-
-        private void DrawAdvancedModeWindow(float scale)
-        {
-            if (!isAdvancedModeWindowOpen)
-                return;
-                
-            // Store original text on first open (for cancel functionality)
-            if (string.IsNullOrEmpty(originalAdvancedMacroText))
-                originalAdvancedMacroText = advancedDesignMacroText;
-
-            var windowSize = new Vector2(600 * scale, 400 * scale); // Larger window for more text space
-            ImGui.SetNextWindowSize(windowSize, ImGuiCond.FirstUseEver);
-
-            if (ImGui.Begin("Advanced Macro Editor", ref isAdvancedModeWindowOpen, ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize))
-            {
-                ApplyScaledStyles(scale);
-
-                ImGui.Text("Edit Design Macro Manually:");
-
-                // Dark styling for the text editor
-                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.08f, 0.08f, 0.08f, 0.95f));
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1.0f));
-
-                // Reserve space for smaller buttons at the bottom
-                float buttonHeight = 25 * scale; // Smaller buttons
-                float availableHeight = ImGui.GetContentRegionAvail().Y - buttonHeight - (10 * scale); // 10px spacing
-                
-                ImGui.InputTextMultiline("##AdvancedDesignMacroPopup", ref advancedDesignMacroText, 2000,
-                    new Vector2(-1, availableHeight), ImGuiInputTextFlags.AllowTabInput);
-
-                ImGui.PopStyleColor(2);
-
-                // Button section
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.Spacing();
-
-                float buttonWidth = 60 * scale; // Smaller buttons
-                float totalButtonWidth = buttonWidth * 2 + (10 * scale); // 2 buttons + spacing
-                float windowWidth = ImGui.GetWindowWidth();
-                ImGui.SetCursorPosX((windowWidth - totalButtonWidth) / 2); // Center buttons
-
-                // Center text in buttons
-                ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(4 * scale, 4 * scale));
-                ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));
-
-                // Save button (green) - just saves advanced mode changes
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.6f, 0.2f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.7f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.1f, 0.5f, 0.1f, 1.0f));
-
-                if (ImGui.Button("Save", new Vector2(buttonWidth, 0)))
-                {
-                    // Save the advanced macro changes to the current design
-                    if (activeCharacterIndex >= 0 && activeCharacterIndex < plugin.Characters.Count && !isNewDesign)
-                    {
-                        var character = plugin.Characters[activeCharacterIndex];
-                        var existingDesign = character.Data.Designs.FirstOrDefault(d => d.Name == originalDesignName);
-                        if (existingDesign != null)
-                        {
-                            // Update the design's advanced macro with the edited text
-                            existingDesign.AdvancedMacro = advancedDesignMacroText;
-                            existingDesign.IsAdvancedMode = true;
-                            // Save configuration to persist changes
-                            plugin.Configuration.Save();
-                        }
-                    }
-                    // Clear the original text since changes were saved
-                    originalAdvancedMacroText = "";
-                    // Close the advanced mode window
-                    isAdvancedModeWindowOpen = false;
-                }
-                ImGui.PopStyleColor(3);
-
-                ImGui.SameLine();
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (10 * scale)); // Add spacing
-
-                // Cancel button (red)
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.6f, 0.2f, 0.2f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.7f, 0.3f, 0.3f, 1.0f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.5f, 0.1f, 0.1f, 1.0f));
-
-                if (ImGui.Button("Cancel", new Vector2(buttonWidth, 0)))
-                {
-                    // Restore original text
-                    advancedDesignMacroText = originalAdvancedMacroText;
-                    originalAdvancedMacroText = "";
-                    isAdvancedModeWindowOpen = false;
-                    isAdvancedModeDesign = false;
-                    // Don't save changes - return to normal editing
-                }
-                ImGui.PopStyleColor(3);
-                ImGui.PopStyleVar(2);
-
-                PopScaledStyles();
-            }
-            ImGui.End();
-
-            if (!isAdvancedModeWindowOpen)
-                isAdvancedModeDesign = false;
-        }
-
+        
         // Utility methods
         private void SelectPreviewImage()
         {
@@ -1832,73 +1573,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 return false;
             }
         }
-
-        public static void CleanupOrphanedPreviewImages(Plugin plugin)
-        {
-            try
-            {
-                string configDir = plugin.PluginPath;
-                string previewsDir = Path.Combine(configDir, "Images", "DesignPreviews");
-                
-                if (!Directory.Exists(previewsDir))
-                    return;
-
-                // Get all images in the previews directory
-                var imageFiles = Directory.GetFiles(previewsDir, "*.png")
-                    .Concat(Directory.GetFiles(previewsDir, "*.jpg"))
-                    .Concat(Directory.GetFiles(previewsDir, "*.jpeg"))
-                    .ToList();
-
-                if (!imageFiles.Any())
-                    return;
-
-                // Collect all preview image paths currently in use
-                var referencedImages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                
-                foreach (var character in plugin.Characters)
-                {
-                    foreach (var design in character.Data.Designs)
-                    {
-                        if (!string.IsNullOrEmpty(design.PreviewImagePath) && 
-                            File.Exists(design.PreviewImagePath))
-                        {
-                            referencedImages.Add(Path.GetFullPath(design.PreviewImagePath));
-                        }
-                    }
-                }
-
-                // Delete orphaned images
-                int deletedCount = 0;
-                foreach (var imageFile in imageFiles)
-                {
-                    string fullImagePath = Path.GetFullPath(imageFile);
-                    
-                    if (!referencedImages.Contains(fullImagePath))
-                    {
-                        try
-                        {
-                            File.Delete(imageFile);
-                            deletedCount++;
-                            Plugin.Log.Info($"Deleted orphaned preview image: {Path.GetFileName(imageFile)}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Plugin.Log.Warning($"Failed to delete orphaned image {imageFile}: {ex.Message}");
-                        }
-                    }
-                }
-
-                if (deletedCount > 0)
-                {
-                    Plugin.Log.Info($"Cleanup completed: {deletedCount} orphaned preview images deleted");
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Error during preview image cleanup: {ex.Message}");
-            }
-        }
-
+        
         private (float width, float height) CalculateImageDimensions(IDalamudTextureWrap texture, float maxSize)
         {
             float originalWidth = texture.Width;
@@ -1921,15 +1596,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             isEditDesignWindowOpen = true;
             plugin.WindowState.IsEditDesignWindowOpen = true;
             editedDesignName = "";
+            editedPenumbraCollection = currentCharacter?.GetDefaultDesign().PenumbraCollection ?? "";
             editedGlamourerDesign = "";
-            editedDesignMacro = "";
-            isAdvancedModeDesign = false;
             editedAutomation = "";
-            editedCustomizeProfile = "";
+            editedCustomizeProfile = (Guid.Empty, "");
             editedGearset = null;
             editedDesignPreviewPath = "";
-            plugin.WindowState.EditedDesignName = editedDesignName;
-            plugin.WindowState.EditedGlamourerDesign = editedGlamourerDesign;
         }
 
         private void OpenEditDesignWindow(Character character, CharacterDesign design)
@@ -1939,44 +1611,22 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             plugin.WindowState.IsEditDesignWindowOpen = true;
             originalDesignName = design.Name;
             editedDesignName = design.Name;
-            editedDesignMacro = design.IsAdvancedMode ? design.AdvancedMacro ?? "" : design.Macro ?? "";
+            editedPenumbraCollection = design.PenumbraCollection;
             editedGlamourerDesign = !string.IsNullOrWhiteSpace(design.GlamourerDesign)
                 ? design.GlamourerDesign
-                : ExtractGlamourerDesignFromMacro(design.Macro ?? "");
+                : "";
 
-            editedAutomation = design.Automation ?? "";
-            editedCustomizeProfile = design.CustomizePlusProfile ?? "";
+            editedAutomation = design.GlamourerDesign ?? "";
+            editedCustomizeProfile = design.CustomizeProfileTuple;
             editedGearset = design.AssignedGearset;
             editedDesignPreviewPath = design.PreviewImagePath ?? "";
-            isAdvancedModeDesign = design.IsAdvancedMode;
-            isAdvancedModeWindowOpen = design.IsAdvancedMode;
-            advancedDesignMacroText = design.AdvancedMacro ?? "";
-            
-            // Check if this is a Secret Mode (Conflict Resolution) design
-            if ((design.SecretModState != null && design.SecretModState.Any()) ||
-                (design.ModOptionSettings != null && design.ModOptionSettings.Any()) ||
-                (design.SecretModPinOverrides != null && design.SecretModPinOverrides.Any()))
-            {
-                isSecretDesignMode = true;
-                // Load the existing mod state into temporary storage for editing
-                if (design.SecretModState != null)
-                {
-                    temporaryDesignSecretModState = new Dictionary<string, bool>(design.SecretModState);
-                }
-                if (design.SecretModPinOverrides != null)
-                {
-                    temporaryDesignSecretModPinOverrides = new HashSet<string>(design.SecretModPinOverrides);
-                }
-            }
         }
 
         private void CloseDesignEditor()
         {
             isEditDesignWindowOpen = false;
             plugin.WindowState.IsEditDesignWindowOpen = false;
-            isAdvancedModeWindowOpen = false;
             isNewDesign = false;
-            isSecretDesignMode = false;
             
             ResetEditFields();
         }
@@ -1984,15 +1634,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private void ResetEditFields()
         {
             editedDesignName = "";
-            editedDesignMacro = "";
             editedGlamourerDesign = "";
             editedAutomation = "";
-            editedCustomizeProfile = "";
+            editedCustomizeProfile = (Guid.Empty, "");
             editedDesignPreviewPath = "";
-            advancedDesignMacroText = "";
             originalDesignName = "";
-            temporaryDesignSecretModState = null;
-            temporaryDesignSecretModPinOverrides = null;
         }
 
         private void SaveDesign(Character character)
@@ -2008,73 +1654,27 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 // Update existing design
                 existingDesign.Name = editedDesignName;
-                bool wasPreviouslyAdvanced = existingDesign.IsAdvancedMode;
-                bool keepAdvanced = wasPreviouslyAdvanced && !isAdvancedModeDesign;
-
-                // For advanced mode with empty macro, generate from form fields
-                string advancedMacroToUse = advancedDesignMacroText;
-                if ((isAdvancedModeDesign || keepAdvanced) && string.IsNullOrWhiteSpace(advancedMacroToUse))
-                {
-                    advancedMacroToUse = GenerateDesignMacro(character);
-                }
-
-                existingDesign.Macro = keepAdvanced
-                    ? advancedMacroToUse
-                    : (isAdvancedModeDesign ? advancedMacroToUse : GenerateDesignMacro(character));
-
-                existingDesign.AdvancedMacro = isAdvancedModeDesign || keepAdvanced
-                    ? advancedMacroToUse
-                    : "";
-
-                existingDesign.IsAdvancedMode = isAdvancedModeDesign || keepAdvanced;
-                existingDesign.Automation = editedAutomation;
+                existingDesign.PenumbraCollection = editedPenumbraCollection;
+                existingDesign.GlamourerAutomation = editedAutomation;
                 existingDesign.GlamourerDesign = editedGlamourerDesign;
-                existingDesign.CustomizePlusProfile = editedCustomizeProfile;
+                existingDesign.CustomizeProfileTuple = editedCustomizeProfile;
                 existingDesign.AssignedGearset = editedGearset;
                 existingDesign.PreviewImagePath = editedDesignPreviewPath;
-
-                // Apply any Secret Mode state that was configured during editing
-                if (temporaryDesignSecretModState != null)
-                {
-                    existingDesign.SecretModState = temporaryDesignSecretModState;
-                }
-                if (temporaryDesignSecretModPinOverrides != null)
-                {
-                    existingDesign.SecretModPinOverrides = temporaryDesignSecretModPinOverrides;
-                }
             }
             else
             {
-                // Add new design - generate macro from fields if advanced mode has empty macro
-                string macroForNewDesign = isAdvancedModeDesign
-                    ? (string.IsNullOrWhiteSpace(advancedDesignMacroText) ? GenerateDesignMacro(character) : advancedDesignMacroText)
-                    : GenerateDesignMacro(character);
-
-                var newDesign = new CharacterDesign(
-                    editedDesignName,
-                    macroForNewDesign,
-                    isAdvancedModeDesign,
-                    isAdvancedModeDesign ? macroForNewDesign : "",
-                    editedGlamourerDesign,
-                    editedAutomation,
-                    editedCustomizeProfile,
-                    editedDesignPreviewPath
-                )
+                var newDesign = new CharacterDesign
                 {
+                    Name = editedDesignName,
+                    PenumbraCollection = editedPenumbraCollection,
+                    GlamourerDesign = editedGlamourerDesign,
+                    GlamourerAutomation = editedAutomation,
+                    CustomizeProfileTuple = editedCustomizeProfile,
+                    PreviewImagePath = editedDesignPreviewPath,
+                    IsFavorite = false,
                     DateAdded = DateTime.UtcNow,
                     AssignedGearset = editedGearset
                 };
-
-                // Apply any Secret Mode state that was configured during editing
-                if (temporaryDesignSecretModState != null)
-                {
-                    newDesign.SecretModState = temporaryDesignSecretModState;
-                }
-                if (temporaryDesignSecretModPinOverrides != null)
-                {
-                    newDesign.SecretModPinOverrides = temporaryDesignSecretModPinOverrides;
-                }
-
                 character.Data.Designs.Add(newDesign);
             }
 
@@ -2226,278 +1826,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             return renderItems;
         }
 
-        private string GenerateDesignMacro(Character character)
-        {
-            if (string.IsNullOrWhiteSpace(editedGlamourerDesign))
-                return "";
-
-            string macro = $"/glamour apply {editedGlamourerDesign} | self";
-
-            // Conditionally include automation line
-            if (plugin.Configuration.EnableAutomations)
-            {
-                string automationToUse = !string.IsNullOrWhiteSpace(editedAutomation)
-                    ? editedAutomation
-                    : (!string.IsNullOrWhiteSpace(character.Data.CharacterAutomation)
-                        ? character.Data.CharacterAutomation
-                        : "None");
-
-                macro += $"\n/glamour automation enable {automationToUse}";
-            }
-
-            // Always disable Customize+ first
-            macro += "\n/customize profile disable <me>";
-
-            // Determine Customize+ profile
-            string customizeProfileToUse = !string.IsNullOrWhiteSpace(editedCustomizeProfile)
-                ? editedCustomizeProfile
-                : !string.IsNullOrWhiteSpace(character.Data.CustomizeProfile)
-                    ? character.Data.CustomizeProfile
-                    : string.Empty;
-
-            // Enable only if needed
-            if (!string.IsNullOrWhiteSpace(customizeProfileToUse))
-                macro += $"\n/customize profile enable <me>, {customizeProfileToUse}";
-
-            // Redraw line
-            macro += "\n/penumbra redraw self";
-
-            return macro;
-        }
-
-        private string GenerateSecretDesignMacro(Character character)
-        {
-            // Which Penumbra collection to target (taken from the character)
-            var collection = character.Data.PenumbraCollection;
-
-            // What the form is currently set to
-            var design = editedGlamourerDesign;
-            var custom = !string.IsNullOrWhiteSpace(editedCustomizeProfile)
-                             ? editedCustomizeProfile
-                             : character.Data.CustomizeProfile;
-
-            var sb = new System.Text.StringBuilder();
-
-            // Only add bulk-tag lines if Conflict Resolution is disabled
-            if (!plugin.Configuration.EnableConflictResolution)
-            {
-                sb.AppendLine($"/penumbra bulktag disable {collection} | gear");
-                sb.AppendLine($"/penumbra bulktag disable {collection} | hair");
-                sb.AppendLine($"/penumbra bulktag enable  {collection} | {design}");
-                // Glamourer "no clothes" for secret mode
-                sb.AppendLine("/glamour apply no clothes | self");
-            }
-
-            // Glamourer design
-            sb.AppendLine($"/glamour apply {design} | self");
-
-            // Automation (if enabled)
-            if (plugin.Configuration.EnableAutomations)
-            {
-                string automationToUse = !string.IsNullOrWhiteSpace(editedAutomation)
-                    ? editedAutomation
-                    : (!string.IsNullOrWhiteSpace(character.Data.CharacterAutomation)
-                        ? character.Data.CharacterAutomation
-                        : "None");
-                sb.AppendLine($"/glamour automation enable {automationToUse}");
-            }
-
-            // Customize+
-            sb.AppendLine("/customize profile disable <me>");
-            if (!string.IsNullOrWhiteSpace(custom))
-                sb.AppendLine($"/customize profile enable <me>, {custom}");
-
-            // Final redraw
-            sb.Append("/penumbra redraw self");
-
-            return sb.ToString();
-        }
-
-        private string EnsureProperDesignMacroStructure()
-        {
-            var character = plugin.Characters[activeCharacterIndex];
-            string glamourer = !string.IsNullOrWhiteSpace(editedGlamourerDesign) ? editedGlamourerDesign : "[Glamourer Design]";
-
-            var sb = new System.Text.StringBuilder();
-
-            if (isSecretDesignMode)
-            {
-                string collection = character.Data.PenumbraCollection;
-
-                // Only add bulk-tag lines if Conflict Resolution is disabled
-                if (!plugin.Configuration.EnableConflictResolution)
-                {
-                    sb.AppendLine($"/penumbra bulktag disable {collection} | gear");
-                    sb.AppendLine($"/penumbra bulktag disable {collection} | hair");
-                    sb.AppendLine($"/penumbra bulktag enable {collection} | {glamourer}");
-                    sb.AppendLine("/glamour apply no clothes | self");
-                }
-
-                sb.AppendLine($"/glamour apply {glamourer} | self");
-            }
-            else
-            {
-                sb.AppendLine($"/glamour apply {glamourer} | self");
-            }
-
-            // Conditionally include automation line
-            if (plugin.Configuration.EnableAutomations)
-            {
-                string automationToUse = !string.IsNullOrWhiteSpace(editedAutomation)
-                    ? editedAutomation
-                    : (!string.IsNullOrWhiteSpace(character.Data.CharacterAutomation)
-                        ? character.Data.CharacterAutomation
-                        : "None");
-                sb.AppendLine($"/glamour automation enable {automationToUse}");
-            }
-
-            // Always disable Customize+ first
-            sb.AppendLine("/customize profile disable <me>");
-
-            // Determine Customize+ profile
-            string customizeProfileToUse = !string.IsNullOrWhiteSpace(editedCustomizeProfile)
-                ? editedCustomizeProfile
-                : !string.IsNullOrWhiteSpace(character.Data.CustomizeProfile)
-                    ? character.Data.CustomizeProfile
-                    : string.Empty;
-
-            // Enable only if needed
-            if (!string.IsNullOrWhiteSpace(customizeProfileToUse))
-                sb.AppendLine($"/customize profile enable <me>, {customizeProfileToUse}");
-
-            // Redraw line
-            sb.Append("/penumbra redraw self");
-
-            return sb.ToString();
-        }
-
-        private void UpdateAdvancedMacroGlamourerFixed(string newGlamourer)
-        {
-            var lines = advancedDesignMacroText.Split('\n').ToList();
-
-            // Find and replace the main glamour apply line (not "no clothes")
-            for (int i = 0; i < lines.Count; i++)
-            {
-                var line = lines[i].TrimStart();
-                if (line.StartsWith("/glamour apply", StringComparison.OrdinalIgnoreCase) &&
-                    !line.Contains("no clothes", StringComparison.OrdinalIgnoreCase))
-                {
-                    lines[i] = $"/glamour apply {newGlamourer} | self";
-                    break;
-                }
-            }
-
-            // Update bulktag enable line if it exists (for secret mode)
-            for (int i = 0; i < lines.Count; i++)
-            {
-                var line = lines[i].TrimStart();
-                if (line.StartsWith("/penumbra bulktag enable", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Extract the collection name and replace the design part
-                    var parts = line.Split('|');
-                    if (parts.Length >= 2)
-                    {
-                        var collection = parts[0].Replace("/penumbra bulktag enable", "").Trim();
-                        lines[i] = $"/penumbra bulktag enable {collection} | {newGlamourer}";
-                    }
-                    break;
-                }
-            }
-
-            advancedDesignMacroText = string.Join("\n", lines);
-        }
-
-        private void UpdateAdvancedMacroCustomize()
-        {
-            advancedDesignMacroText = PatchMacroLine(
-                advancedDesignMacroText,
-                "/customize profile disable",
-                "/customize profile disable <me>"
-            );
-
-            if (!string.IsNullOrWhiteSpace(editedCustomizeProfile))
-            {
-                advancedDesignMacroText = PatchMacroLine(
-                    advancedDesignMacroText,
-                    "/customize profile enable",
-                    $"/customize profile enable <me>, {editedCustomizeProfile}"
-                );
-            }
-            else
-            {
-                advancedDesignMacroText = string.Join("\n",
-                    advancedDesignMacroText
-                        .Split('\n')
-                        .Where(l => !l.TrimStart().StartsWith("/customize profile enable"))
-                );
-            }
-        }
-
-        private string PatchMacroLine(string existing, string prefix, string replacement)
-        {
-            var lines = existing.Split('\n').ToList();
-            var idx = lines.FindIndex(l => l.TrimStart().StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-
-            if (idx >= 0)
-            {
-                // Replace existing line
-                lines[idx] = replacement;
-            }
-            else
-            {
-                int insertPosition = GetProperDesignInsertPosition(lines, prefix);
-                lines.Insert(insertPosition, replacement);
-            }
-
-            return string.Join("\n", lines);
-        }
-
-        private int GetProperDesignInsertPosition(List<string> lines, string prefix)
-        {
-            // Order for design macro commands
-            var order = new[]
-            {
-                "/penumbra bulktag disable",
-                "/penumbra bulktag enable",
-                "/glamour apply no clothes",
-                "/glamour apply",
-                "/glamour automation enable",
-                "/customize profile disable",
-                "/customize profile enable",
-                "/penumbra redraw"
-            };
-
-            int targetOrder = Array.FindIndex(order, o => prefix.StartsWith(o, StringComparison.OrdinalIgnoreCase));
-            if (targetOrder == -1) return lines.Count; // Unknown command goes at end
-
-            // Find the position where this command should be inserted
-            for (int i = 0; i < lines.Count; i++)
-            {
-                var line = lines[i].TrimStart();
-                int lineOrder = Array.FindIndex(order, o => line.StartsWith(o, StringComparison.OrdinalIgnoreCase));
-
-                if (lineOrder > targetOrder || lineOrder == -1)
-                {
-                    return i;
-                }
-            }
-
-            return lines.Count;
-        }
-
-        private string ExtractGlamourerDesignFromMacro(string macro)
-        {
-            string[] lines = macro.Split('\n');
-            foreach (var line in lines)
-            {
-                if (line.StartsWith("/glamour apply ", StringComparison.OrdinalIgnoreCase))
-                {
-                    return line.Replace("/glamour apply ", "").Replace(" | self", "").Trim();
-                }
-            }
-            return "";
-        }
-
         private static string TruncateWithEllipsis(string text, float maxWidth)
         {
             while (ImGui.CalcTextSize(text + "...").X > maxWidth && text.Length > 0)
@@ -2523,9 +1851,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 return true;
                 
             // Search in automation
-            if (!string.IsNullOrWhiteSpace(design.Automation) && 
-                design.Automation.ToLowerInvariant().Contains(query))
-                return true;
+            // if (!string.IsNullOrWhiteSpace(design.Automation) && 
+            //     design.Automation.ToLowerInvariant().Contains(query))
+            //     return true;
                 
             // Search in tags
             if (design.Tag?.ToLowerInvariant().Contains(query) == true)
@@ -2556,981 +1884,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
                 
             return false;
-        }
-
-        private void DrawSnapshotDialog(float scale)
-        {
-            if (!isSnapshotDialogOpen)
-                return;
-
-            // Force window size to fit content without scrolling
-            ImGui.SetNextWindowSize(new Vector2(500 * scale, 400 * scale), ImGuiCond.Always);
-            ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), ImGuiCond.Appearing, new Vector2(0.5f));
-
-            bool isOpen = true;
-            if (ImGui.Begin("Create Design from Current Look", ref isOpen, ImGuiWindowFlags.NoResize | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse))
-            {
-                if (snapshotTargetCharacter == null)
-                {
-                    ImGui.Text("Error: No character selected");
-                    ImGui.End();
-                    isSnapshotDialogOpen = false;
-                    return;
-                }
-
-                // Apply simple dialog styling
-
-                // Header with icon and styling
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(new Vector4(0.6f, 0.8f, 1.0f, 1.0f), "\uf030");
-                ImGui.PopFont();
-                ImGui.SameLine();
-                ImGui.TextColored(new Vector4(0.9f, 0.9f, 0.9f, 1.0f), "Snapshot Current Character State");
-                
-                // Subtle styled separator
-                ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.4f, 0.6f, 0.8f, 0.5f));
-                ImGui.Separator();
-                ImGui.PopStyleColor();
-                ImGui.Spacing();
-
-                // Design name input with improved styling
-                ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), "Design Name:");
-                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.1f, 0.15f, 0.2f, 0.8f));
-                ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.15f, 0.2f, 0.25f, 0.9f));
-                ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.2f, 0.25f, 0.3f, 1.0f));
-                ImGui.SetNextItemWidth(-1);
-                ImGui.InputText("##SnapshotName", ref snapshotDesignName, 256);
-                ImGui.PopStyleColor(3);
-                ImGui.Spacing();
-
-                // Conflict Resolution checkbox (only if enabled in settings)
-                if (plugin.Configuration.EnableConflictResolution)
-                {
-                    ImGui.Checkbox("Use Conflict Resolution", ref snapshotUseConflictResolution);
-                    if (ImGui.IsItemHovered())
-                        ImGui.SetTooltip("Create design with conflict resolution features enabled");
-                    ImGui.Spacing();
-                }
-
-                // Styled section header
-                ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.4f, 0.6f, 0.8f, 0.5f));
-                ImGui.Separator();
-                ImGui.PopStyleColor();
-                ImGui.Spacing();
-
-                // Auto-detection status with improved layout
-                ImGui.TextColored(new Vector4(0.8f, 0.9f, 1.0f, 1.0f), "Auto-Detection Status:");
-                ImGui.Spacing();
-
-                // Create a child region for detection status to control layout better
-                ImGui.BeginChild("DetectionStatus", new Vector2(0, 90 * scale), false);
-
-                // Glamourer detection with icon
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "\uf013");
-                ImGui.PopFont();
-                ImGui.SameLine();
-                ImGui.Text("Glamourer State:");
-                ImGui.SameLine();
-                
-                float statusPosX = ImGui.GetContentRegionAvail().X - 80 * scale;
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + statusPosX);
-                
-                if (snapshotDetectedMods.Count > 0)
-                {
-                    ImGui.TextColored(new Vector4(0.3f, 0.8f, 0.3f, 1.0f), "Detected");
-                }
-                else if (snapshotIsProcessing)
-                {
-                    ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.3f, 1.0f), "Detecting...");
-                }
-                else
-                {
-                    ImGui.TextColored(new Vector4(0.8f, 0.3f, 0.3f, 1.0f), "None");
-                }
-
-                // Customize+ detection with icon
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "\uf007");
-                ImGui.PopFont();
-                ImGui.SameLine();
-                ImGui.Text("Customize+ Profile:");
-                ImGui.SameLine();
-                
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + statusPosX);
-                
-                if (!string.IsNullOrEmpty(snapshotDetectedCustomizePlusProfile))
-                {
-                    ImGui.TextColored(new Vector4(0.3f, 0.8f, 0.3f, 1.0f), "Found");
-                }
-                else if (snapshotIsProcessing)
-                {
-                    ImGui.TextColored(new Vector4(0.8f, 0.8f, 0.3f, 1.0f), "Detecting...");
-                }
-                else
-                {
-                    ImGui.TextColored(new Vector4(0.8f, 0.3f, 0.3f, 1.0f), "None");
-                }
-
-                // Clipboard image detection with icon
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1.0f), "\uf03e");
-                ImGui.PopFont();
-                ImGui.SameLine();
-                ImGui.Text("Clipboard Image:");
-                ImGui.SameLine();
-                
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + statusPosX);
-                
-                if (snapshotHasClipboardImage)
-                {
-                    ImGui.TextColored(new Vector4(0.3f, 0.8f, 0.3f, 1.0f), "Available");
-                }
-                else
-                {
-                    ImGui.TextColored(new Vector4(0.8f, 0.3f, 0.3f, 1.0f), "None");
-                }
-
-                ImGui.EndChild();
-
-                // Status message
-                if (!string.IsNullOrEmpty(snapshotStatusMessage))
-                {
-                    ImGui.Spacing();
-                    ImGui.TextColored(new Vector4(0.8f, 0.6f, 0.3f, 1.0f), snapshotStatusMessage);
-                }
-
-                // Bottom section with buttons
-                ImGui.Spacing();
-                ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.4f, 0.6f, 0.8f, 0.5f));
-                ImGui.Separator();
-                ImGui.PopStyleColor();
-                ImGui.Spacing();
-
-                // Buttons with improved styling
-                float buttonWidth = 120 * scale;
-                float spacing = 10 * scale;
-                float totalButtonWidth = (buttonWidth * 2) + spacing;
-                float offsetX = (ImGui.GetContentRegionAvail().X - totalButtonWidth) * 0.5f;
-                
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offsetX);
-
-                // Create button with plugin-style colors
-                bool canCreate = !string.IsNullOrWhiteSpace(snapshotDesignName) && !snapshotIsProcessing;
-                if (!canCreate)
-                    ImGui.BeginDisabled();
-
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.6f, 0.9f, 0.7f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.7f, 1.0f, 0.8f));
-                ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.4f, 0.8f, 1.0f, 1.0f));
-
-                if (ImGui.Button("Create Design", new Vector2(buttonWidth, 0)))
-                {
-                    CreateSnapshotDesign();
-                }
-
-                ImGui.PopStyleColor(3);
-
-                if (!canCreate)
-                    ImGui.EndDisabled();
-
-                // Cancel button
-                ImGui.SameLine(0, spacing);
-                if (ImGui.Button("Cancel", new Vector2(buttonWidth, 0)))
-                {
-                    isSnapshotDialogOpen = false;
-                }
-                ImGui.End();
-            }
-
-            if (!isOpen)
-                isSnapshotDialogOpen = false;
-        }
-
-        private void OpenSnapshotDialog(Character character)
-        {
-            snapshotTargetCharacter = character;
-            snapshotDesignName = $"Design {DateTime.Now:yyyy-MM-dd HH:mm}";
-            snapshotUseConflictResolution = plugin.Configuration.EnableConflictResolution;
-            snapshotDetectedMods.Clear();
-            snapshotDetectedCustomizePlusProfile = null;
-            snapshotHasClipboardImage = false;
-            snapshotIsProcessing = false;
-            snapshotStatusMessage = "";
-            
-            // Start background detection tasks
-            Task.Run(async () =>
-            {
-                try
-                {
-                    snapshotIsProcessing = true;
-                    snapshotStatusMessage = "Detecting Glamourer state...";
-                    
-                    // Detect Glamourer state
-                    await DetectGlamourerState();
-                    
-                    snapshotStatusMessage = "Detecting Customize+ profile...";
-                    
-                    // Detect Customize+ profile
-                    await DetectCustomizePlusProfile();
-                    
-                    snapshotStatusMessage = "Checking clipboard for images...";
-                    
-                    // Check clipboard for images
-                    CheckClipboardForImage();
-                    
-                    snapshotStatusMessage = "Detection complete";
-                    snapshotIsProcessing = false;
-                }
-                catch (Exception ex)
-                {
-                    Plugin.Log.Error($"Error during snapshot detection: {ex}");
-                    snapshotStatusMessage = "Error during auto-detection";
-                    snapshotIsProcessing = false;
-                }
-            });
-            
-            isSnapshotDialogOpen = true;
-        }
-
-        private void CreateSnapshotDesign()
-        {
-            if (snapshotTargetCharacter == null)
-                return;
-
-            snapshotIsProcessing = true;
-            snapshotStatusMessage = "Creating design...";
-
-            // Task.Run(async () =>
-            // {
-            //     try
-            //     {
-            //         // Generate the appropriate macro based on CR mode
-            //         var snapshotMacro = GenerateSnapshotMacro(snapshotUseConflictResolution);
-            //         
-            //         // For CR mode, generate different macros
-            //         var regularMacro = GenerateSnapshotMacro(false); // Regular macro without CR
-            //         var advancedMacro = snapshotUseConflictResolution ? GenerateSnapshotMacro(true) : ""; // CR macro if enabled
-            //         
-            //         var newDesign = new CharacterDesign(
-            //             snapshotDesignName,
-            //             regularMacro, // Always use regular macro for base
-            //             snapshotUseConflictResolution, // Enable Advanced Mode if CR is checked
-            //             advancedMacro, // Advanced/CR macro
-            //             "", // GlamourerDesign - will be set later
-            //             "", // Automation
-            //             "", // CustomizePlusProfile - will be set later
-            //             null // PreviewImagePath - will be set later
-            //         );
-            //
-            //         // Create Glamourer design from current state if detected
-            //         if (snapshotDetectedMods.Count > 0)
-            //         {
-            //             var glamourerDesignName = $"{snapshotDesignName}";
-            //             var glamourerDesignId = await CreateGlamourerDesignFromCurrentState(glamourerDesignName);
-            //             if (glamourerDesignId != Guid.Empty)
-            //             {
-            //                 // Store the design name, not the GUID, for SCS compatibility
-            //                 newDesign.GlamourerDesign = glamourerDesignName;
-            //                 Plugin.Log.Information($"Created Glamourer design: {glamourerDesignName} (ID: {glamourerDesignId})");
-            //             }
-            //         }
-            //
-            //         // Set Customize+ profile if detected (only if it's not the Character default)
-            //         if (!string.IsNullOrEmpty(snapshotDetectedCustomizePlusProfile) && 
-            //             snapshotDetectedCustomizePlusProfile != "Character")
-            //         {
-            //             newDesign.CustomizePlusProfile = snapshotDetectedCustomizePlusProfile;
-            //         }
-            //
-            //         // Set up Secret Mode state for CR mode
-            //         if (snapshotUseConflictResolution)
-            //         {
-            //             // Get only gear/hair mods from Currently Affecting You tab (prevents body/sculpt/eye mods from being managed)
-            //             var allAffectingMods = plugin.PenumbraIntegration?.GetOnScreenTabMods();
-            //             var currentlyAffectingMods = new HashSet<string>();
-            //             
-            //             if (allAffectingMods != null)
-            //             {
-            //                 foreach (var modDir in allAffectingMods)
-            //                 {
-            //                     try
-            //                     {
-            //                         // Get mod type from cache or determine it
-            //                         ModType modType;
-            //                         if (plugin.modCategorizationCache.ContainsKey(modDir))
-            //                         {
-            //                             modType = plugin.modCategorizationCache[modDir];
-            //                         }
-            //                         else
-            //                         {
-            //                             // Use the static method to determine mod type
-            //                             modType = SecretModeModWindow.DetermineModType(modDir, "", plugin);
-            //                             plugin.modCategorizationCache[modDir] = modType;
-            //                         }
-            //
-            //                         // Only include gear and hair mods (safe to toggle, won't break body/sculpt/eyes)
-            //                         if (modType == ModType.Gear || modType == ModType.Hair)
-            //                         {
-            //                             currentlyAffectingMods.Add(modDir);
-            //                         }
-            //                     }
-            //                     catch (Exception ex)
-            //                     {
-            //                         Plugin.Log.Warning($"Failed to determine mod type for {modDir}: {ex.Message}");
-            //                     }
-            //                 }
-            //             }
-            //             if (currentlyAffectingMods != null && currentlyAffectingMods.Count > 0)
-            //             {
-            //                 // Create mod state dictionary with all currently affecting mods enabled
-            //                 newDesign.SecretModState = new Dictionary<string, bool>();
-            //                 foreach (var modName in currentlyAffectingMods)
-            //                 {
-            //                     newDesign.SecretModState[modName] = true;
-            //                 }
-            //                 Plugin.Log.Information($"Detected {newDesign.SecretModState.Count} currently affecting mods for CR design");
-            //             }
-            //             else
-            //             {
-            //                 Plugin.Log.Information("No currently affecting mods detected for CR design");
-            //             }
-            //         }
-            //
-            //         // Save clipboard image if available
-            //         if (snapshotHasClipboardImage)
-            //         {
-            //             var imagePath = await SaveClipboardImageForDesign(newDesign.Id);
-            //             if (!string.IsNullOrEmpty(imagePath))
-            //             {
-            //                 newDesign.PreviewImagePath = imagePath;
-            //             }
-            //         }
-            //
-            //         // The macro was already set during construction, no need to regenerate
-            //
-            //         // Add the design to the character
-            //         snapshotTargetCharacter.Designs.Add(newDesign);
-            //         
-            //         // Save configuration
-            //         plugin.Configuration.Save();
-            //
-            //         snapshotStatusMessage = "Design created successfully!";
-            //         
-            //         // Close dialog after a brief delay
-            //         await Task.Delay(1000);
-            //         isSnapshotDialogOpen = false;
-            //     }
-            //     catch (Exception ex)
-            //     {
-            //         Plugin.Log.Error($"Error creating snapshot design: {ex}");
-            //         snapshotStatusMessage = $"Error: {ex.Message}";
-            //     }
-            //     finally
-            //     {
-            //         snapshotIsProcessing = false;
-            //     }
-            // });
-        }
-
-        private string GenerateSnapshotMacro(bool useConflictResolution)
-        {
-            var macroLines = new List<string>();
-
-            if (useConflictResolution)
-            {
-                // CR Mode: Generate macro that works with Secret Mode CR system
-                // No bulktag commands - CR system handles mod management automatically
-                
-                // Add Glamourer apply if we have a design
-                if (snapshotDetectedMods.Count > 0)
-                {
-                    macroLines.Add($"/glamour apply {snapshotDesignName} | self");
-                }
-
-                // Add Customize+ profile commands if we have a non-Character profile
-                if (!string.IsNullOrEmpty(snapshotDetectedCustomizePlusProfile) && snapshotDetectedCustomizePlusProfile != "Character")
-                {
-                    macroLines.Add("/customize profile disable <me>");
-                    macroLines.Add($"/customize profile enable <me>, {snapshotDetectedCustomizePlusProfile}");
-                }
-
-                // Add penumbra redraw at the end
-                macroLines.Add("/penumbra redraw self");
-            }
-            else
-            {
-                // Regular Mode: Generate bulktag macros for non-CR designs
-                // Add Glamourer apply if we have a design
-                if (snapshotDetectedMods.Count > 0)
-                {
-                    macroLines.Add($"/glamour apply {snapshotDesignName} | self");
-                }
-
-                // Add Customize+ profile commands if we have a non-Character profile
-                if (!string.IsNullOrEmpty(snapshotDetectedCustomizePlusProfile) && snapshotDetectedCustomizePlusProfile != "Character")
-                {
-                    macroLines.Add("/customize profile disable <me>");
-                    macroLines.Add($"/customize profile enable <me>, {snapshotDetectedCustomizePlusProfile}");
-                }
-
-                // Always add penumbra redraw at the end
-                macroLines.Add("/penumbra redraw self");
-            }
-
-            return string.Join("\n", macroLines);
-        }
-
-        private async Task<Guid> CreateGlamourerDesignFromCurrentState(string designName)
-        {
-            try
-            {
-                // Get current player's object index (usually 0 for local player)
-                var playerIndex = 0;
-                
-                // First, get the current state data from Glamourer
-                var glamourerStateIpc = Plugin.PluginInterface.GetIpcSubscriber<int, uint, (int, string?)>("Glamourer.GetStateBase64");
-                var (stateError, stateData) = await Task.Run(() => glamourerStateIpc.InvokeFunc(playerIndex, 0));
-                
-                if (stateError != 0 || string.IsNullOrEmpty(stateData))
-                {
-                    Plugin.Log.Warning($"Failed to get Glamourer state for design creation (error: {stateError})");
-                    return Guid.Empty;
-                }
-                
-                // Create design from the state data
-                var glamourerAddDesignIpc = Plugin.PluginInterface.GetIpcSubscriber<string, string, (int, Guid)>("Glamourer.AddDesign");
-                var (addError, designId) = await Task.Run(() => glamourerAddDesignIpc.InvokeFunc(stateData, designName));
-                
-                if (addError == 0 && designId != Guid.Empty) // Success
-                {
-                    Plugin.Log.Information($"Created Glamourer design '{designName}' with ID {designId}");
-                    return designId;
-                }
-                else
-                {
-                    Plugin.Log.Warning($"Failed to create Glamourer design (error: {addError})");
-                    return Guid.Empty;
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Failed to create Glamourer design: {ex.Message}");
-                return Guid.Empty;
-            }
-        }
-
-        private async Task DetectGlamourerState()
-        {
-            try
-            {
-                snapshotDetectedMods.Clear();
-                
-                // Get current player's object index (usually 0 for local player)
-                var playerIndex = 0;
-                
-                // Use real Glamourer IPC to get current state
-                var glamourerStateIpc = Plugin.PluginInterface.GetIpcSubscriber<int, uint, (int, string?)>("Glamourer.GetStateBase64");
-                var (errorCode, stateData) = await Task.Run(() => glamourerStateIpc.InvokeFunc(playerIndex, 0));
-                
-                if (errorCode == 0 && !string.IsNullOrEmpty(stateData)) // Success
-                {
-                    // We have a valid state, which means there are modifications
-                    snapshotDetectedMods.Add("Current Glamourer State");
-                    Plugin.Log.Information($"Glamourer detection completed: Active state detected");
-                }
-                else
-                {
-                    Plugin.Log.Information($"Glamourer detection completed: No modifications detected (error: {errorCode})");
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Warning($"Failed to detect Glamourer state: {ex.Message}");
-                snapshotDetectedMods.Clear();
-            }
-        }
-
-        private async Task DetectCustomizePlusProfile()
-        {
-            try
-            {
-                // Get current player's object index (usually 0 for local player)
-                var playerIndex = (ushort)0;
-                
-                // Use real Customize+ IPC to get active profile
-                var customizePlusIpc = Plugin.PluginInterface.GetIpcSubscriber<ushort, (int, Guid?)>("CustomizePlus.Profile.GetActiveProfileIdOnCharacter");
-                var (errorCode, profileId) = await Task.Run(() => customizePlusIpc.InvokeFunc(playerIndex));
-                
-                if (errorCode == 0 && profileId.HasValue && profileId.Value != Guid.Empty) // Success with profile
-                {
-                    // Get profile list to find the profile name
-                    var profileListIpc = Plugin.PluginInterface.GetIpcSubscriber<(Guid, string, string, List<(string, ushort, byte, ushort)>, int, bool)[]>("CustomizePlus.Profile.GetList");
-                    var profileList = await Task.Run(() => profileListIpc.InvokeFunc());
-                    
-                    // Find the active profile in the list
-                    var activeProfile = profileList.FirstOrDefault(p => p.Item1 == profileId.Value);
-                    
-                    if (activeProfile.Item1 != Guid.Empty) // Found the profile
-                    {
-                        var profileName = activeProfile.Item2; // The Name field from IPCProfileDataTuple
-                        
-                        // If it's an empty name or default, treat as Character
-                        if (string.IsNullOrWhiteSpace(profileName) || profileName == "Default")
-                        {
-                            profileName = "Character";
-                        }
-                        
-                        snapshotDetectedCustomizePlusProfile = profileName;
-                        Plugin.Log.Information($"Customize+ detection completed: Profile '{profileName}' active");
-                    }
-                    else
-                    {
-                        snapshotDetectedCustomizePlusProfile = "Character";
-                        Plugin.Log.Information("Customize+ detection completed: Active profile not found in profile list");
-                    }
-                }
-                else
-                {
-                    // No profile or error - assume Character default
-                    snapshotDetectedCustomizePlusProfile = "Character";
-                    Plugin.Log.Information($"Customize+ detection completed: Character profile active (error: {errorCode})");
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Warning($"Failed to detect Customize+ profile: {ex.Message}");
-                snapshotDetectedCustomizePlusProfile = "Character";
-            }
-        }
-
-        private void CheckClipboardForImage()
-        {
-            try
-            {
-                // Clipboard operations need to be on STA thread
-                var thread = new Thread(() =>
-                {
-                    try
-                    {
-                        // Check if clipboard contains image data
-                        snapshotHasClipboardImage = System.Windows.Forms.Clipboard.ContainsImage();
-                    }
-                    catch (Exception ex)
-                    {
-                        Plugin.Log.Warning($"Failed to check clipboard for image: {ex.Message}");
-                        snapshotHasClipboardImage = false;
-                    }
-                });
-                thread.SetApartmentState(ApartmentState.STA);
-                thread.Start();
-                thread.Join();
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Warning($"Failed to check clipboard for image: {ex.Message}");
-                snapshotHasClipboardImage = false;
-            }
-        }
-
-        private async Task<string> GetGlamourerDesignData()
-        {
-            try
-            {
-                // In real implementation, this would use Glamourer IPC to export current state
-                await Task.Delay(200);
-                
-                // Example IPC call:
-                // return await plugin.DalamudPluginInterface.GetIpcSubscriber<string>("Glamourer.ExportCurrentDesign").InvokeAsync();
-                
-                // Mock data for testing
-                return "MockGlamourerDesignData_" + DateTime.Now.Ticks;
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Failed to get Glamourer design data: {ex}");
-                return string.Empty;
-            }
-        }
-
-        private async Task<string> GetCustomizePlusProfileData(string profileName)
-        {
-            try
-            {
-                // In real implementation, this would use Customize+ IPC to export profile
-                await Task.Delay(200);
-                
-                // Example IPC call:
-                // return await plugin.DalamudPluginInterface.GetIpcSubscriber<string>("CustomizePlus.ExportProfile").InvokeAsync(profileName);
-                
-                // Mock data for testing
-                return $"MockCustomizePlusProfile_{profileName}_{DateTime.Now.Ticks}";
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Failed to get Customize+ profile data: {ex}");
-                return string.Empty;
-            }
-        }
-
-        private async Task<string> SaveClipboardImageForDesign(Guid designId)
-        {
-            try
-            {
-                string imagePath = "";
-                
-                // Clipboard operations need to be on STA thread
-                var thread = new Thread(() =>
-                {
-                    try
-                    {
-                        if (!System.Windows.Forms.Clipboard.ContainsImage())
-                            return;
-
-                        var image = System.Windows.Forms.Clipboard.GetImage();
-                        if (image == null)
-                            return;
-
-                        // Create designs directory if it doesn't exist
-                        var designsDir = Path.Combine(Plugin.PluginInterface.ConfigDirectory.FullName, "Designs");
-                        Directory.CreateDirectory(designsDir);
-
-                        // Save image with design ID as filename
-                        imagePath = Path.Combine(designsDir, $"{designId}.png");
-                        
-                        using (var bitmap = new System.Drawing.Bitmap(image))
-                        {
-                            bitmap.Save(imagePath, ImageFormat.Png);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Plugin.Log.Error($"Failed to save clipboard image: {ex}");
-                        imagePath = "";
-                    }
-                });
-                
-                thread.SetApartmentState(ApartmentState.STA);
-                thread.Start();
-                thread.Join();
-
-                return imagePath;
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Failed to save clipboard image: {ex}");
-                return string.Empty;
-            }
-        }
-
-        /// <summary>
-        /// Sets up the snapshot state and creates a design from a chat command, using the same logic as the UI button
-        /// </summary>
-        public void SetupSnapshotFromCommand(Character character, string designName, bool useConflictResolution)
-        {
-            // Set up the snapshot state variables (same as OpenSnapshotDialog)
-            snapshotTargetCharacter = character;
-            snapshotDesignName = designName;
-            snapshotUseConflictResolution = useConflictResolution;
-            snapshotDetectedMods = new HashSet<string>();
-            snapshotDetectedCustomizePlusProfile = "";
-            snapshotHasClipboardImage = Clipboard.ContainsImage();
-            snapshotIsProcessing = false;
-            snapshotStatusMessage = "";
-
-            // Start the detection and creation process (same as the UI button logic)
-            Task.Run(async () =>
-            {
-                try
-                {
-                    // Run detection in parallel (same as UI)
-                    var detectionTasks = new Task[]
-                    {
-                        DetectGlamourerState(),
-                        DetectCustomizePlusProfile()
-                    };
-
-                    await Task.WhenAll(detectionTasks);
-                    
-                    // Create the design (same as clicking "Create Design" button)
-                    CreateSnapshotDesign();
-                }
-                catch (Exception ex)
-                {
-                    Plugin.Log.Error($"Error in snapshot creation from command: {ex}");
-                    Plugin.ChatGui.PrintError($"[Simple Character Select] Failed to create snapshot design: {ex.Message}");
-                }
-            });
-        }
-
-        public void CreateSmartSnapshotFromCommand(Character character, bool useConflictResolution)
-        {
-            CreateSmartSnapshot(character, useConflictResolution);
-        }
-
-        private void CreateSmartSnapshot(Character character, bool useConflictResolution)
-        {
-            Task.Run(async () =>
-            {
-                try
-                {
-                    Plugin.Log.Information($"Starting smart snapshot for character '{character.Data.Name}' with CR: {useConflictResolution}");
-
-                    // Get the most recently created Glamourer design
-                    var recentDesign = await GetMostRecentGlamourerDesign();
-                    if (recentDesign == null)
-                    {
-                        Plugin.ChatGui.PrintError("[Simple Character Select] No recent Glamourer design found. Please create a design in Glamourer first or use the regular snapshot dialog.");
-                        return;
-                    }
-
-                    Plugin.Log.Information($"Found recent Glamourer design: '{recentDesign.Value.Name}' created on {recentDesign.Value.CreationDate}");
-
-                    // Set snapshot data using the recent design
-                    snapshotTargetCharacter = character;
-                    snapshotDesignName = recentDesign.Value.Name;
-                    snapshotUseConflictResolution = useConflictResolution;
-                    snapshotIsProcessing = true;
-
-                    // Auto-detect current state
-                    var detectionTasks = new Task[]
-                    {
-                        DetectGlamourerState(),
-                        DetectCustomizePlusProfile(),
-                        Task.Run(() => CheckClipboardForImage())
-                    };
-
-                    await Task.WhenAll(detectionTasks);
-
-                    // Create the SCS design with the Glamourer design field populated
-                    CreateSmartSnapshotDesign(recentDesign.Value);
-
-                    Plugin.ChatGui.Print($"[Simple Character Select] Smart snapshot created: '{recentDesign.Value.Name}' {(useConflictResolution ? "with" : "without")} CR");
-                }
-                catch (Exception ex)
-                {
-                    Plugin.Log.Error($"Error in smart snapshot creation: {ex}");
-                    Plugin.ChatGui.PrintError($"[Simple Character Select] Failed to create smart snapshot: {ex.Message}");
-                }
-            });
-        }
-
-        private async Task<(string Name, DateTimeOffset CreationDate, Guid Id)?> GetMostRecentGlamourerDesign()
-        {
-            try
-            {
-                // Get Glamourer API with correct IPC method names
-                var glamourerApi = Plugin.PluginInterface.GetIpcSubscriber<Dictionary<Guid, string>>("Glamourer.GetDesignList.V2");
-                var designsDict = await Task.Run(() => glamourerApi.InvokeFunc());
-
-                if (designsDict == null || designsDict.Count == 0)
-                    return null;
-
-                var glamourerJObjectApi = Plugin.PluginInterface.GetIpcSubscriber<Guid, Newtonsoft.Json.Linq.JObject?>("Glamourer.GetDesignJObject");
-
-                // Get design data with timestamps
-                var designsWithTimestamps = new List<(string Name, DateTimeOffset CreationDate, Guid Id)>();
-
-                foreach (var kvp in designsDict)
-                {
-                    try
-                    {
-                        var designJson = await Task.Run(() => glamourerJObjectApi.InvokeFunc(kvp.Key));
-                        if (designJson != null)
-                        {
-                            var name = designJson["Name"]?.Value<string>() ?? kvp.Value;
-                            var creationDate = designJson["CreationDate"]?.Value<DateTimeOffset>() ?? DateTimeOffset.MinValue;
-                            
-                            designsWithTimestamps.Add((name, creationDate, kvp.Key));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Plugin.Log.Warning($"Failed to get timestamp for design {kvp.Key}: {ex.Message}");
-                    }
-                }
-
-                // Return the most recently created design
-                return designsWithTimestamps
-                    .Where(d => d.CreationDate > DateTimeOffset.MinValue)
-                    .OrderByDescending(d => d.CreationDate)
-                    .FirstOrDefault();
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Failed to get recent Glamourer designs: {ex}");
-                return null;
-            }
-        }
-
-        private string GenerateSnapshotMacro(Character character, string glamourerDesign, string customizePlusProfile)
-        {
-            if (string.IsNullOrWhiteSpace(glamourerDesign))
-                return "";
-
-            string macro = $"/glamour apply {glamourerDesign} | self";
-
-            // Conditionally include automation line
-            if (plugin.Configuration.EnableAutomations)
-            {
-                string automationToUse = !string.IsNullOrWhiteSpace(character.Data.CharacterAutomation)
-                    ? character.Data.CharacterAutomation
-                    : "None";
-
-                macro += $"\n/glamour automation enable {automationToUse}";
-            }
-
-            // Always disable Customize+ first
-            macro += "\n/customize profile disable <me>";
-
-            // Determine Customize+ profile
-            string customizeProfileToUse = !string.IsNullOrWhiteSpace(customizePlusProfile)
-                ? customizePlusProfile
-                : !string.IsNullOrWhiteSpace(character.Data.CustomizeProfile)
-                    ? character.Data.CustomizeProfile
-                    : string.Empty;
-
-            // Enable only if needed
-            if (!string.IsNullOrWhiteSpace(customizeProfileToUse))
-                macro += $"\n/customize profile enable <me>, {customizeProfileToUse}";
-
-            // Redraw line
-            macro += "\n/penumbra redraw self";
-
-            return macro;
-        }
-
-        private void CreateSmartSnapshotDesign((string Name, DateTimeOffset CreationDate, Guid Id) recentDesign)
-        {
-            try
-            {
-                if (snapshotTargetCharacter == null)
-                {
-                    Plugin.Log.Error("No target character set for smart snapshot");
-                    return;
-                }
-
-                Plugin.Log.Information($"Creating smart snapshot design for character '{snapshotTargetCharacter.Data.Name}' using Glamourer design '{recentDesign.Name}'");
-
-                // Generate the proper macro for the snapshot design
-                string snapshotMacro = GenerateSnapshotMacro(snapshotTargetCharacter, recentDesign.Name, 
-                    !string.IsNullOrEmpty(snapshotDetectedCustomizePlusProfile) && snapshotDetectedCustomizePlusProfile != "Character" 
-                        ? snapshotDetectedCustomizePlusProfile 
-                        : "");
-
-                // Create new design based on detected character state
-                var newDesign = new CharacterDesign(
-                    name: recentDesign.Name,
-                    macro: snapshotMacro,
-                    isAdvancedMode: false,
-                    advancedMacro: "",
-                    glamourerDesign: recentDesign.Name, // Use the Glamourer design name
-                    automation: "",
-                    customizePlusProfile: !string.IsNullOrEmpty(snapshotDetectedCustomizePlusProfile) && snapshotDetectedCustomizePlusProfile != "Character" 
-                        ? snapshotDetectedCustomizePlusProfile 
-                        : ""
-                );
-
-                // Handle clipboard image if available
-                if (snapshotHasClipboardImage)
-                {
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            var imagePath = await SaveClipboardImageForDesign(Guid.NewGuid());
-                            if (!string.IsNullOrEmpty(imagePath))
-                            {
-                                newDesign.PreviewImagePath = imagePath;
-                                Plugin.Log.Information($"Saved clipboard image for smart snapshot: {imagePath}");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Plugin.Log.Warning($"Failed to save clipboard image for smart snapshot: {ex}");
-                        }
-                    });
-                }
-
-                // Add to character's designs
-                snapshotTargetCharacter.Data.Designs.Add(newDesign);
-
-                // Save configuration
-                plugin.Configuration.Save();
-
-                Plugin.Log.Information($"Smart snapshot design '{newDesign.Name}' created successfully for character '{snapshotTargetCharacter.Data.Name}'");
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Error($"Error creating smart snapshot design: {ex}");
-                Plugin.ChatGui.PrintError($"[Simple Character Select] Failed to create smart snapshot design: {ex.Message}");
-            }
-            finally
-            {
-                snapshotIsProcessing = false;
-            }
-        }
-
-
-
-        private void CloseSnapshotDialog()
-        {
-            isSnapshotDialogOpen = false;
-            snapshotDesignName = "";
-            snapshotUseConflictResolution = true;
-            snapshotTargetCharacter = null;
-            snapshotDetectedMods.Clear();
-            snapshotDetectedCustomizePlusProfile = null;
-            snapshotHasClipboardImage = false;
-            snapshotIsProcessing = false;
-            snapshotStatusMessage = "";
-        }
-
-        private bool IsDesignCurrentlyActive(Character character, CharacterDesign design)
-        {
-            // Only show active design for the currently active SCS character
-            var currentActiveCharacter = GetCurrentActiveCharacter();
-            if (currentActiveCharacter == null || currentActiveCharacter.Data.Name != character.Data.Name)
-                return false;
-
-            if (plugin?.Configuration?.LastUsedDesignByCharacter == null)
-                return false;
-
-            if (!plugin.Configuration.LastUsedDesignByCharacter.TryGetValue(character.Data.Name, out var lastUsedDesignName))
-                return false;
-
-            return design.Name.Equals(lastUsedDesignName, StringComparison.OrdinalIgnoreCase);
-        }
-        
-        
-        // TODO this may be redundant
-        private Character? GetCurrentActiveCharacter()
-        {
-            // Use the same logic as the plugin uses to determine current character
-            Character? currentCharacter = null;
-
-            // Try player-specific mapping first
-            if (Plugin.ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
-            {
-                string localName = player.Name.TextValue;
-                string worldName = player.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-                
-                if (plugin.Configuration.LastUsedCharacterByPlayer.TryGetValue(fullKey, out var lastUsedCharacterName))
-                {
-                    // lastUsedCharacterName is in format "CharacterName@WorldName", extract just the character name
-                    var characterName = lastUsedCharacterName.Contains("@") ? lastUsedCharacterName.Split('@')[0] : lastUsedCharacterName;
-                    currentCharacter = plugin.Characters.FirstOrDefault(c => c.Data.Name.Equals(characterName, StringComparison.OrdinalIgnoreCase));
-                }
-            }
-
-            // Fallback to global last used
-            if (currentCharacter == null && !string.IsNullOrEmpty(plugin.Configuration.LastUsedCharacterKey))
-            {
-                currentCharacter = plugin.Characters.FirstOrDefault(c => c.Data.Name.Equals(plugin.Configuration.LastUsedCharacterKey, StringComparison.OrdinalIgnoreCase));
-            }
-
-            return currentCharacter;
         }
     }
 }

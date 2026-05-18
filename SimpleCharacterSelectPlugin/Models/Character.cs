@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Numerics;
 using SimpleCharacterSelectPlugin.Managers;
 
@@ -7,29 +8,47 @@ namespace SimpleCharacterSelectPlugin.Models
     [Serializable]
     public class Character
     {
-        public CharacterData Data { get; set; }
-        private CharacterData savedData;
+        public CharacterData Data { get; set; } = new();
 
-        public Character()
+        public void Save(CharacterData? newData)
         {
-            Data = new CharacterData();
-            savedData = new CharacterData();
-        }
-        
-        public void Save()
-        {
-            Data.Macros = GameCommandManager.GenerateMacro(this);
-            savedData = Data.Clone();
+            if (newData == null)
+            {
+                Data = new CharacterData();
+                return;
+            }
+            Data = newData.Clone();
         }
 
-        public void LoadFromConfig(string json)
+        public CharacterDesign GetDefaultDesign()
         {
-            
+            return Data.Designs.ElementAtOrDefault(Data.DefaultDesignIndex) ?? new CharacterDesign();
         }
-        
-        public void ResetEdits()
+
+        public CharacterDesign GetDesign(int designIndex)
         {
-            Data = savedData.Clone();
+            if (designIndex < 0)
+            {
+                return GetDefaultDesign();
+            }
+
+            if (designIndex + 1 > Data.Designs.Count)
+            {
+                Plugin.Log.Warning("CharacterDesign not found, using default design");
+                return GetDefaultDesign();
+            }
+            CharacterDesign design = Data.Designs[designIndex];
+            return design;
+        }
+
+        public void SetDefaultDesign(CharacterDesign characterDesign)
+        {
+            Data.Designs[Data.DefaultDesignIndex] = characterDesign;
+        }
+
+        public int GetDesignIndex(CharacterDesign characterDesign)
+        {
+            return Data.Designs.IndexOf(characterDesign);
         }
     }
     public class DesignFolder

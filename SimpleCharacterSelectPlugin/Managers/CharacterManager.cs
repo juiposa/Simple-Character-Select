@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Plugin.Services;
 using SimpleCharacterSelectPlugin.Models;
 
@@ -10,31 +11,44 @@ public static class CharacterManager
 {
     private static readonly string NameValidationError =
         "You already have a character with this name. Please choose a different name.";
-    
+
     private static readonly string NameEmptyError =
         "Name cannot be empty.";
 
-    public static SCSError? ValidateName(string name, Character currentCharacter, List<Character> characters)
+    public static string? ValidateName(string name, string currentName, List<Character> characters)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return new SCSError(NameEmptyError);
+            return NameEmptyError;
 
-        if (name != currentCharacter.Data.Name && characters.Any(c => c.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        if (name != currentName && characters.Any(c => c.Data.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
         {
-            return new SCSError(NameValidationError);
+            return NameValidationError;
         }
+
         return null;
     }
-    
-    public static void SaveCharacter(int index, Character character, Configuration config, IPluginLog log)
+
+    public static PlayerCharacter? NewPlayerCharacter(string fullname)
     {
-        if (character.Data.Designs.Count == 0)
+        string[] parts = fullname.Split('@');
+        if (parts.Length != 2)
         {
-            character.Data.Designs.Add(CreateDefaultDesign(character, config));
+            return null;
         }
-        
-        character.Save();
-        
+
+        return new PlayerCharacter(null, parts[0], parts[1]);
+    }
+
+    public static PlayerCharacter MustNewPlayerCharacter(IPlayerCharacter ingame, string fullname)
+    {
+        string[] parts = fullname.Split('@');
+        return new PlayerCharacter(ingame, parts[0], parts[1]);
+    }
+
+    public static void SaveCharacter(int index, Character character, CharacterData? newData, Configuration config)
+    {
+        character.Save(newData);
+
         if (index >= 0)
         {
             config.Characters[index] = character;
@@ -43,26 +57,35 @@ public static class CharacterManager
         {
             config.Characters.Add(character);
         }
+
         config.Save();
     }
 
-    private static CharacterDesign CreateDefaultDesign(Character character, Configuration config)
+    public static List<PlayerCharacter> GetPlayerCharactersWithAssignments(Dictionary<string, PlayerCharacter> pcs)
     {
-        string defaultDesignName = $"{character.Data.Name} {character.Data.GlamourerDesign}";
-        var defaultDesign = new CharacterDesign(
-            defaultDesignName,
-            "",  // macro will be filled below
-            false,
-            ""
-        );
+        var returnList = new List<PlayerCharacter>();
+        foreach (var pc in pcs)
+        {
+            if (pc.Value.AssignedCharacter != null)
+            {
+                returnList.Add(pc.Value);
+            }
+        }
 
-        // Sanitize to include Automation fallback
-        defaultDesign.Macro = GameCommandManager.SanitizeDesignMacro(
-            $"/glamour apply {character.Data.GlamourerDesign} | self\n/penumbra redraw self",
-            defaultDesign,
-            character,
-            config.EnableAutomations
-        );
-        return defaultDesign;
+        return returnList;
+    }
+
+    public static void ApplyLastUsedOrAssignedCharacter(PlayerCharacter pc)
+    {
+        if (pc.AssignedCharacter != null) //assignments take precedence
+        {
+            DesignManager.ApplyProfile(pc, pc.AssignedCharacter, -1);
+            return;
+        }
+
+        if (pc.ActiveCharacter != null) //else use last known
+        {
+            DesignManager.ApplyActiveProfile(pc);
+        }
     }
 }

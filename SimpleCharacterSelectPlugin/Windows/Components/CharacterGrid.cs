@@ -402,12 +402,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         }
                     }
 
-                    float hoverScale = plugin.Configuration.EnableCharacterHoverEffects
-                        ? 1f + (0.05f * hoverAmount)
-                        : 1f;
-
-                    float finalWidth = displayWidth * hoverScale;
-                    float finalHeight = displayHeight * hoverScale;
+                    float finalWidth = displayWidth;
+                    float finalHeight = displayHeight;
 
                     float paddingX = (imageAreaSize.X - finalWidth) / 2;
                     float paddingY = (imageAreaSize.Y - finalHeight) / 2;
@@ -666,7 +662,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 int realIndex = plugin.Characters.IndexOf(character);
                 if (realIndex >= 0)
-                    plugin.OpenDesignPanel(realIndex);
+                    plugin.MainWindow.OpenDesignPanel(realIndex);
             }
             if (useIcons)
             {
@@ -704,7 +700,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 if (realIndex >= 0)
                 {
                     // Always open edit window (either with converted or original macro)
-                    plugin.OpenEditCharacterWindow(realIndex);
+                    plugin.MainWindow.OpenEditCharacterWindow(realIndex);
                 }
             }
             if (useIcons)
@@ -1093,33 +1089,16 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 plugin.WindowState.IsDesignPanelOpen = false;
             }
-
-            // Switch Penumbra collection if specified
-            if (!string.IsNullOrEmpty(character.Data.PenumbraCollection))
-            {
-                plugin.SwitchPenumbraCollection(character.Data.PenumbraCollection);
-            }
-
-            GameCommandManager.ExecuteMacro(character.Data.Macros, character, null);
-
+            
             // Switch gearset if assigned at character level
-            if (plugin.Configuration.EnableGearsetAssignments && character.Data.AssignedGearset.HasValue)
+            if (plugin.Configuration.EnableGearsetCharacterSwitching && character.Data.AssignedGearset.HasValue)
             {
-                //plugin.SwitchToGearset(character.Data.AssignedGearset.Value);
+                //plugin.SwitchToGearset(character.Data.AssignedGearset.Value); TODO
             }
-
-            plugin.SetActiveCharacter(character);
-
-            // Check if we should upload to server
-            if (Plugin.ObjectTable.LocalPlayer is { } player && player.HomeWorld.IsValid)
-            {
-                string localName = player.Name.TextValue;
-                string worldName = player.HomeWorld.Value.Name.ToString();
-                string fullKey = $"{localName}@{worldName}";
-                
-                Plugin.Log.Info($"[CharacterGrid] ⚠ Skipped upload for {character.Data.Name} (NeverShare)");
-            }
-            plugin.QuickSwitchWindow.UpdateSelectionFromCharacter(character);
+            
+            plugin.ActivePlayer.QueueUpdate(character);
+            
+            plugin.QuickSwitchWindow.RefreshSelection();
         }
         
         private List<Character> GetFilteredCharacters()

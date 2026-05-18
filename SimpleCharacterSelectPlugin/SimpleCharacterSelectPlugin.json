@@ -2,8 +2,8 @@
   "Author": "Juiposa",
   "Name": "Simple Character Select",
   "InternalName": "SimpleCharacterSelectPlugin",
-  "AssemblyVersion": "0.0.3.0",
-  "Description": "Character Select Simplified",
+  "AssemblyVersion": "0.0.4.0",
+  "Description": "Simple Character Select",
   "ApplicableVersion": "any",
   "Tags": ["character", "select", "ocs"],
   "DalamudApiLevel": 15,
@@ -11,11 +11,11 @@
   "LoadSync": false,
   "CanUnloadAsync": false,
   "LoadPriority": 0,
-  "IconUrl": "",
-  "Punchline": "Simplified character selecting, no fluff",
+  "IconUrl": "https://raw.githubusercontent.com/juiposa/Simple-Character-Select/refs/heads/main/SimpleCharacterSelectPlugin/Assets/Icon.png",
+  "Punchline": "Straightforward character selection, no fluff or hassle",
   "AcceptsFeedback": true,
   "IsTestingExclusive": "False",
-  "DownloadLinkInstall": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.3/SimpleCharacterSelectPlugin.zip",
-  "DownloadLinkTesting": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.3/SimpleCharacterSelectPlugin.zip",
-  "DownloadLinkUpdate": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.3/SimpleCharacterSelectPlugin.zip"
+  "DownloadLinkInstall": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.4/SimpleCharacterSelectPlugin.zip",
+  "DownloadLinkTesting": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.4/SimpleCharacterSelectPlugin.zip",
+  "DownloadLinkUpdate": "https://github.com/Juiposa/Simple-Character-Select/releases/download/0.0.4/SimpleCharacterSelectPlugin.zip"
 }
