@@ -31,7 +31,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private string? pendingImagePath = null;
         private bool noErrors = true;
         private CharacterData editCharacterData = new CharacterData();
-        private CharacterDesign editCharDefaultDesign = new CharacterDesign();
+        private CharacterDesign editCharDefaultDesign;
 
         // Temp fields for live updates
         // TODO refactor
@@ -214,6 +214,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 var penumbraOptions = plugin.IntegrationListProvider?.GetPenumbraCollections() ?? Array.Empty<string>();
                 var currentPenumbra = plugin.IntegrationListProvider?.GetCurrentPenumbraCollection();
+                tempPenumbra = editCharDefaultDesign.PenumbraCollection;
 
                 if (AutocompleteCombo.Draw("##PenumbraCollection", ref tempPenumbra, penumbraOptions, inputWidth, "Select collection...", currentActive: currentPenumbra))
                 {
@@ -236,6 +237,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             DrawFormField("Glamourer Design*", labelWidth, inputWidth, inputOffset, () =>
             {
                 var glamourerOptions = plugin.IntegrationListProvider?.GetGlamourerDesigns() ?? Array.Empty<string>();
+                tempGlamourer = editCharDefaultDesign.GlamourerDesign;
 
                 if (AutocompleteCombo.Draw("##GlamourerDesign", ref tempGlamourer, glamourerOptions, inputWidth, "Select design..."))
                 {
@@ -329,7 +331,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 {
                     if (customizeProfiles != null && customizeProfiles.Length > 0)
                     {
+                        
                         editCharDefaultDesign.CustomizeProfileTuple = Array.Find(customizeProfiles, v => v.Item2 == tempCustomize);
+                        Plugin.Log.Debug($"Saving customize profile {editCharDefaultDesign.CustomizeProfileTuple.Item2}");
                     }
                 }
             }, "Select the Customize+ profile for this character. Right-click to clear.", scale);
@@ -397,7 +401,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             if (changed)
             {
-                currentCharacter.SetDefaultDesign(UpdateHonorificData(currentCharacter.GetDefaultDesign()));
+                UpdateHonorificData(editCharDefaultDesign);
             }
         }
 
@@ -517,7 +521,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 var presets = plugin.IntegrationListProvider?.GetMoodlesPresets();
                 var moodleOptions = presets?.Select(v => v.Item2).ToList() ?? new List<string>();
-                string presetName = "";
+                string presetName = editCharDefaultDesign.MoodlePresetTuple.Item2;
                 if (AutocompleteCombo.Draw("##MoodlePreset", ref presetName, moodleOptions, inputWidth, "Select preset..."))
                 {
                     if (presets != null)
@@ -770,11 +774,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 if (editCharacterData.Designs.Count == 0)
                 {
+                    Plugin.Log.Debug("No current design, creating new default");
                     editCharacterData.DefaultDesignIndex = 0;
                     editCharacterData.Designs.Add(editCharDefaultDesign);
                 }
                 else
                 {
+                    Plugin.Log.Debug($"Saving existing default design {editCharacterData.Name} {editCharDefaultDesign.Name}");
+                    
                     editCharacterData.Designs[currentCharacter.Data.DefaultDesignIndex] = editCharDefaultDesign;
                 }
                 CharacterManager.SaveCharacter(selectedCharacterIndex, currentCharacter, editCharacterData, plugin.Configuration);
@@ -1101,6 +1108,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         public void OpenEditCharacterWindow(int index)
         {
+            Plugin.Log.Debug($"Opening edit character window {index}");
             if (index < 0 || index >= plugin.Characters.Count)
                 return;
 
@@ -1108,10 +1116,13 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             var character = plugin.Characters[index];
             currentCharacter = character;
             editCharacterData = character.Data.Clone();
+            var design = editCharacterData.Designs[editCharacterData.DefaultDesignIndex];
+            editCharDefaultDesign = design;
             
-            OpenCharacterWindow(character.GetDefaultDesign());
-
-
+            Plugin.Log.Debug($"Editing character {editCharacterData.Name} {design.GlamourerDesign} {design.PenumbraCollection} {design.CustomizeProfileTuple}");
+            
+            OpenCharacterWindow(design);
+            
             IsEditWindowOpen = true;
         }
 

@@ -11,7 +11,7 @@ namespace SimpleCharacterSelectPlugin
         public string GlamourerDesign { get; set; } = "";
         public string GlamourerAutomation { get; set; } = "";
         public (Guid, string) CustomizeProfileTuple { get; set; }
-        public Honorific Honorific { get; set; } = new Honorific();
+        public Honorific? Honorific { get; set; } = null;
         public (Guid, string) MoodlePresetTuple { get; set; }
         public DateTime DateAdded { get; set; } = DateTime.UtcNow;
         public bool IsFavorite { get; set; }
@@ -23,13 +23,6 @@ namespace SimpleCharacterSelectPlugin
         public Guid Id { get; set; } = Guid.NewGuid();
         public int SortOrder { get; set; } = 0;
         
-        /// <summary>
-        /// Per-design mod option settings.
-        /// Format: ModDirectory -> GroupName -> SelectedOptionNames
-        /// </summary>
-        public Dictionary<string, Dictionary<string, List<string>>>? ModOptionSettings { get; set; }
-
-        /// <summary>Gearset to switch to when applying this design (null = use character's setting or don't switch).</summary>
         public int? AssignedGearset { get; set; } = null;
 
         public CharacterDesign Clone()
@@ -39,6 +32,7 @@ namespace SimpleCharacterSelectPlugin
             newDesign.PenumbraCollection = PenumbraCollection;
             newDesign.GlamourerDesign = GlamourerDesign;
             newDesign.GlamourerAutomation = GlamourerAutomation;
+            newDesign.CustomizeProfileTuple = CustomizeProfileTuple;
             newDesign.Honorific = Honorific.Clone();
             newDesign.AssignedGearset =  AssignedGearset;
             newDesign.MoodlePresetTuple = MoodlePresetTuple;

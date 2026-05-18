@@ -44,6 +44,7 @@ public static class DesignManager
          GlamourerIntegration.ApplyGlamourerDesign(designToApply.GlamourerDesign);
          CustomizeIntegration.ApplyCustomizePlusProfile(designToApply.CustomizeProfileTuple);
          MoodlesIntegration.ApplyMoodlesProfile(designToApply.MoodlePresetTuple);
+         HonorificIntegration.ApplyTitle(designToApply.Honorific);
          // apply C+
          // apply moodles
          // apply honorific
@@ -51,7 +52,7 @@ public static class DesignManager
          //switch gearset if needed
      }
      
-    private  static bool TryApplyGearsetAssignment(uint gaersetId)
+    private  static bool TryApplyGearsetAssignment(uint gearsetId)
     {
         // if (!Configuration.EnableJobAssignments || Configuration.JobAssignments.Count == 0)
         //     return false;

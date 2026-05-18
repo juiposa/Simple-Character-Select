@@ -54,10 +54,7 @@ namespace SimpleCharacterSelectPlugin.Integration
             return true;
         }
         
-        /// <summary>
-        /// Switch the Penumbra UI to display the specified collection and set it as current
-        /// This fixes both the collection assignment and the UI display
-        /// </summary>
+        // Switch penumbra collection and set the Penumbra UI to it
         public static void SwitchCollection(string collectionName)
         {
             if (!IsPenumbraAvailable())
@@ -65,6 +62,9 @@ namespace SimpleCharacterSelectPlugin.Integration
                 Plugin.Log.Warning("Penumbra API not available for collection switching");
                 return;
             }
+            
+            var local = Plugin.ObjectTable.LocalPlayer;
+            if (local == null) return;
             
             try
             {
@@ -81,13 +81,19 @@ namespace SimpleCharacterSelectPlugin.Integration
                 // Use the correct SetCollection API signature
                 // Only set "Current" to update the Penumbra UI display (collection assignment already works)
                 Plugin.Log.Debug($"Setting Penumbra UI current collection - Name: {collectionName}, GUID: {targetCollection.Key}");
+
+                PenumbraIpc.SetCollectionForObject.InvokeFunc(
+                    local.ObjectIndex,
+                    targetCollection.Key,
+                    false,
+                    false
+                );
                 
-                // Set the current/UI collection for display only
                 var (resultInt, oldCollection) = PenumbraIpc.SetCollection.InvokeFunc(
-                    (byte)ApiCollectionType.Current,  // Set as current collection (controls UI display only)
-                    targetCollection.Key,       // Collection GUID
-                    false,                      // Don't allow creation
-                    false                       // Don't allow deletion
+                    (byte)ApiCollectionType.Current,  
+                    targetCollection.Key,       
+                    false,                      
+                    false                       
                 );
                 
                 var result = (PenumbraApiEc)resultInt;

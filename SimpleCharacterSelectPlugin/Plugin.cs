@@ -133,10 +133,7 @@ namespace SimpleCharacterSelectPlugin
             loginTime = DateTime.Now;
             Instance = this;
             GameInteropProvider = gameInteropProvider;
-
-            MoodlesIpc.Initialize();
             
-
             // Run backup on background thread to prevent UI freeze
             var existingConfig = PluginInterface.GetPluginConfig() as Configuration;
             if (existingConfig != null)
@@ -183,6 +180,11 @@ namespace SimpleCharacterSelectPlugin
 
             // Initialize integration list provider for autocomplete dropdowns
             IntegrationListProvider = new IntegrationListProvider(this);
+            IntegrationListProvider.GetPenumbraCollections(true);
+            IntegrationListProvider.GetGlamourerDesigns(true);
+            IntegrationListProvider.GetCustomizePlusProfiles(true);
+            IntegrationListProvider.GetMoodlesPresets(true);
+            IntegrationListProvider.GetHonorificTitles(true);
 
             // Initialize the MainWindow and ConfigWindow
             MainWindow = new Windows.MainWindow(this);

@@ -9,12 +9,12 @@ public static class MoodlesIpc
 {
     public static ICallGateSubscriber<nint, object>? ClearStatus;
     public static ICallGateSubscriber<List<(Guid, string)>>? GetPresets;
-    public static ICallGateSubscriber<Guid, IPlayerCharacter, object>? ApplyPresetByPlayerV2;
+    //public static ICallGateSubscriber<Guid, IPlayerCharacter, object>? ApplyPresetByPlayer;
 
-    public static void Initialize()
+    static MoodlesIpc()
     {
         ClearStatus = Plugin.PluginInterface.GetIpcSubscriber<nint, object>("Moodles.ClearStatusManagerByPtrV2");
         GetPresets = Plugin.PluginInterface.GetIpcSubscriber<List<(Guid, string)>>("Moodles.GetRegisteredProfilesV2");
-        ApplyPresetByPlayerV2 = Plugin.PluginInterface.GetIpcSubscriber<Guid, IPlayerCharacter, object>("Moodles.ApplyPresetByPlayerV2");
+        //ApplyPresetByPlayer = Plugin.PluginInterface.GetIpcSubscriber<Guid, IPlayerCharacter, object>("Moodles.ApplyPresetByPlayerV2"); // TODO check back in, this doesn't seem to be available yet
     }
 }

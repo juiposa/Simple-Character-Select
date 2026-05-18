@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Text.Json;
 
 namespace SimpleCharacterSelectPlugin.Models;
 
@@ -7,6 +8,7 @@ public class Honorific
     public string Title { get; set; } = "";
     public string Prefix { get; set; } = "";
     public string Suffix { get; set; } = "";
+    public bool IsPrefix => Prefix != "" && Suffix == "";
     public Vector3 Color { get; set; } = new Vector3(1.0f, 1.0f, 1.0f);
     public Vector3 Glow { get; set; } = new Vector3(1.0f, 1.0f, 1.0f);
     public Vector3? Color3 { get; set; } = null;  // Second colour for two-colour gradient
@@ -25,5 +27,10 @@ public class Honorific
         clone.GradientSet = this.GradientSet;
         clone.AnimationStyle = this.AnimationStyle;
         return clone;
+    }
+
+    public string ToJson()
+    {
+        return JsonSerializer.Serialize(this);
     }
 }

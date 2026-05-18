@@ -1,4 +1,5 @@
 using System;
+using SimpleCharacterSelectPlugin.Managers;
 
 namespace SimpleCharacterSelectPlugin.Integration;
 
@@ -9,11 +10,17 @@ public class MoodlesIntegration
         /// moodle apply self preset "ABC"
         try
         {
+            if (preset.Item1 == Guid.Empty)
+                return;
+            
             var local = Plugin.ObjectTable.LocalPlayer;
             if (local == null) return;
             
-            MoodlesIpc.ApplyPresetByPlayerV2?.InvokeFunc(preset.Item1, local);
-            Plugin.Log.Debug($"Moodles Applied Moodle Preset '{preset.Item2}'.'");
+            //TODO IPC method not available, check back in
+            //MoodlesIpc.ApplyPresetByPlayerV2?.InvokeFunc(preset.Item1, local);
+            //Plugin.Log.Debug($"Moodles Applied Moodle Preset '{preset.Item2}'.'");
+            
+            GameCommandManager.ExecuteCommand($"/moodle apply self preset \"{preset.Item2}\"");
         }
         catch (Exception ex)
         {

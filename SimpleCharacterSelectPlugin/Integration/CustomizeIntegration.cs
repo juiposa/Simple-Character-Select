@@ -19,8 +19,12 @@ public static class CustomizeIntegration
                 return;
             }
             
-            var result = CustomizeIpc.SetTempProfile?.InvokeFunc((ushort)local.ObjectIndex, profile.Value.Item2);
-            Plugin.Log.Debug($"Customize+ Applied '{profileId.Item2}', error: {result?.Item1}, guid: {result?.Item2}");
+            //Clear any existing temp profiles
+            var result = CustomizeIpc.DeleteTemporaryProfileOnCharacter?.InvokeFunc((ushort)local.ObjectIndex);
+            Plugin.Log.Debug($"Customize+ Cleared '{profileId.Item2}', error: {result}");
+            
+            var result2 = CustomizeIpc.SetTempProfile?.InvokeFunc((ushort)local.ObjectIndex, profile.Value.Item2);
+            Plugin.Log.Debug($"Customize+ Applied '{profileId.Item2}', error: {result2?.Item1}, guid: {result2?.Item2}");
         }
         catch (Exception ex)
         {
