@@ -1132,6 +1132,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
             
             // Copy to temp fields
+            if (design.Honorific == null)
+                return;
+            
             tempHonorificTitle = design.Honorific.Title;
             tempHonorificPrefix = design.Honorific.Prefix;
             tempHonorificSuffix = design.Honorific.Suffix;
