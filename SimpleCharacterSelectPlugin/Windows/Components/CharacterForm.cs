@@ -153,7 +153,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string tempGlamourer = editCharDefaultDesign.GlamourerDesign;
             Vector3 tempColor = editCharacterData.NameplateColor;
             string tempTag = editCharacterData.Tag;
-            Honorific tempHonorific = editCharDefaultDesign.Honorific.Clone();
+            Honorific tempHonorific = editCharDefaultDesign.Honorific != null ? editCharDefaultDesign.Honorific.Clone() : new Honorific();
             
             // Character Name
             DrawFormField("Character Name*", labelWidth, inputWidth, inputOffset, () =>
@@ -1130,6 +1130,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             string pluginDirectory = plugin.PluginDirectory;
             string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
+            
+            
             
             // Copy to temp fields
             if (design.Honorific == null)

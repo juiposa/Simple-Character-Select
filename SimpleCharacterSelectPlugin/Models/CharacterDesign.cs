@@ -11,7 +11,7 @@ namespace SimpleCharacterSelectPlugin
         public string GlamourerDesign { get; set; } = "";
         public string GlamourerAutomation { get; set; } = "";
         public (Guid, string) CustomizeProfileTuple { get; set; }
-        public Honorific? Honorific { get; set; } = null;
+        public Honorific? Honorific { get; set; } = new Honorific();
         public (Guid, string) MoodlePresetTuple { get; set; }
         public DateTime DateAdded { get; set; } = DateTime.UtcNow;
         public bool IsFavorite { get; set; }
