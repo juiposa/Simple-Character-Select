@@ -35,7 +35,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Styles
 
         public void PushMainWindowStyle()
         {
-            float scale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
+            float scale = ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier;
             colorStackCount += ThemeHelper.PushDefaultThemeColors();
             styleStackCount += ThemeHelper.PushThemeStyleVars();
         }
@@ -251,7 +251,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Styles
 
         public void PushFormStyle()
         {
-            float scale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
+            float scale = ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier;
 
             // Form-specific styling
             ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.16f, 0.16f, 0.16f, 0.9f));

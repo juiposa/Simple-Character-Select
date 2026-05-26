@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Serialization;
+using SimpleCharacterSelectPlugin.Managers;
 using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin
@@ -31,8 +32,8 @@ namespace SimpleCharacterSelectPlugin
         public bool IsQuickSwitchWindowOpen { get; set; } = false;
         //public bool EnableAutomations { get; set; } = false; TODO I need to figure out wtf
         public List<string> KnownTags { get; set; } = new();
-        public bool EnableGearsetCharacterSwitching { get; set; } = false;
-        public bool EnableCharacterGearsetSwitching { get; set; } = false;
+        public bool EnableGearsetDesignSwitching { get; set; } = false;
+        public bool EnableDesignGearsetSwitching { get; set; } = false;
         public bool EnableLastUsedCharacterAutoload { get; set; } = false;
         public List<uint> FavoriteIconIds { get; set; } = new();
         [JsonProperty]
@@ -145,6 +146,36 @@ namespace SimpleCharacterSelectPlugin
         {
             public string Name { get; set; } = "";
             public List<string> CharacterNames { get; set; } = new();
+        }
+        
+        public static Configuration LoadConfigurationSafely(IDalamudPluginInterface pluginInterface)
+        {
+            try
+            {
+                // Try to load normal configuration
+                var config = Configuration.Load(pluginInterface);
+                Plugin.Log.Debug("[Config] Configuration loaded successfully");
+                return config;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Error($"[Config] Failed to load configuration: {ex.Message}");
+
+                // Try to restore from backup
+                Plugin.Log.Info("[Config] Attempting to restore from backup...");
+                var backupConfig = BackupManager.RestoreFromBackup();
+
+                if (backupConfig != null)
+                {
+                    Plugin.Log.Info("[Config] Configuration restored from backup successfully!");
+                    return backupConfig;
+                }
+                else
+                {
+                    Plugin.Log.Warning("[Config] Backup restoration failed, creating new configuration");
+                    return new Configuration(pluginInterface);
+                }
+            }
         }
 
         public void Save()

@@ -35,13 +35,13 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         public override void Draw()
         {
-            float scale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
+            float scale = ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier;
 
             // Apply escape key and focus settings based on config
-            RespectCloseHotkey = !plugin.Configuration.QuickSwitchIgnoreEscape;
+            RespectCloseHotkey = !Plugin.Configuration.QuickSwitchIgnoreEscape;
 
-            int themeColorCount = ThemeHelper.PushThemeColors(plugin.Configuration);
-            int themeStyleVarCount = ThemeHelper.PushThemeStyleVars(plugin.Configuration.UIScaleMultiplier);
+            int themeColorCount = ThemeHelper.PushThemeColors(Plugin.Configuration);
+            int themeStyleVarCount = ThemeHelper.PushThemeStyleVars(Plugin.Configuration.UIScaleMultiplier);
 
             try
             {
@@ -52,17 +52,17 @@ namespace SimpleCharacterSelectPlugin.Windows
                 }
 
             // Base flags for compact/non-compact modes
-            var baseFlags = plugin.Configuration.QuickSwitchCompact
+            var baseFlags = Plugin.Configuration.QuickSwitchCompact
                 ? ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground
                 : ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
             // Add NoFocusOnAppearing if configured to ignore escape
-            if (plugin.Configuration.QuickSwitchIgnoreEscape)
+            if (Plugin.Configuration.QuickSwitchIgnoreEscape)
                 baseFlags |= ImGuiWindowFlags.NoFocusOnAppearing;
 
             this.Flags = baseFlags;
 
-            if (plugin.Configuration.QuickSwitchCompact)
+            if (Plugin.Configuration.QuickSwitchCompact)
             {
                 SizeConstraints = new WindowSizeConstraints
                 {
@@ -235,7 +235,7 @@ namespace SimpleCharacterSelectPlugin.Windows
             finally
             {
                 // Pop compact mode opaque colours if we pushed them
-                if (plugin.Configuration.QuickSwitchCompact)
+                if (Plugin.Configuration.QuickSwitchCompact)
                 {
                     ImGui.PopStyleColor(6);
                 }
@@ -275,7 +275,7 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         private List<CharacterDesign> GetSortedDesigns(Character character)
         {
-            var sortIndex = plugin.Configuration.CurrentDesignSortIndex;
+            var sortIndex = Plugin.Configuration.CurrentDesignSortIndex;
             var designs = character.Data.Designs.ToList();
             
             // 0=Favorites, 1=Alphabetical, 2=Recent, 3=Oldest, 4=Manual

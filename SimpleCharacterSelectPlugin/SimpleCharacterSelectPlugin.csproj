@@ -10,8 +10,8 @@
         <IsPackable>false</IsPackable>
         <UseWindowsForms>true</UseWindowsForms>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <DebugType>None</DebugType>
-        <DebugSymbols>false</DebugSymbols>
+<!--        <DebugType>None</DebugType>-->
+<!--        <DebugSymbols>false</DebugSymbols>-->
     </PropertyGroup>
 
     <ItemGroup>

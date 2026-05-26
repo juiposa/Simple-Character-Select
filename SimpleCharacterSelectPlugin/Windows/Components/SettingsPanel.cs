@@ -63,7 +63,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 return;
 
             // Calculate dynamic height based on expanded sections
-            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier);
+            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier);
 
             var windowWidth = 480f * totalScale;
 
@@ -168,7 +168,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void DrawFixedSettingsContent()
         {
-            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier);
+            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier);
             var contentWidth = ImGui.GetContentRegionAvail().X;
             var labelWidth = 140f * totalScale;
             var inputWidth = contentWidth - labelWidth - (20f * totalScale);
@@ -222,7 +222,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 gearsetAssignmentSettingsOpen = DrawModernCollapsingHeader("Gearset Assignments", new Vector4(0.2f, 0.8f, 0.85f, 1.0f), gearsetAssignmentSettingsOpen);
                 if (gearsetAssignmentSettingsOpen)
                 {
-                    DrawSoonge();
+                    DrawGearsetAssignmentSettings();
                 }
 
                 // Immersive Dialogue (Blue)
@@ -328,37 +328,37 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Sort Characters By
             DrawFixedSetting("Sort Characters By:", labelWidth, inputWidth, () =>
             {
-                var currentSort = (Plugin.SortType)plugin.Configuration.CurrentSortIndex;
+                var currentSort = (Plugin.SortType)Plugin.Configuration.CurrentSortIndex;
                 if (ImGui.BeginCombo("##SortDropdown", currentSort.ToString()))
                 {
                     if (ImGui.Selectable("Favourites", currentSort == Plugin.SortType.Favorites))
                     {
-                        plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Favorites;
-                        plugin.Configuration.Save();
+                        Plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Favorites;
+                        Plugin.Configuration.Save();
                         mainWindow.UpdateSortType();
                     }
                     if (ImGui.Selectable("Alphabetical", currentSort == Plugin.SortType.Alphabetical))
                     {
-                        plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Alphabetical;
-                        plugin.Configuration.Save();
+                        Plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Alphabetical;
+                        Plugin.Configuration.Save();
                         mainWindow.UpdateSortType();
                     }
                     if (ImGui.Selectable("Most Recent", currentSort == Plugin.SortType.Recent))
                     {
-                        plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Recent;
-                        plugin.Configuration.Save();
+                        Plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Recent;
+                        Plugin.Configuration.Save();
                         mainWindow.UpdateSortType();
                     }
                     if (ImGui.Selectable("Oldest", currentSort == Plugin.SortType.Oldest))
                     {
-                        plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Oldest;
-                        plugin.Configuration.Save();
+                        Plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Oldest;
+                        Plugin.Configuration.Save();
                         mainWindow.UpdateSortType();
                     }
                     if (ImGui.Selectable("Manual", currentSort == Plugin.SortType.Manual))
                     {
-                        plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Manual;
-                        plugin.Configuration.Save();
+                        Plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Manual;
+                        Plugin.Configuration.Save();
                         mainWindow.UpdateSortType();
                     }
                     ImGui.EndCombo();
@@ -395,10 +395,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // ImGui.PopStyleColor();
             // ImGui.Spacing();
             //
-            // bool automationToggle = plugin.Configuration.EnableAutomations;
+            // bool automationToggle = Plugin.Configuration.EnableAutomations;
             // if (ImGui.Checkbox("Enable Automations", ref automationToggle))
             // {
-            //     plugin.Configuration.EnableAutomations = automationToggle;
+            //     Plugin.Configuration.EnableAutomations = automationToggle;
             //     UpdateAutomationSettings(automationToggle);
             // }
             // DrawTooltip("Enable support for Glamourer Automations in Characters & Designs.\n\nWhen enabled, you'll be able to assign an Automation to each character & design.\nCharacters & Designs without automations will require a fallback Automation in Glamourer named: \"None\"\nYou also must enter your player character name in Glamourer next to \"Any World\" and Set to character.Data.");
@@ -408,51 +408,51 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void DrawBehaviorSettings()
         {
-            bool enableCompactQuickSwitch = plugin.Configuration.QuickSwitchCompact;
+            bool enableCompactQuickSwitch = Plugin.Configuration.QuickSwitchCompact;
             if (ImGui.Checkbox("Compact Quick Switch Bar", ref enableCompactQuickSwitch))
             {
-                plugin.Configuration.QuickSwitchCompact = enableCompactQuickSwitch;
-                plugin.Configuration.Save();
+                Plugin.Configuration.QuickSwitchCompact = enableCompactQuickSwitch;
+                Plugin.Configuration.Save();
             }
             DrawTooltip("When enabled, the Quick Switch window will hide its title bar and frame, showing only the dropdowns and apply button.");
 
-            bool quickSwitchIgnoreEscape = plugin.Configuration.QuickSwitchIgnoreEscape;
+            bool quickSwitchIgnoreEscape = Plugin.Configuration.QuickSwitchIgnoreEscape;
             if (ImGui.Checkbox("Quick Switch ignores Escape key", ref quickSwitchIgnoreEscape))
             {
-                plugin.Configuration.QuickSwitchIgnoreEscape = quickSwitchIgnoreEscape;
-                plugin.Configuration.Save();
+                Plugin.Configuration.QuickSwitchIgnoreEscape = quickSwitchIgnoreEscape;
+                Plugin.Configuration.Save();
             }
             DrawTooltip("When enabled, pressing Escape won't close the Quick Switch window.\nThis also prevents Quick Switch from stealing focus when opened.");
 
-            bool enableAutoload = plugin.Configuration.EnableLastUsedCharacterAutoload;
+            bool enableAutoload = Plugin.Configuration.EnableLastUsedCharacterAutoload;
             if (ImGui.Checkbox("Auto-Apply Last Used Design on Login", ref enableAutoload))
             {
-                plugin.Configuration.EnableLastUsedCharacterAutoload = enableAutoload;
-                plugin.Configuration.Save();
+                Plugin.Configuration.EnableLastUsedCharacterAutoload = enableAutoload;
+                Plugin.Configuration.Save();
             }
             DrawTooltip("Automatically applies the last character and design you used when logging into the game.");
 
-            // bool applyIdle = plugin.Configuration.ApplyIdleOnLogin; //TODO readd if anyone asks for it
+            // bool applyIdle = Plugin.Configuration.ApplyIdleOnLogin; //TODO readd if anyone asks for it
             // if (ImGui.Checkbox("Apply idle pose on login", ref applyIdle))
             // {
-            //     plugin.Configuration.ApplyIdleOnLogin = applyIdle;
-            //     plugin.Configuration.Save();
+            //     Plugin.Configuration.ApplyIdleOnLogin = applyIdle;
+            //     Plugin.Configuration.Save();
             // }
             // DrawTooltip("Automatically applies your idle pose after logging in. Disable if you're seeing pose bugs.");
 
-            bool reapplyDesign = plugin.Configuration.ReapplyDesignOnJobChange;
+            bool reapplyDesign = Plugin.Configuration.ReapplyDesignOnJobChange;
             if (ImGui.Checkbox("Reapply last design on job change", ref reapplyDesign))
             {
-                plugin.Configuration.ReapplyDesignOnJobChange = reapplyDesign;
-                plugin.Configuration.Save();
+                Plugin.Configuration.ReapplyDesignOnJobChange = reapplyDesign;
+                Plugin.Configuration.Save();
             }
             DrawTooltip("If checked, Simple Character Select will reapply the last used design when you switch jobs.");
 
-            // bool randomFavoritesOnly = plugin.Configuration.RandomSelectionFavoritesOnly;
+            // bool randomFavoritesOnly = Plugin.Configuration.RandomSelectionFavoritesOnly;
             // if (ImGui.Checkbox("Random Selection: Favourites Only", ref randomFavoritesOnly))
             // {
-            //     plugin.Configuration.RandomSelectionFavoritesOnly = randomFavoritesOnly;
-            //     plugin.Configuration.Save();
+            //     Plugin.Configuration.RandomSelectionFavoritesOnly = randomFavoritesOnly;
+            //     Plugin.Configuration.Save();
             // }
             // DrawTooltip("When enabled, random selection will only choose from favourited characters and designs.\nRequires at least one favourited character to work.");
             
@@ -461,7 +461,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void DrawRandomGroupsSettings()
         {
-            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier);
+            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier);
 
             ImGui.TextWrapped("Create custom groups of characters for random selection. Use /select random <groupname> to pick randomly from a group.");
             ImGui.Spacing();
@@ -472,16 +472,16 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SameLine();
 
             bool canCreate = !string.IsNullOrWhiteSpace(newRandomGroupName) &&
-                !plugin.Configuration.RandomGroups.Any(g => g.Name.Equals(newRandomGroupName.Trim(), StringComparison.OrdinalIgnoreCase));
+                !Plugin.Configuration.RandomGroups.Any(g => g.Name.Equals(newRandomGroupName.Trim(), StringComparison.OrdinalIgnoreCase));
 
             if (!canCreate) ImGui.BeginDisabled();
             if (ImGui.Button("Create Group"))
             {
-                plugin.Configuration.RandomGroups.Add(new Configuration.RandomGroup
+                Plugin.Configuration.RandomGroups.Add(new Configuration.RandomGroup
                 {
                     Name = newRandomGroupName.Trim()
                 });
-                plugin.Configuration.Save();
+                Plugin.Configuration.Save();
                 newRandomGroupName = "";
             }
             if (!canCreate) ImGui.EndDisabled();
@@ -490,7 +490,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (plugin.Configuration.RandomGroups.Count == 0)
+            if (Plugin.Configuration.RandomGroups.Count == 0)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1f));
                 ImGui.TextWrapped("No groups yet. Create one above to get started.");
@@ -501,9 +501,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // List existing groups
                 int groupToDelete = -1;
 
-                for (int i = 0; i < plugin.Configuration.RandomGroups.Count; i++)
+                for (int i = 0; i < Plugin.Configuration.RandomGroups.Count; i++)
                 {
-                    var group = plugin.Configuration.RandomGroups[i];
+                    var group = Plugin.Configuration.RandomGroups[i];
                     ImGui.PushID($"RandomGroup_{i}");
 
                     bool isExpanded = expandedRandomGroups.Contains(i);
@@ -559,7 +559,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         ImGui.Spacing();
 
                         // Character checkboxes
-                        var characters = plugin.Configuration.Characters;
+                        var characters = Plugin.Configuration.Characters;
                         if (characters.Count == 0)
                         {
                             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 1f));
@@ -591,7 +591,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                                         group.CharacterNames.Add(character.Data.Name);
                                     else if (!isInGroup)
                                         group.CharacterNames.Remove(character.Data.Name);
-                                    plugin.Configuration.Save();
+                                    Plugin.Configuration.Save();
                                 }
                                 if (character.Data.Name.Length > 20)
                                     DrawTooltip(character.Data.Name);
@@ -609,8 +609,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // Handle deletion outside the loop
                 if (groupToDelete >= 0)
                 {
-                    plugin.Configuration.RandomGroups.RemoveAt(groupToDelete);
-                    plugin.Configuration.Save();
+                    Plugin.Configuration.RandomGroups.RemoveAt(groupToDelete);
+                    Plugin.Configuration.Save();
                     expandedRandomGroups.Remove(groupToDelete);
                     // Adjust expanded indices for groups after the deleted one
                     var newExpanded = new HashSet<int>();
@@ -631,32 +631,32 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void DrawMainCharacterSettings(float labelWidth, float inputWidth)
         {
-            bool enableMainCharacterOnly = plugin.Configuration.EnableMainCharacterOnly;
+            bool enableMainCharacterOnly = Plugin.Configuration.EnableMainCharacterOnly;
             if (ImGui.Checkbox("Enable Main Character Only Mode", ref enableMainCharacterOnly))
             {
-                plugin.Configuration.EnableMainCharacterOnly = enableMainCharacterOnly;
-                plugin.Configuration.Save();
+                Plugin.Configuration.EnableMainCharacterOnly = enableMainCharacterOnly;
+                Plugin.Configuration.Save();
             }
             DrawTooltip("When enabled, only your designated main character will auto-apply on login.\nIf no main character is set, the normal auto-apply behavior will be used.");
 
-            bool showCrown = plugin.Configuration.ShowMainCharacterCrown;
+            bool showCrown = Plugin.Configuration.ShowMainCharacterCrown;
             if (ImGui.Checkbox("Show Crown Icon on Main Character", ref showCrown))
             {
-                plugin.Configuration.ShowMainCharacterCrown = showCrown;
-                plugin.Configuration.Save();
+                Plugin.Configuration.ShowMainCharacterCrown = showCrown;
+                Plugin.Configuration.Save();
             }
             DrawTooltip("When enabled, the main character will display a crown icon in the top corner of their image.");
 
             DrawFixedSetting("Select Main Character:", labelWidth, inputWidth, () =>
             {
-                string currentMainChar = plugin.Configuration.MainCharacterName ?? "None";
+                string currentMainChar = Plugin.Configuration.MainCharacterName ?? "None";
 
                 if (ImGui.BeginCombo("##MainCharacterDropdown", currentMainChar))
                 {
                     if (ImGui.Selectable("None", currentMainChar == "None"))
                     {
-                        plugin.Configuration.MainCharacterName = null;
-                        plugin.Configuration.Save();
+                        Plugin.Configuration.MainCharacterName = null;
+                        Plugin.Configuration.Save();
                     }
 
                     foreach (var character in plugin.Characters)
@@ -664,8 +664,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         bool isSelected = character.Data.Name == currentMainChar;
                         if (ImGui.Selectable(character.Data.Name, isSelected))
                         {
-                            plugin.Configuration.MainCharacterName = character.Data.Name;
-                            plugin.Configuration.Save();
+                            Plugin.Configuration.MainCharacterName = character.Data.Name;
+                            Plugin.Configuration.Save();
                         }
 
                         if (isSelected)
@@ -677,9 +677,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             });
 
             // Status display
-            if (!string.IsNullOrEmpty(plugin.Configuration.MainCharacterName))
+            if (!string.IsNullOrEmpty(Plugin.Configuration.MainCharacterName))
             {
-                var mainCharacter = plugin.Characters.FirstOrDefault(c => c.Data.Name == plugin.Configuration.MainCharacterName);
+                var mainCharacter = plugin.Characters.FirstOrDefault(c => c.Data.Name == Plugin.Configuration.MainCharacterName);
                 if (mainCharacter != null)
                 {
                     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.9f, 0.7f, 1f));
@@ -694,8 +694,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     ImGui.SameLine();
                     if (ImGui.SmallButton("Clear"))
                     {
-                        plugin.Configuration.MainCharacterName = null;
-                        plugin.Configuration.Save();
+                        Plugin.Configuration.MainCharacterName = null;
+                        Plugin.Configuration.Save();
                     }
                 }
             }
@@ -723,73 +723,73 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             ImGui.Spacing();
 
-            bool enableDialogue = plugin.Configuration.EnableDialogueIntegration;
+            bool enableDialogue = Plugin.Configuration.EnableDialogueIntegration;
             if (ImGui.Checkbox("Enable Immersive Dialogue", ref enableDialogue))
             {
-                plugin.Configuration.EnableDialogueIntegration = enableDialogue;
+                Plugin.Configuration.EnableDialogueIntegration = enableDialogue;
 
                 // Reset all dialogue sub-settings when disabled
                 if (!enableDialogue)
                 {
-                    plugin.Configuration.EnableLuaHookDialogue = false;
-                    plugin.Configuration.ReplaceNameInDialogue = false;
-                    plugin.Configuration.ReplacePronounsInDialogue = false;
-                    plugin.Configuration.ReplaceGenderedTerms = false;
-                    plugin.Configuration.EnableAdvancedTitleReplacement = false;
-                    plugin.Configuration.EnableSmartGrammarInDialogue = false;
-                    //plugin.Configuration.EnableRaceReplacement = false;
-                    plugin.Configuration.ShowDialogueReplacementPreview = false; // Off by default
+                    Plugin.Configuration.EnableLuaHookDialogue = false;
+                    Plugin.Configuration.ReplaceNameInDialogue = false;
+                    Plugin.Configuration.ReplacePronounsInDialogue = false;
+                    Plugin.Configuration.ReplaceGenderedTerms = false;
+                    Plugin.Configuration.EnableAdvancedTitleReplacement = false;
+                    Plugin.Configuration.EnableSmartGrammarInDialogue = false;
+                    //Plugin.Configuration.EnableRaceReplacement = false;
+                    Plugin.Configuration.ShowDialogueReplacementPreview = false; // Off by default
                 }
                 else
                 {
                     // Set good defaults when enabling
-                    plugin.Configuration.EnableLuaHookDialogue = true;
-                    plugin.Configuration.ReplaceNameInDialogue = true;
-                    plugin.Configuration.ReplacePronounsInDialogue = true;
-                    plugin.Configuration.ReplaceGenderedTerms = true;
-                    plugin.Configuration.EnableAdvancedTitleReplacement = true;
-                    //plugin.Configuration.EnableSmartGrammarInDialogue = true; TODO
-                    plugin.Configuration.ShowDialogueReplacementPreview = false; // Keep off by default
+                    Plugin.Configuration.EnableLuaHookDialogue = true;
+                    Plugin.Configuration.ReplaceNameInDialogue = true;
+                    Plugin.Configuration.ReplacePronounsInDialogue = true;
+                    Plugin.Configuration.ReplaceGenderedTerms = true;
+                    Plugin.Configuration.EnableAdvancedTitleReplacement = true;
+                    //Plugin.Configuration.EnableSmartGrammarInDialogue = true; TODO
+                    Plugin.Configuration.ShowDialogueReplacementPreview = false; // Keep off by default
                 }
 
-                plugin.Configuration.Save();
+                Plugin.Configuration.Save();
             }
             DrawTooltip("Replaces NPC dialogue text to use your SCS Character's name and pronouns instead of your game character.Data.\nRequires an active SCS character with RP Profile data.");
 
-            if (plugin.Configuration.EnableDialogueIntegration)
+            if (Plugin.Configuration.EnableDialogueIntegration)
             {
                 ImGui.Indent();
 
                 // Simplified user-facing options
-                bool replaceName = plugin.Configuration.ReplaceNameInDialogue;
+                bool replaceName = Plugin.Configuration.ReplaceNameInDialogue;
                 if (ImGui.Checkbox("Use SCS Character Name", ref replaceName))
                 {
-                    plugin.Configuration.ReplaceNameInDialogue = replaceName;
-                    plugin.Configuration.Save();
+                    Plugin.Configuration.ReplaceNameInDialogue = replaceName;
+                    Plugin.Configuration.Save();
                 }
                 DrawTooltip("Replace your real character name with your SCS character name in dialogue.");
 
-                bool replacePronouns = plugin.Configuration.ReplacePronounsInDialogue;
+                bool replacePronouns = Plugin.Configuration.ReplacePronounsInDialogue;
                 if (ImGui.Checkbox("Use SCS Character Pronouns", ref replacePronouns))
                 {
-                    plugin.Configuration.ReplacePronounsInDialogue = replacePronouns;
-                    plugin.Configuration.Save();
+                    Plugin.Configuration.ReplacePronounsInDialogue = replacePronouns;
+                    Plugin.Configuration.Save();
                 }
                 DrawTooltip("Replace pronouns in dialogue with your character's pronouns from their RP Profile.");
 
-                bool replaceGenderedTerms = plugin.Configuration.ReplaceGenderedTerms;
+                bool replaceGenderedTerms = Plugin.Configuration.ReplaceGenderedTerms;
                 if (ImGui.Checkbox("Use Gender-Neutral Terms", ref replaceGenderedTerms))
                 {
-                    plugin.Configuration.ReplaceGenderedTerms = replaceGenderedTerms;
-                    plugin.Configuration.Save();
+                    Plugin.Configuration.ReplaceGenderedTerms = replaceGenderedTerms;
+                    Plugin.Configuration.Save();
                 }
                 DrawTooltip("Replace gendered terms like 'sir/lady', 'man/woman' with appropriate alternatives based on your character's pronouns.");
 
-                //bool replaceRace = plugin.Configuration.EnableRaceReplacement; TODO
+                //bool replaceRace = Plugin.Configuration.EnableRaceReplacement; TODO
                 //if (ImGui.Checkbox("Use SCS Character Race", ref replaceRace))
                 //{
-                //    plugin.Configuration.EnableRaceReplacement = replaceRace;
-                //    plugin.Configuration.Save();
+                //    Plugin.Configuration.EnableRaceReplacement = replaceRace;
+                //    Plugin.Configuration.Save();
                 //}
                 //DrawTooltip("Replace your race with your SCS character's race from their RP Profile.");
 
@@ -810,26 +810,26 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
                 DrawFixedSetting("Neutral Title Style:", labelWidth, inputWidth, () =>
                 {
-                    var currentStyle = (int)plugin.Configuration.TheyThemStyle;
+                    var currentStyle = (int)Plugin.Configuration.TheyThemStyle;
                     string[] styleOptions = { "Friend", "Mx.", "Traveler", "Adventurer", "Custom" };
 
                     if (ImGui.Combo("##TheyThemStyle", ref currentStyle, styleOptions, styleOptions.Length))
                     {
-                        plugin.Configuration.TheyThemStyle = (Configuration.GenderNeutralStyle)currentStyle;
-                        plugin.Configuration.Save();
+                        Plugin.Configuration.TheyThemStyle = (Configuration.GenderNeutralStyle)currentStyle;
+                        Plugin.Configuration.Save();
                     }
                     DrawTooltip("Friend: \"honored sir\" → \"honored friend\"\nMx.: \"honored sir\" → \"honored Mx.\"\nTraveler: \"honored sir\" → \"honored traveler\"\nAdventurer: \"honored sir\" → \"honored adventurer\"");
                 });
 
-                if (plugin.Configuration.TheyThemStyle == Configuration.GenderNeutralStyle.Custom)
+                if (Plugin.Configuration.TheyThemStyle == Configuration.GenderNeutralStyle.Custom)
                 {
                     DrawFixedSetting("Custom Title:", labelWidth, inputWidth, () =>
                     {
-                        var customTitle = plugin.Configuration.CustomGenderNeutralTitle;
+                        var customTitle = Plugin.Configuration.CustomGenderNeutralTitle;
                         if (ImGui.InputText("##CustomGenderNeutral", ref customTitle, 50))
                         {
-                            plugin.Configuration.CustomGenderNeutralTitle = customTitle;
-                            plugin.Configuration.Save();
+                            Plugin.Configuration.CustomGenderNeutralTitle = customTitle;
+                            Plugin.Configuration.Save();
                         }
                         DrawTooltip("Enter your preferred gender-neutral title (e.g., \"Warrior\", \"Champion\", \"Canadian\")");
                     });
@@ -851,7 +851,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private void DrawCharacterAssignmentSettings()
         {
             // Warning if Auto-Apply Last Used Character is disabled
-            if (!plugin.Configuration.EnableLastUsedCharacterAutoload)
+            if (!Plugin.Configuration.EnableLastUsedCharacterAutoload)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.7f, 0.3f, 1f));
             
@@ -874,7 +874,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
             
             // Warning if Main Character Only Mode is enabled
-            if (plugin.Configuration.EnableMainCharacterOnly)
+            if (Plugin.Configuration.EnableMainCharacterOnly)
             {
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.7f, 0.3f, 1f));
             
@@ -908,7 +908,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             
             // Display current assignments
             List<PlayerCharacter> assignedCharacters =
-                CharacterManager.GetPlayerCharactersWithAssignments(plugin.Configuration.PlayerCharacters);
+                CharacterManager.GetPlayerCharactersWithAssignments(Plugin.Configuration.PlayerCharacters);
             if (assignedCharacters.Any())
             {
                 ImGui.Text("Current Assignments:");
@@ -993,7 +993,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     if (ImGui.SmallButton($"Remove##{a.FullName}"))
                     {
                         a.AssignedCharacter = null;
-                        plugin.Configuration.PlayerCharacters[a.FullName] = a;
+                        Plugin.Configuration.PlayerCharacters[a.FullName] = a;
                     }
                     ImGui.PopStyleColor(3);
             
@@ -1013,7 +1013,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Spacing();
             
             // Get list of known real characters from existing tracking
-            var knownPCs = plugin.Configuration.PlayerCharacters;
+            var knownPCs = Plugin.Configuration.PlayerCharacters;
             
             ImGui.Text("Player Character:");
             ImGui.SetNextItemWidth(300f);
@@ -1079,15 +1079,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
             DrawTooltip("Choose which SCS character should auto-apply for this player character.\nSelect 'None' to prevent any auto-application for this player character.");
             
-            bool canAdd = currentlySelectedPc != null && currentlySelectedChar != null && !plugin.Configuration.PlayerCharacters.ContainsKey(currentlySelectedPc.FullName);
+            bool canAdd = currentlySelectedPc != null && currentlySelectedChar != null && !Plugin.Configuration.PlayerCharacters.ContainsKey(currentlySelectedPc.FullName);
             
             if (!canAdd)
                 ImGui.BeginDisabled();
             
             if (ImGui.Button("Add Assignment"))
             {
-                plugin.Configuration.PlayerCharacters[currentlySelectedPc.FullName] = currentlySelectedPc;
-                plugin.Configuration.Save();
+                Plugin.Configuration.PlayerCharacters[currentlySelectedPc.FullName] = currentlySelectedPc;
+                Plugin.Configuration.Save();
                 Plugin.Log.Debug($"[CharacterAssignment] Added: {currentlySelectedPc.FullName} → {currentlySelectedChar?.Data.Name}");
             }
             
@@ -1179,8 +1179,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             if (ImGui.Button("Save Changes"))
             {
                 pc.AssignedCharacter = currentlySelectedChar;
-                plugin.Configuration.PlayerCharacters[pc.FullName] = pc;
-                plugin.Configuration.Save();
+                Plugin.Configuration.PlayerCharacters[pc.FullName] = pc;
+                Plugin.Configuration.Save();
             }
             ImGui.PopStyleColor(3);
 
@@ -1201,339 +1201,29 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Spacing();
         }
 
-        // Job assignment UI state
-        private int newJobAssignmentType = 0; // 0 = Specific Job, 1 = Role
-        private int newJobAssignmentJobIndex = 0;
-        private int newJobAssignmentRoleIndex = 0;
-        private int newJobAssignmentCharacterIndex = 0;
-        private bool newJobAssignmentUseDesign = false;
-        private int newJobAssignmentDesignIndex = 0;
-
         // Job data for UI
         private void DrawGearsetAssignmentSettings()
         {
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.4f, 1f));
             ImGui.TextWrapped("This feature will be returning in the near future.");
             ImGui.PopStyleColor();
-            // // Enable Gearset -> Character switching
-            // bool enableGCSwitch = plugin.Configuration.EnableGearsetCharacterSwitching;
-            // if (ImGui.Checkbox("Enable Gearset -> Character Assignments", ref enableGCSwitch))
-            // {
-            //     plugin.Configuration.EnableGearsetCharacterSwitching = enableGCSwitch;
-            //     plugin.Configuration.Save();
-            // }
-            // DrawTooltip("Allow assigning a character/design to each gearset.\nWhen the gearset is applied, it will automatically switch to that character/design.\nConfigure gearsets in the Add/Edit Character or Design forms.");
-            //
-            // // Enable Gearset -> Character switching
-            // bool enableCGSwitch = plugin.Configuration.EnableGearsetCharacterSwitching;
-            // if (ImGui.Checkbox("Enable Character -> Gearset Assignments", ref enableCGSwitch))
-            // {
-            //     plugin.Configuration.EnableCharacterGearsetSwitching = enableCGSwitch;
-            //     plugin.Configuration.Save();
-            // }
-            // DrawTooltip("Allow assigning a gearset to each character/design.\nWhen the character/design is applied, it will automatically switch to that gearset.\nConfigure gearsets in the Add/Edit Character or Design forms.");
-            //
-            // // Warning about Glamourer Automations conflict
-            // // if (enableJobAssignments) TODO readd with Automations
-            // // {
-            // //     ImGui.SameLine();
-            // //     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.3f, 1.0f));
-            // //     ImGui.PushFont(UiBuilder.IconFont);
-            // //     ImGui.Text(FontAwesomeIcon.ExclamationTriangle.ToIconString());
-            // //     ImGui.PopFont();
-            // //     ImGui.PopStyleColor();
-            // //     DrawTooltip("WARNING: This feature will conflict with Glamourer's Automations!\n\nBoth features trigger on job change and will fight each other.\nDisable Glamourer Automations if using this feature, or vice versa.");
-            // // }
-            //
-            //
-            //
-            // if (!enableGCSwitch && !enableCGSwitch)
-            // {
-            //     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.65f, 1.0f));
-            //     ImGui.TextWrapped("Enable a feature above to configure job/gearset assignments.");
-            //     ImGui.PopStyleColor();
-            //     ImGui.Spacing();
-            //     return;
-            // }
-            //
-            // // Only show gearset -> character assignment UI if that feature is enabled
-            // if (!enableGCSwitch)
-            // {
-            //     ImGui.Spacing();
-            //     return;
-            // }
-            //
-            // ImGui.Spacing();
-            //
-            // // Info text
-            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.8f, 0.9f, 1.0f));
-            // ImGui.TextWrapped("Assign SCS characters or designs to gearset. When you switch to that gearset, SCS will automatically apply the assigned character/design.");
-            // ImGui.PopStyleColor();
-            //
-            // ImGui.Spacing();
-            // ImGui.Separator();
-            // ImGui.Spacing();
-            //
-            // // Current assignments list
-            // if (plugin.Configuration.JobAssignments.Count > 0)
-            // {
-            //     ImGui.Text("Current Assignments:");
-            //     ImGui.Spacing();
-            //
-            //     // Calculate button width for layout
-            //     float removeButtonWidth = ImGui.CalcTextSize("Remove").X + ImGui.GetStyle().FramePadding.X * 2 + 4;
-            //     float buttonSpacing = ImGui.GetStyle().ItemSpacing.X;
-            //     float jobAvailableWidth = ImGui.GetContentRegionAvail().X;
-            //     float jobMaxTextWidth = jobAvailableWidth - removeButtonWidth - buttonSpacing - 10;
-            //
-            //     string? keyToRemove = null;
-            //
-            //     foreach (var kvp in plugin.Configuration.JobAssignments)
-            //     {
-            //         // Parse the key
-            //         string displayKey;
-            //         if (kvp.Key.StartsWith("Job_"))
-            //         {
-            //             var jobIdStr = kvp.Key.Substring(4);
-            //             if (uint.TryParse(jobIdStr, out var jobId))
-            //             {
-            //                 var jobInfo = JobData.FirstOrDefault(j => j.Id == jobId);
-            //                 displayKey = jobInfo.Name ?? $"Job {jobId}";
-            //             }
-            //             else
-            //             {
-            //                 displayKey = kvp.Key;
-            //             }
-            //         }
-            //         else if (kvp.Key.StartsWith("Role_"))
-            //         {
-            //             displayKey = $"Role: {kvp.Key.Substring(5)}";
-            //         }
-            //         else
-            //         {
-            //             displayKey = kvp.Key;
-            //         }
-            //
-            //         // Parse the value
-            //         var (charName, designName) = plugin.ParseJobAssignment(kvp.Value);
-            //         string displayValue = !string.IsNullOrEmpty(designName)
-            //             ? $"{charName} : {designName}"
-            //             : charName ?? "(Invalid)";
-            //
-            //         // Build full display text
-            //         string fullText = $"{displayKey} → {displayValue}";
-            //         string fullTooltip = fullText;
-            //
-            //         // Truncate if too long
-            //         string truncatedText = fullText;
-            //         bool wasTruncated = false;
-            //         if (ImGui.CalcTextSize(fullText).X > jobMaxTextWidth)
-            //         {
-            //             wasTruncated = true;
-            //             while (truncatedText.Length > 3 && ImGui.CalcTextSize(truncatedText + "...").X > jobMaxTextWidth)
-            //             {
-            //                 truncatedText = truncatedText.Substring(0, truncatedText.Length - 1);
-            //             }
-            //             truncatedText += "...";
-            //         }
-            //
-            //         // Draw coloured text segments
-            //         var arrowIndex = truncatedText.IndexOf(" → ");
-            //         if (arrowIndex > 0)
-            //         {
-            //             var keyPart = truncatedText.Substring(0, arrowIndex);
-            //             var restPart = truncatedText.Substring(arrowIndex);
-            //
-            //             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.7f, 1.0f));
-            //             ImGui.Text(keyPart);
-            //             ImGui.PopStyleColor();
-            //
-            //             ImGui.SameLine(0, 0);
-            //             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.9f, 0.7f, 1.0f));
-            //             ImGui.Text(restPart);
-            //             ImGui.PopStyleColor();
-            //         }
-            //         else
-            //         {
-            //             ImGui.Text(truncatedText);
-            //         }
-            //
-            //         // Show full text in tooltip if truncated
-            //         if (wasTruncated && ImGui.IsItemHovered())
-            //         {
-            //             ImGui.SetTooltip(fullTooltip);
-            //         }
-            //
-            //         // Position button on the right
-            //         ImGui.SameLine(jobAvailableWidth - removeButtonWidth);
-            //         ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.6f, 0.3f, 0.3f, 0.6f));
-            //         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.8f, 0.4f, 0.4f, 0.8f));
-            //         if (ImGui.SmallButton($"Remove##{kvp.Key}"))
-            //         {
-            //             keyToRemove = kvp.Key;
-            //         }
-            //         ImGui.PopStyleColor(2);
-            //     }
-            //
-            //     if (keyToRemove != null)
-            //     {
-            //         plugin.Configuration.JobAssignments.Remove(keyToRemove);
-            //         plugin.Configuration.Save();
-            //     }
-            //
-            //     ImGui.Spacing();
-            //     ImGui.Separator();
-            //     ImGui.Spacing();
-            // }
-            //
-            // // Add new assignment section
-            // ImGui.Text("Add New Assignment:");
-            // ImGui.Spacing();
-            //
-            // // Assignment type (Job or Role)
-            // ImGui.Text("Type:");
-            // ImGui.SameLine();
-            // ImGui.RadioButton("Specific Job", ref newJobAssignmentType, 0);
-            // ImGui.SameLine();
-            // ImGui.RadioButton("Job Role", ref newJobAssignmentType, 1);
-            // DrawTooltip("Specific Job: Triggers only for that exact job.\nJob Role: Triggers for all jobs in that role (e.g., all tanks).");
-            //
-            // ImGui.Spacing();
-            //
-            // // Job/Role selection
-            // if (newJobAssignmentType == 0)
-            // {
-            //     // Job dropdown - grouped by role
-            //     ImGui.Text("Job:");
-            //     ImGui.SameLine();
-            //     ImGui.SetNextItemWidth(200f);
-            //
-            //     var jobNames = JobData.Select(j => $"{j.Name} ({j.Role})").ToArray();
-            //     if (ImGui.Combo("##JobSelect", ref newJobAssignmentJobIndex, jobNames, jobNames.Length))
-            //     {
-            //         // Selection changed
-            //     }
-            // }
-            // else
-            // {
-            //     // Role dropdown
-            //     ImGui.Text("Role:");
-            //     ImGui.SameLine();
-            //     ImGui.SetNextItemWidth(200f);
-            //     ImGui.Combo("##RoleSelect", ref newJobAssignmentRoleIndex, RoleNames, RoleNames.Length);
-            // }
-            //
-            // ImGui.Spacing();
-            //
-            // // Character selection
-            // var characterNames = plugin.Characters.Select(c => c.Data.Name).ToArray();
-            // if (characterNames.Length == 0)
-            // {
-            //     ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.7f, 0.4f, 1.0f));
-            //     ImGui.TextWrapped("No SCS characters found. Create a character first.");
-            //     ImGui.PopStyleColor();
-            //     ImGui.Spacing();
-            //     return;
-            // }
-            //
-            // ImGui.Text("Character:");
-            // ImGui.SameLine();
-            // ImGui.SetNextItemWidth(200f);
-            // if (ImGui.Combo("##CharacterSelect", ref newJobAssignmentCharacterIndex, characterNames, characterNames.Length))
-            // {
-            //     // Reset design selection when character changes
-            //     newJobAssignmentDesignIndex = 0;
-            //     newJobAssignmentUseDesign = false;
-            // }
-            //
-            // // Ensure valid index
-            // if (newJobAssignmentCharacterIndex >= characterNames.Length)
-            //     newJobAssignmentCharacterIndex = 0;
-            //
-            // ImGui.Spacing();
-            //
-            // // Design selection (optional)
-            // var selectedCharacter = plugin.Characters.ElementAtOrDefault(newJobAssignmentCharacterIndex);
-            // if (selectedCharacter != null && selectedCharacter.Data.Designs.Count > 0)
-            // {
-            //     ImGui.Checkbox("Use specific design", ref newJobAssignmentUseDesign);
-            //     DrawTooltip("If checked, apply a specific design. Otherwise, just apply the character.Data.");
-            //
-            //     if (newJobAssignmentUseDesign)
-            //     {
-            //         var designNames = selectedCharacter.Data.Designs.Select(d => d.Name).ToArray();
-            //         ImGui.Text("Design:");
-            //         ImGui.SameLine();
-            //         ImGui.SetNextItemWidth(200f);
-            //         ImGui.Combo("##DesignSelect", ref newJobAssignmentDesignIndex, designNames, designNames.Length);
-            //
-            //         if (newJobAssignmentDesignIndex >= designNames.Length)
-            //             newJobAssignmentDesignIndex = 0;
-            //     }
-            // }
-            //
-            // ImGui.Spacing();
-            //
-            // // Add button
-            // ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.7f, 0.4f, 0.8f));
-            // ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.8f, 0.5f, 0.9f));
-            // ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.5f, 0.9f, 0.6f, 1.0f));
-            //
-            // if (ImGui.Button("+ Add Assignment"))
-            // {
-            //     // Build the key
-            //     string key;
-            //     if (newJobAssignmentType == 0)
-            //     {
-            //         // Specific job
-            //         var selectedJob = JobData.ElementAtOrDefault(newJobAssignmentJobIndex);
-            //         key = $"Job_{selectedJob.Id}";
-            //     }
-            //     else
-            //     {
-            //         // Role
-            //         key = $"Role_{RoleNames[newJobAssignmentRoleIndex]}";
-            //     }
-            //
-            //     // Build the value
-            //     string value;
-            //     if (newJobAssignmentUseDesign && selectedCharacter != null)
-            //     {
-            //         var design = selectedCharacter.Data.Designs.ElementAtOrDefault(newJobAssignmentDesignIndex);
-            //         if (design != null)
-            //         {
-            //             value = $"Design:{selectedCharacter.Data.Name}:{design.Name}";
-            //         }
-            //         else
-            //         {
-            //             value = $"Character:{selectedCharacter.Data.Name}";
-            //         }
-            //     }
-            //     else if (selectedCharacter != null)
-            //     {
-            //         value = $"Character:{selectedCharacter.Data.Name}";
-            //     }
-            //     else
-            //     {
-            //         value = "";
-            //     }
-            //
-            //     if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
-            //     {
-            //         plugin.Configuration.JobAssignments[key] = value;
-            //         plugin.Configuration.Save();
-            //     }
-            // }
-            // ImGui.PopStyleColor(3);
-            //
-            // ImGui.Spacing();
-            //
-            // // Info note
-            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.7f, 1.0f));
-            // ImGui.TextWrapped("Note: Job-specific assignments take priority over role assignments. If both 'Reapply Last Design on Job Change' and Job Assignments are enabled, Job Assignments are checked first.");
-            // ImGui.PopStyleColor();
-            //
-            // ImGui.Spacing();
+            // Enable Gearset -> Character switching
+            bool enableGcSwitch = Plugin.Configuration.EnableGearsetDesignSwitching;
+            if (ImGui.Checkbox("Enable Gearset → Design Assignments", ref enableGcSwitch))
+            {
+                Plugin.Configuration.EnableGearsetDesignSwitching = enableGcSwitch;
+                Plugin.Configuration.Save();
+            }
+            DrawTooltip("Allow assigning a design to each gearset.\nWhen the gearset is applied, it will automatically switch to that design.\nConfigure assignments using the \'Add Gearset Assignments\' button in the character grid/");
+            
+            // Enable Gearset -> Character switching
+            bool enableCgSwitch = Plugin.Configuration.EnableDesignGearsetSwitching;
+            if (ImGui.Checkbox("Enable Design → Gearset Assignments", ref enableCgSwitch))
+            {
+                Plugin.Configuration.EnableDesignGearsetSwitching = enableCgSwitch;
+                Plugin.Configuration.Save();
+            }
+            DrawTooltip("Allow assigning a gearset to each character/design.\nWhen the design is applied, it will automatically switch to that gearset.\nConfigure assignments in the Add/Edit Character or Design forms.");
         }
 
         private void DrawFixedSetting(string label, float labelWidth, float inputWidth, Action drawControl)
@@ -1636,7 +1326,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.Text("Create Manual Backup:");
             ImGui.Spacing();
 
-            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier);
+            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier);
             var contentWidth = ImGui.GetContentRegionAvail().X;
             var labelWidth = 120f * totalScale;
             var inputWidth = contentWidth - labelWidth - (20f * totalScale);
@@ -1821,7 +1511,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             try
             {
                 string? customName = string.IsNullOrWhiteSpace(backupNameBuffer) ? null : backupNameBuffer.Trim();
-                string? backupPath = BackupManager.CreateManualBackup(plugin.Configuration, customName);
+                string? backupPath = BackupManager.CreateManualBackup(Plugin.Configuration, customName);
                 
                 if (!string.IsNullOrEmpty(backupPath))
                 {
@@ -1880,7 +1570,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             try
             {
                 // Create emergency backup before restoring
-                BackupManager.CreateEmergencyBackup(plugin.Configuration);
+                BackupManager.CreateEmergencyBackup(Plugin.Configuration);
                 
                 var restoredConfig = BackupManager.ImportConfiguration(backupPath);
                 if (restoredConfig != null)
@@ -1892,7 +1582,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     
                     // Copy all the important configuration data back to the current config
                     // This preserves the plugin instance while updating the data
-                    var currentConfig = plugin.Configuration;
+                    var currentConfig = Plugin.Configuration;
                     
                     // Copy character data
                     currentConfig.Characters.Clear();

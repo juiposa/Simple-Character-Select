@@ -15,10 +15,6 @@ public class CharacterData
     public int DefaultDesignIndex { get; set; } = 0;
     public Vector3 NameplateColor { get; set; } = new Vector3(1.0f, 1.0f, 1.0f);
     public bool IsFavorite { get; set; } = false;
-    
-    // External plugins
-
-    
     public DateTime DateAdded { get; set; } = DateTime.Now;
     public int SortOrder { get; set; } = 0;
     public byte IdlePoseIndex { get; set; } = 7;
@@ -34,9 +30,6 @@ public class CharacterData
         Tags = tags.Split(",").Distinct().ToList();
         Tag = "";
     }
-
-    /// <summary>Gearset to switch to when applying this character (null = don't switch).</summary>
-    public int? AssignedGearset { get; set; } = null;
 
     public List<DesignFolder> DesignFolders { get; set; } = new();
     public Vector3? OverrideAccentColor { get; set; } 
@@ -60,7 +53,6 @@ public class CharacterData
         clone.DozePoseIndex = this.DozePoseIndex;
         clone.Pronouns = this.Pronouns;
         clone.Tags = this.Tags.Slice(0, this.Tags.Count);
-        clone.AssignedGearset = this.AssignedGearset;
         clone.DesignFolders = this.DesignFolders.Slice(0, this.DesignFolders.Count);
         clone.OverrideAccentColor = this.OverrideAccentColor.HasValue ? this.OverrideAccentColor.Value.AsVector4().AsVector3() : default;
         clone.BackgroundImage = this.BackgroundImage;

@@ -22,7 +22,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Utils
             string placeholder = "Select...",
             int maxVisibleItems = 8,
             string? currentActive = null,
-            bool allowCustomInput = true)
+            bool allowCustomInput = true,
+            IReadOnlyList<string>? defaultOptions = null)
         {
             bool valueChanged = false;
             var scale = ImGuiHelpers.GlobalScale;

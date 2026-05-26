@@ -10,6 +10,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using SimpleCharacterSelectPlugin.Managers;
+using SimpleCharacterSelectPlugin.Windows.Utils;
 
 namespace SimpleCharacterSelectPlugin.Windows
 {
@@ -50,10 +51,6 @@ namespace SimpleCharacterSelectPlugin.Windows
             this.designPanel = new DesignPanel(plugin, uiStyles);
             this.settingsPanel = new SettingsPanel(plugin, uiStyles, this);
             this.reorderWindow = new ReorderWindow(plugin, uiStyles);
-
-            // Pre-warm the file cache on a background thread to prevent UI freezing
-            // when opening the window for the first time (especially for network paths)
-            characterGrid.PreWarmCacheAsync();
         }
 
         public override void PostDraw()
@@ -113,11 +110,9 @@ namespace SimpleCharacterSelectPlugin.Windows
             ImGui.Text(headerText);
 
             ImGui.SameLine();
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f));
-            ImGui.Text($"({totalCharacters} total)");
-            ImGui.PopStyleColor();
+            CommonElements.ColoredButton($"({totalCharacters} total)", Colors.Grey1);
 
-            // Idle pose indicator
+            // Current character data
             if (Plugin.ObjectTable.LocalPlayer != null)
             {
                 unsafe
@@ -125,23 +120,16 @@ namespace SimpleCharacterSelectPlugin.Windows
                     var charPtr = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)Plugin.ObjectTable.LocalPlayer.Address;
                     var currentIdle = charPtr->EmoteController.CPoseState;
                     
-                    var scale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
+                    var scale = ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier;
                     
                     ImGui.SameLine();
-                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.6f, 0.6f, 0.6f, 1.0f));
-                    ImGui.Text($"Current Idle: {currentIdle}");
-                    ImGui.PopStyleColor();
-                    
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip($"Current idle pose: {currentIdle}");
-                    }
+                    CommonElements.ColoredButton($"Current gearset: {GearsetManager.GetCurrentGearset().DisplayName()}", Colors.Grey2);
                 }
             }
 
             ImGui.SameLine();
 
-            var totalScale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
+            var totalScale = ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier;
 
             float buttonWidth = 12 * totalScale;
             float iconButtonSize = ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2;
@@ -168,12 +156,12 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         public void UpdateSortType()
         {
-            characterGrid.SetSortType((Plugin.SortType)plugin.Configuration.CurrentSortIndex);
+            characterGrid.SetSortType((Plugin.SortType)Plugin.Configuration.CurrentSortIndex);
         }
 
         private void DrawMainContent(float deltaTime)
         {
-            var totalScale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
+            var totalScale = ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier;
 
             if (plugin.WindowState.IsAddCharacterWindowOpen || characterForm.IsEditWindowOpen)
             {
@@ -208,7 +196,7 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         private void DrawBottomBar()
         {
-            var totalScale = ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier;
+            var totalScale = ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier;
             float bottomPadding = 10 * totalScale;
             ImGui.SetCursorPos(new Vector2(10 * totalScale, ImGui.GetWindowHeight() - ImGui.GetFrameHeight() - bottomPadding));
 
@@ -253,7 +241,7 @@ namespace SimpleCharacterSelectPlugin.Windows
             // Vector4? iconColor = null;
             // randomIcon = "\uf522"; // Dice
             //
-            // string randomTooltip = plugin.Configuration.RandomSelectionFavoritesOnly
+            // string randomTooltip = Plugin.Configuration.RandomSelectionFavoritesOnly
             //     ? "Randomly selects from favourited characters and designs only"
             //     : "Randomly selects from all characters and designs";
             //

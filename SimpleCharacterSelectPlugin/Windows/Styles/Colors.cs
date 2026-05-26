@@ -2,8 +2,10 @@ using System.Numerics;
 
 namespace SimpleCharacterSelectPlugin.Windows.Styles
 {
-    public static class ColorSchemes
+    public static class Colors
     {
+        public static readonly Vector4 Grey1 = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
+        public static readonly Vector4 Grey2 = new Vector4(0.6f, 0.6f, 0.6f, 1.0f);
         public static class Dark
         {
             // Matte black theme colours

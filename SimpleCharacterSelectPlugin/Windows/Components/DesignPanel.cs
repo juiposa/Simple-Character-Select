@@ -5,18 +5,13 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
-using Dalamud.Interface.Utility.Raii;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 using SimpleCharacterSelectPlugin.Windows.Utils;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
 using Dalamud.Interface.Textures.TextureWraps;
-using SimpleCharacterSelectPlugin;
 using SimpleCharacterSelectPlugin.Managers;
 using SimpleCharacterSelectPlugin.Models;
 
@@ -59,9 +54,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private string editedDesignName = "";
         private string editedPenumbraCollection = "";
         private string editedGlamourerDesign = "";
-        private string editedAutomation = "";
+        private bool editDeferToGlamourer = false;
         private (Guid, string) editedCustomizeProfile = (Guid.Empty, "");
-        private int? editedGearset = null;
+        private Gearset? editedGearset = null;
         private string editedDesignPreviewPath = "";
         private string originalDesignName = "";
         private string? pendingDesignImagePath = null;
@@ -87,14 +82,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             this.uiStyles = uiStyles;
 
             // Load saved panel width or use default
-            PanelWidth = plugin.Configuration.DesignPanelWidth;
+            PanelWidth = Plugin.Configuration.DesignPanelWidth;
         }
 
         public void Dispose()
         {
             // Save panel width on dispose
-            plugin.Configuration.DesignPanelWidth = PanelWidth;
-            plugin.Configuration.Save();
+            Plugin.Configuration.DesignPanelWidth = PanelWidth;
+            Plugin.Configuration.Save();
         }
 
         public void Draw()
@@ -102,7 +97,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             if (!IsOpen) return;
 
             // Calculate responsive sizing
-            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier);
+            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier);
 
             // Scale the panel dimensions
             float scaledPanelWidth = PanelWidth * GetSafeScale(totalScale);
@@ -164,7 +159,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     float newWidth = newScaledWidth / totalScale;
                     PanelWidth = Math.Clamp(newWidth, MinPanelWidth, MaxPanelWidth);
                     // Save the new width immediately for responsiveness
-                    plugin.Configuration.DesignPanelWidth = PanelWidth;
+                    Plugin.Configuration.DesignPanelWidth = PanelWidth;
                     // Force main window to recalculate layout
                     if (plugin.MainWindow != null)
                     {
@@ -175,7 +170,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 {
                     isResizing = false;
                     // Save configuration
-                    plugin.Configuration.Save();
+                    Plugin.Configuration.Save();
                 }
             }
 
@@ -218,7 +213,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         public void Open(int characterIndex)
         {
             activeCharacterIndex = characterIndex;
-            currentCharacter = plugin.Configuration.Characters[characterIndex];
+            currentCharacter = Plugin.Configuration.Characters[characterIndex];
             IsOpen = true;
             plugin.WindowState.IsDesignPanelOpen = true;
         }
@@ -325,26 +320,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             ImGui.SameLine(0, spacing);
 
-            // Folder Button TODO readd if anyone asks for it
-            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.7f, 0.3f, 1.0f)); // Yellow
-            // ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.15f, 0.9f));
-            // ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.25f, 0.25f, 1f));
-            // ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.35f, 0.35f, 0.35f, 1f));
-            //
-            // ImGui.PushFont(UiBuilder.IconFont);
-            // if (ImGui.Button("\uf07b##AddFolder"))
-            //     ImGui.OpenPopup("CreateFolderPopup");
-            // ImGui.PopFont();
-            //
-            // ImGui.PopStyleColor(4);
-            //
-            // DrawFolderCreationPopup(character, scale);
-            //
-            // if (ImGui.IsItemHovered())
-            // {
-            //     ImGui.SetTooltip("Add Folder");
-            // }
-
             // Search button
             ImGui.SameLine(0, spacing);
             if (uiStyles.IconButton("\uf002", "Search designs"))
@@ -358,49 +333,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip("Search designs");
-
-            // // Snapshot button TODO probably removing
-            // ImGui.SameLine();
-            // float availableWidth = ImGui.GetContentRegionAvail().X;
-            // ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - (buttonSize * 2) - (5 * scale));
-            //
-            // ImGui.PushFont(UiBuilder.IconFont);
-            // ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.8f));        // Dark gray
-            // ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.4f, 0.4f, 0.9f)); // Medium gray  
-            // ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.6f, 0.6f, 1.0f));  // Light gray
-            // ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f));          // White text
-            // ImGui.PushStyleVar(ImGuiStyleVar.ButtonTextAlign, new Vector2(0.5f, 0.5f));        // Center icon
-            //
-            // if (ImGui.Button($"\uf030##CreateSnapshot"))
-            // {
-            //     if (activeCharacterIndex >= 0 && activeCharacterIndex < plugin.Characters.Count)
-            //     {
-            //         var io = ImGui.GetIO();
-            //         var selectedCharacter = plugin.Characters[activeCharacterIndex];
-            //         
-            //         if (io.KeyCtrl && io.KeyShift)
-            //         {
-            //             // Ctrl+Shift: Smart snapshot with CR
-            //             CreateSmartSnapshot(selectedCharacter, useConflictResolution: true);
-            //         }
-            //         else
-            //         {
-            //             // Regular click: Smart snapshot without CR
-            //             CreateSmartSnapshot(selectedCharacter, useConflictResolution: false);
-            //         }
-            //     }
-            // }
-            //
-            // ImGui.PopStyleVar(1);
-            // ImGui.PopStyleColor(4);
-            // ImGui.PopFont();
-            //
-            // if (ImGui.IsItemHovered())
-            // {
-            //     string tooltip = "Create Design from Current Look\n• Click: Smart snapshot";
-            //     ImGui.SetTooltip(tooltip);
-            // }
-
+            
             // Close button
             ImGui.SameLine(0, spacing);
 
@@ -547,14 +480,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             
             DrawGlamourerField(inputWidth, scale);
 
-            // if (plugin.Configuration.EnableAutomations) //TODO automations
-            // {
-            //     DrawAutomationField(inputWidth, scale);
-            // }
-
             DrawCustomizeField(inputWidth, scale);
 
-            if (plugin.Configuration.EnableGearsetCharacterSwitching)
+            if (Plugin.Configuration.EnableDesignGearsetSwitching)
             {
                 DrawGearsetField(inputWidth, scale);
             }
@@ -570,7 +498,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private void DrawPenumbraField(float inputWidth, float scale)
         {
-            ImGui.Text("Penumbra Collection*");
+            ImGui.Text("Penumbra Collection");
 
             // Tooltip
             ImGui.SameLine();
@@ -582,7 +510,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 ImGui.BeginTooltip();
                 ImGui.PushTextWrapPos(300 * scale);
-                ImGui.TextUnformatted("Select the Glamourer design for this outfit. Right-click to clear.");
+                ImGui.TextUnformatted("Select the Penumbra collection for this outfit. Right-click to clear.");
                 ImGui.PopTextWrapPos();
                 ImGui.EndTooltip();
             }
@@ -590,7 +518,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetCursorPosX(10 * scale);
             var penumbraOptions = plugin.IntegrationListProvider?.GetPenumbraCollections() ?? Array.Empty<string>();
 
-            if (AutocompleteCombo.Draw("##PenumbraCollection", ref editedPenumbraCollection, penumbraOptions, inputWidth, "Select collection..."))
+            if (AutocompleteCombo.Draw("##PenumbraCollection", ref editedPenumbraCollection, penumbraOptions, inputWidth, "Use character collection"))
             {
             }
             // plugin.WindowState.DesignGlamourerFieldPos = ImGui.GetItemRectMin();
@@ -626,30 +554,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // plugin.WindowState.DesignGlamourerFieldSize = ImGui.GetItemRectSize();
         }
 
-        private void DrawAutomationField(float inputWidth, float scale)
-        {
-            ImGui.Text("Glamourer Automation");
-
-            ImGui.SameLine();
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.Text("\uf05a");
-            ImGui.PopFont();
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.BeginTooltip();
-                ImGui.PushTextWrapPos(300 * scale);
-                ImGui.TextUnformatted("Optional: Enter the name of a Glamourer automation for this design.\n⚠️ Must match the automation name EXACTLY as shown in Glamourer.");
-                ImGui.PopTextWrapPos();
-                ImGui.EndTooltip();
-            }
-
-            ImGui.SetCursorPosX(10 * scale);
-            // Glamourer doesn't expose an IPC to get automation names, so use plain text input
-            ImGui.SetNextItemWidth(inputWidth);
-            ImGui.InputText("##GlamourerAutomation", ref editedAutomation, 100);
-        }
-
         private void DrawCustomizeField(float inputWidth, float scale)
         {
             ImGui.Text("Customize+ Profile");
@@ -673,7 +577,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             var customizeOptions = customizeProfiles?.Select(v => v.Item2).ToArray() ?? Array.Empty<string>();
             var currentCustomize = plugin.IntegrationListProvider?.GetCurrentCustomizePlusProfile();
             var tempCustomize = editedCustomizeProfile.Item2;
-            if (AutocompleteCombo.Draw("##CustomizeProfile", ref tempCustomize, customizeOptions, inputWidth, "Select profile...", currentActive: currentCustomize))
+            if (AutocompleteCombo.Draw("##CustomizeProfile", ref tempCustomize, customizeOptions, inputWidth, "Use character C+", currentActive: currentCustomize))
             {
                 if (customizeProfiles != null && customizeProfiles.Length > 0)
                 {
@@ -708,42 +612,33 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Build display text for current selection
             string currentDisplay = "None (use character setting)";
-            if (editedGearset.HasValue)
+            if (editedGearset != null)
             {
-                // var matchingGearset = gearsets.FirstOrDefault(g => g.Number == editedGearset.Value);
-                //  if (matchingGearset.Number > 0)
-                //  {
-                //      //currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
-                //  }
-                //  else
-                //  {
-                //      currentDisplay = $"Gearset {editedGearset.Value}";
-                //  }
+                currentDisplay = editedGearset.DisplayName();
             }
 
             if (ImGui.BeginCombo("##AssignedGearset", currentDisplay))
             {
                 // "None" option
-                if (ImGui.Selectable("None (use character setting)", !editedGearset.HasValue))
+                if (ImGui.Selectable("None", editedGearset == null))
                 {
                     editedGearset = null;
                 }
-                if (!editedGearset.HasValue)
+                if (editedGearset == null)
                     ImGui.SetItemDefaultFocus();
 
-                // Gearset options
-                // foreach (var gearset in gearsets)
-                // {
-                //     string displayName = plugin.GetGearsetDisplayName(gearset.Number, gearset.JobId, gearset.Name);
-                //     bool isSelected = editedGearset.HasValue && editedGearset.Value == gearset.Number;
-                //
-                //     if (ImGui.Selectable(displayName, isSelected))
-                //     {
-                //         editedGearset = gearset.Number;
-                //     }
-                //     if (isSelected)
-                //         ImGui.SetItemDefaultFocus();
-                // }
+                var options = GearsetManager.GetPlayerGearsets();
+                foreach (var gearset in options)
+                {
+                    bool isSelected = editedGearset?.Index == gearset.Index;
+                
+                    if (ImGui.Selectable(gearset.DisplayName(), isSelected))
+                    {
+                        editedGearset = gearset;
+                    }
+                    if (isSelected)
+                        ImGui.SetItemDefaultFocus();
+                }
 
                 ImGui.EndCombo();
             }
@@ -1369,16 +1264,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.3f, 0.8f, 0.3f, 1f)); // Green
             if (ImGui.Button("\uf00c", new Vector2(btnSize, btnSize)))
             {
-                // Switch gearset if assigned (design overrides character)
-                if (plugin.Configuration.EnableGearsetCharacterSwitching)
-                {
-                    var effectiveGearset = design.AssignedGearset ?? character.Data.AssignedGearset;
-                    if (effectiveGearset.HasValue)
-                    {
-                        //plugin.SwitchToGearset(effectiveGearset.Value);
-                    }
-                }
-
                 var index = character.Data.Designs.IndexOf(design);
                 Plugin.Log.Debug($"DesignWindow applying design {character.Data.Name}");
                 plugin.ActivePlayer.QueueUpdate(character, index);
@@ -1598,7 +1483,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             editedDesignName = "";
             editedPenumbraCollection = currentCharacter?.GetDefaultDesign().PenumbraCollection ?? "";
             editedGlamourerDesign = "";
-            editedAutomation = "";
+            editDeferToGlamourer = false;
             editedCustomizeProfile = (Guid.Empty, "");
             editedGearset = null;
             editedDesignPreviewPath = "";
@@ -1616,7 +1501,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ? design.GlamourerDesign
                 : "";
 
-            editedAutomation = design.GlamourerDesign ?? "";
+            editDeferToGlamourer = design.DeferToGlamourer;
             editedCustomizeProfile = design.CustomizeProfileTuple;
             editedGearset = design.AssignedGearset;
             editedDesignPreviewPath = design.PreviewImagePath ?? "";
@@ -1635,7 +1520,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             editedDesignName = "";
             editedGlamourerDesign = "";
-            editedAutomation = "";
+            editDeferToGlamourer = false;
             editedCustomizeProfile = (Guid.Empty, "");
             editedDesignPreviewPath = "";
             originalDesignName = "";
@@ -1655,7 +1540,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 // Update existing design
                 existingDesign.Name = editedDesignName;
                 existingDesign.PenumbraCollection = editedPenumbraCollection;
-                existingDesign.GlamourerAutomation = editedAutomation;
+                existingDesign.DeferToGlamourer = editDeferToGlamourer;
                 existingDesign.GlamourerDesign = editedGlamourerDesign;
                 existingDesign.CustomizeProfileTuple = editedCustomizeProfile;
                 existingDesign.AssignedGearset = editedGearset;
@@ -1668,7 +1553,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     Name = editedDesignName,
                     PenumbraCollection = editedPenumbraCollection,
                     GlamourerDesign = editedGlamourerDesign,
-                    GlamourerAutomation = editedAutomation,
+                    DeferToGlamourer = editDeferToGlamourer,
                     CustomizeProfileTuple = editedCustomizeProfile,
                     PreviewImagePath = editedDesignPreviewPath,
                     IsFavorite = false,
@@ -1696,7 +1581,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         private DesignSortType GetDesignSortFromConfig()
         {
-            return plugin.Configuration.CurrentDesignSortIndex switch
+            return Plugin.Configuration.CurrentDesignSortIndex switch
             {
                 0 => DesignSortType.Favorites,
                 1 => DesignSortType.Alphabetical,
@@ -1709,8 +1594,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         
         private void SetDesignSort(int sortIndex)
         {
-            plugin.Configuration.CurrentDesignSortIndex = sortIndex;
-            plugin.Configuration.Save();
+            Plugin.Configuration.CurrentDesignSortIndex = sortIndex;
+            Plugin.Configuration.Save();
         }
 
         private void SortDesigns(Character character)

@@ -9,7 +9,7 @@ namespace SimpleCharacterSelectPlugin
         public string Name { get; set; } = "Default";
         public string PenumbraCollection { get; set; } = "";
         public string GlamourerDesign { get; set; } = "";
-        public string GlamourerAutomation { get; set; } = "";
+        public bool DeferToGlamourer { get; set; } = false;
         public (Guid, string) CustomizeProfileTuple { get; set; }
         public Honorific? Honorific { get; set; } = new Honorific();
         public (Guid, string) MoodlePresetTuple { get; set; }
@@ -22,8 +22,7 @@ namespace SimpleCharacterSelectPlugin
         public Guid? FolderId { get; set; } = null; 
         public Guid Id { get; set; } = Guid.NewGuid();
         public int SortOrder { get; set; } = 0;
-        
-        public int? AssignedGearset { get; set; } = null;
+        public Gearset? AssignedGearset { get; set; } = null;
 
         public CharacterDesign Clone()
         {
@@ -31,10 +30,10 @@ namespace SimpleCharacterSelectPlugin
             newDesign.Name = Name;
             newDesign.PenumbraCollection = PenumbraCollection;
             newDesign.GlamourerDesign = GlamourerDesign;
-            newDesign.GlamourerAutomation = GlamourerAutomation;
+            newDesign.DeferToGlamourer = DeferToGlamourer;
             newDesign.CustomizeProfileTuple = CustomizeProfileTuple;
             newDesign.Honorific = Honorific?.Clone();
-            newDesign.AssignedGearset =  AssignedGearset;
+            newDesign.AssignedGearset = AssignedGearset;
             newDesign.MoodlePresetTuple = MoodlePresetTuple;
             newDesign.DateAdded = DateAdded.AddDays(0);
             newDesign.IsFavorite = IsFavorite;

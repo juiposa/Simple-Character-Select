@@ -69,7 +69,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             this.plugin = plugin;
             this.uiStyles = uiStyles;
-            CurrentSort = (Plugin.SortType)plugin.Configuration.CurrentSortIndex;
+            CurrentSort = (Plugin.SortType)Plugin.Configuration.CurrentSortIndex;
         }
 
         public void Dispose()
@@ -83,7 +83,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         public void Draw()
         {
             // Calculate responsive scaling using Dalamud's GlobalScale
-            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier);
+            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier);
 
             ImGuiWindowFlags windowFlags = ImGuiWindowFlags.None;
             
@@ -315,8 +315,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string finalImagePath = GetCachedImagePath(character.Data.ImagePath, defaultImagePath);
 
             // Check if this character is the main character
-            bool isMainCharacter = !string.IsNullOrEmpty(plugin.Configuration.MainCharacterName) &&
-                                   character.Data.Name == plugin.Configuration.MainCharacterName;
+            bool isMainCharacter = !string.IsNullOrEmpty(Plugin.Configuration.MainCharacterName) &&
+                                   character.Data.Name == Plugin.Configuration.MainCharacterName;
 
             ImGui.BeginGroup();
 
@@ -437,7 +437,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         ImDrawFlags.RoundCornersTop
                     );
 
-                    if (isMainCharacter && plugin.Configuration.ShowMainCharacterCrown)
+                    if (isMainCharacter && Plugin.Configuration.ShowMainCharacterCrown)
                     {
                         DrawMainCharacterCrown(drawList, imagePosMax, imagePos, hoverAmount, scale);
                     }
@@ -596,7 +596,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     actualCharacter.Data.IsFavorite = !actualCharacter.Data.IsFavorite;
 
                     Vector2 effectPos = starPos + starSize / 2;
-                    //characterFavoriteEffects[characterIndex].Trigger(effectPos, actualCharacter.IsFavorite, plugin.Configuration);
+                    //characterFavoriteEffects[characterIndex].Trigger(effectPos, actualCharacter.IsFavorite, Plugin.Configuration);
 
                     plugin.SaveConfiguration();
                     SortCharacters();
@@ -728,7 +728,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 if (isCtrlShiftPressed)
                 {
                     plugin.Characters.Remove(character);
-                    plugin.Configuration.Save();
+                    Plugin.Configuration.Save();
                     InvalidateCache();
                 }
             }
@@ -783,8 +783,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 }
             }
 
-            bool isMainCharacter = !string.IsNullOrEmpty(plugin.Configuration.MainCharacterName) &&
-                                   character.Data.Name == plugin.Configuration.MainCharacterName;
+            bool isMainCharacter = !string.IsNullOrEmpty(Plugin.Configuration.MainCharacterName) &&
+                                   character.Data.Name == Plugin.Configuration.MainCharacterName;
 
             ImGui.Separator();
             if (isMainCharacter)
@@ -798,8 +798,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SameLine(0, 4 * scale);
                 if (ImGui.Selectable("Remove as Main Character"))
                 {
-                    plugin.Configuration.MainCharacterName = null;
-                    plugin.Configuration.Save();
+                    Plugin.Configuration.MainCharacterName = null;
+                    Plugin.Configuration.Save();
                     InvalidateCache();
                 }
 
@@ -816,8 +816,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SameLine(0, 4 * scale);
                 if (ImGui.Selectable("Set as Main Character"))
                 {
-                    plugin.Configuration.MainCharacterName = character.Data.Name;
-                    plugin.Configuration.Save();
+                    Plugin.Configuration.MainCharacterName = character.Data.Name;
+                    Plugin.Configuration.Save();
                     InvalidateCache();
                 }
 
@@ -897,7 +897,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
             else
             {
-                // Normal spacing for full pages
+                // Normal spacing for full pagesDataManager
                 ImGui.Spacing();
                 ImGui.Spacing();
                 ImGui.Spacing();
@@ -1077,7 +1077,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.Characters[i].Data.SortOrder = i;
             }
 
-            plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Manual;
+            Plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Manual;
             plugin.SaveConfiguration();
 
             Plugin.Log.Debug($"[DragDrop] Moved character '{character.Data.Name}' from position {fromIndex} to {insertIndex} (target was {toIndex})");
@@ -1091,7 +1091,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
             
             // Switch gearset if assigned at character level
-            if (plugin.Configuration.EnableGearsetCharacterSwitching && character.Data.AssignedGearset.HasValue)
+            if (Plugin.Configuration.EnableGearsetDesignSwitching && character.GetDefaultDesign().AssignedGearset != null)
             {
                 //plugin.SwitchToGearset(character.Data.AssignedGearset.Value); TODO
             }
@@ -1225,88 +1225,5 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             filterCacheDirty = true;
         }
-
-        // Method to clear file cache when needed
-        public void ClearFileCache()
-        {
-            fileExistsCache.Clear();
-        }
-
-        /// <summary>
-        /// Pre-warms the file exists cache on a background thread.
-        /// This prevents UI freezing when opening the window for the first time,
-        /// especially for images on network paths.
-        /// </summary>
-        public void PreWarmCacheAsync()
-        {
-            if (isCacheWarming) return;
-            isCacheWarming = true;
-
-            Task.Run(() =>
-            {
-                try
-                {
-                    var characters = plugin.Configuration.Characters;
-                    string pluginDirectory = plugin.PluginDirectory;
-                    string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
-
-                    // Pre-check default image
-                    var defaultExists = File.Exists(defaultImagePath);
-                    lock (fileExistsCache)
-                    {
-                        fileExistsCache[defaultImagePath] = defaultExists;
-                    }
-
-                    // Pre-check all character images
-                    foreach (var character in characters.ToList())
-                    {
-                        if (!string.IsNullOrEmpty(character.Data.ImagePath))
-                        {
-                            var exists = File.Exists(character.Data.ImagePath);
-                            lock (fileExistsCache)
-                            {
-                                fileExistsCache[character.Data.ImagePath] = exists;
-                            }
-                        }
-
-                        // Also check design preview images
-                        foreach (var design in character.Data.Designs ?? Enumerable.Empty<CharacterDesign>())
-                        {
-                            if (!string.IsNullOrEmpty(design.PreviewImagePath))
-                            {
-                                var exists = File.Exists(design.PreviewImagePath);
-                                lock (fileExistsCache)
-                                {
-                                    fileExistsCache[design.PreviewImagePath] = exists;
-                                }
-                            }
-                        }
-                    }
-
-                    Plugin.Log.Info($"[CharacterGrid] Pre-warmed file cache for {fileExistsCache.Count} paths");
-                }
-                catch (Exception ex)
-                {
-                    Plugin.Log.Error($"[CharacterGrid] Error pre-warming cache: {ex.Message}");
-                }
-                finally
-                {
-                    isCacheWarming = false;
-                }
-            });
-        }
-
-        // Method to clear text cache when font changes
-        public void ClearTextCache()
-        {
-            textSizeCache.Clear();
-        }
-
-        /// <summary>Returns currently visible characters (respects search and tag filters).</summary>
-        public List<Character> GetVisibleCharacters()
-        {
-            return GetFilteredCharacters();
-        }
-
     }
 }

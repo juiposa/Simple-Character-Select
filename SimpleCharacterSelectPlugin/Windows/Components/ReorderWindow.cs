@@ -41,7 +41,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 return;
 
             // Calculate dynamic window size - use UI scale multiplier only, let Dalamud handle DPI
-            var totalScale = GetSafeScale(plugin.Configuration.UIScaleMultiplier);
+            var totalScale = GetSafeScale(Plugin.Configuration.UIScaleMultiplier);
 
             // Base dimensions (unscaled, let Dalamud handle DPI)
             var windowWidth = 500f * totalScale;
@@ -107,8 +107,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private void ApplyScaledStyles(float scale)
         {
             // Apply theme colors (supports Custom theme, seasonal themes, and default)
-            themeColorCount = ThemeHelper.PushThemeColors(plugin.Configuration);
-            themeStyleVarCount = ThemeHelper.PushThemeStyleVars(plugin.Configuration.UIScaleMultiplier);
+            themeColorCount = ThemeHelper.PushThemeColors(Plugin.Configuration);
+            themeStyleVarCount = ThemeHelper.PushThemeStyleVars(Plugin.Configuration.UIScaleMultiplier);
         }
 
         private void PopScaledStyles()
@@ -445,7 +445,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             plugin.Characters.Clear();
             plugin.Characters.AddRange(reorderBuffer);
 
-            plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Manual;
+            Plugin.Configuration.CurrentSortIndex = (int)Plugin.SortType.Manual;
             plugin.SaveConfiguration();
 
             // Update CharacterGrid to use the new sort type

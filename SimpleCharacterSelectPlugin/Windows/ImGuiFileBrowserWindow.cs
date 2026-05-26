@@ -323,10 +323,10 @@ namespace SimpleCharacterSelectPlugin.Windows
         {
             // Header
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ColorSchemes.Dark.AccentBlue, FontAwesomeIcon.Star.ToIconString());
+            ImGui.TextColored(Colors.Dark.AccentBlue, FontAwesomeIcon.Star.ToIconString());
             ImGui.PopFont();
             ImGui.SameLine();
-            ImGui.TextColored(ColorSchemes.Dark.AccentBlue, "Quick Access");
+            ImGui.TextColored(Colors.Dark.AccentBlue, "Quick Access");
 
             ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.3f, 0.5f, 0.7f, 0.5f));
             ImGui.Separator();
@@ -340,7 +340,7 @@ namespace SimpleCharacterSelectPlugin.Windows
                 var isSelected = currentDirectory == path;
 
                 ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(isSelected ? ColorSchemes.Dark.AccentBlue : new Vector4(0.6f, 0.7f, 0.85f, 1f),
+                ImGui.TextColored(isSelected ? Colors.Dark.AccentBlue : new Vector4(0.6f, 0.7f, 0.85f, 1f),
                     icon.ToIconString());
                 ImGui.PopFont();
                 ImGui.SameLine();
@@ -377,7 +377,7 @@ namespace SimpleCharacterSelectPlugin.Windows
                     var isSelected2 = currentDirectory == pinPath;
 
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(isSelected2 ? ColorSchemes.Dark.AccentBlue : new Vector4(0.9f, 0.7f, 0.3f, 0.8f),
+                    ImGui.TextColored(isSelected2 ? Colors.Dark.AccentBlue : new Vector4(0.9f, 0.7f, 0.3f, 0.8f),
                         FontAwesomeIcon.Folder.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine();
@@ -490,10 +490,10 @@ namespace SimpleCharacterSelectPlugin.Windows
 
             // Sort header - fixed at top
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ColorSchemes.Dark.AccentBlue, FontAwesomeIcon.FolderOpen.ToIconString());
+            ImGui.TextColored(Colors.Dark.AccentBlue, FontAwesomeIcon.FolderOpen.ToIconString());
             ImGui.PopFont();
             ImGui.SameLine();
-            ImGui.TextColored(ColorSchemes.Dark.AccentBlue, "Files");
+            ImGui.TextColored(Colors.Dark.AccentBlue, "Files");
             ImGui.SameLine();
 
             // Right-align the sort controls
@@ -610,10 +610,10 @@ namespace SimpleCharacterSelectPlugin.Windows
         private void DrawPreview()
         {
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ColorSchemes.Dark.AccentBlue, FontAwesomeIcon.Eye.ToIconString());
+            ImGui.TextColored(Colors.Dark.AccentBlue, FontAwesomeIcon.Eye.ToIconString());
             ImGui.PopFont();
             ImGui.SameLine();
-            ImGui.TextColored(ColorSchemes.Dark.AccentBlue, "Preview");
+            ImGui.TextColored(Colors.Dark.AccentBlue, "Preview");
 
             ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.3f, 0.5f, 0.7f, 0.5f));
             ImGui.Separator();

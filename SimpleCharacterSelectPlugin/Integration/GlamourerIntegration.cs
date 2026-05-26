@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 
 namespace SimpleCharacterSelectPlugin.Integration;
@@ -29,11 +31,12 @@ public class GlamourerIntegration
                 Plugin.Log.Warning($"Glamourer Design '{designName}' not found in Glamourer");
                 return;
             }
-
+            
             // Apply design via IPC
-            // DesignDefault = Once | Equipment | Customization = 0x07
-            const ulong designDefaultFlags = 0x07uL;
-            var result = GlamourerIpc.ApplyDesign?.InvokeFunc(matchingDesign.Key, (int)local.ObjectIndex, 0u, designDefaultFlags);
+            // Lock design flag set
+            // Prevents Glamourer from trying to apply gearset glamour plates and locks the design state to prevent automations
+            const ulong lockDesignFlags = 0x0EuL;
+            var result = GlamourerIpc.ApplyDesign?.InvokeFunc(matchingDesign.Key, (int)local.ObjectIndex, 0u, lockDesignFlags);
             Plugin.Log.Debug($"Glamourer Applied '{designName}', result: {result}");
         }
         catch (Exception ex)

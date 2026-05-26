@@ -120,7 +120,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         public void Draw()
         {
-            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * plugin.Configuration.UIScaleMultiplier);
+            var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier);
 
             uiStyles.PushFormStyle();
 
@@ -147,13 +147,11 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             float labelWidth = 130 * scale;
             float inputWidth = 250 * scale;
             float inputOffset = 10 * scale;
-
-            
-            
             
             string tempName = editCharacterData.Name;
             string tempPenumbra = editCharDefaultDesign.PenumbraCollection;
             string tempGlamourer = editCharDefaultDesign.GlamourerDesign;
+            bool tempDefer = editCharDefaultDesign.DeferToGlamourer;
             Vector3 tempColor = editCharacterData.NameplateColor;
             string tempTag = editCharacterData.Tag;
             Honorific tempHonorific = editCharDefaultDesign.Honorific != null ? editCharDefaultDesign.Honorific.Clone() : new Honorific();
@@ -197,7 +195,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.InputTextWithHint("##Tags", "e.g. Casual, Battle, Beach", ref tempTag, 100);
 
                 editCharacterData.Tag = tempTag;
-            }, "You can assign multiple tags by separating them with commas.\nExamples: Casual, Favourites, Seasonal", scale);
+            }, "You can assign multiple tags by separating them with commas.\nExamples: Casual, Favourites, Seasonal", scale, null);
 
             ImGui.Separator();
 
@@ -207,7 +205,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.ColorEdit3("##NameplateColor", ref tempColor);
 
                 editCharacterData.NameplateColor = tempColor;
-            }, "Affects your character's nameplate under their profile picture in Simple Character Select.", scale);
+            }, "Affects your character's nameplate under their profile picture in Simple Character Select.", scale, null);
 
             ImGui.Separator();
 
@@ -231,30 +229,49 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     plugin.WindowState.PenumbraFieldPos = ImGui.GetItemRectMin();
                     plugin.WindowState.PenumbraFieldSize = ImGui.GetItemRectSize();
                 }
-            }, "Select the Penumbra collection for this character. Right-click to clear.", scale);
+            }, "Select the Penumbra collection for this character. Right-click to clear.", scale, null);
 
             ImGui.Separator();
-
+            
             // Glamourer Design
-            DrawFormField("Glamourer Design*", labelWidth, inputWidth, inputOffset, () =>
+            
+            ImGui.Spacing();
+            DrawFormText("Glamourer Designs", scale);
+            ImGui.Spacing();
+            
+            DrawFormText("Defer to Glamourer", scale);
+            ImGui.SameLine(labelWidth);
+            ImGui.SetCursorPosX(labelWidth + inputOffset);
+            
+            if(ImGui.Checkbox("", ref tempDefer))
             {
-                var glamourerOptions = plugin.IntegrationListProvider?.GetGlamourerDesigns() ?? Array.Empty<string>();
-                tempGlamourer = editCharDefaultDesign.GlamourerDesign;
+                editCharDefaultDesign.DeferToGlamourer = tempDefer;
+            }
+            ImGui.SameLine();
+            CommonElements.DrawTooltip("Defer all design application to Glamourer (whether manual or via Automations). SCS will not attempt to apply designs.", scale);
 
-                if (AutocompleteCombo.Draw("##GlamourerDesign", ref tempGlamourer, glamourerOptions, inputWidth, "Select design..."))
+            if (!tempDefer)
+            {
+                DrawFormField("Design to Apply*", labelWidth, inputWidth, inputOffset, () =>
                 {
-                    plugin.WindowState.GlamourerFieldPos = ImGui.GetItemRectMin();
-                    plugin.WindowState.GlamourerFieldSize = ImGui.GetItemRectSize();
+                    var glamourerOptions = plugin.IntegrationListProvider?.GetGlamourerDesigns() ?? Array.Empty<string>();
+                    tempGlamourer = editCharDefaultDesign.GlamourerDesign;
 
-                    editCharDefaultDesign.GlamourerDesign = tempGlamourer;
-                }
-                else
-                {
-                    // Still track position even when not changed
-                    plugin.WindowState.GlamourerFieldPos = ImGui.GetItemRectMin();
-                    plugin.WindowState.GlamourerFieldSize = ImGui.GetItemRectSize();
-                }
-            }, "Select the Glamourer design for this character. Right-click to clear.\nYou can add additional designs later.", scale);
+                    if (AutocompleteCombo.Draw("##GlamourerDesign", ref tempGlamourer, glamourerOptions, inputWidth, "Select design..."))
+                    {
+                        plugin.WindowState.GlamourerFieldPos = ImGui.GetItemRectMin();
+                        plugin.WindowState.GlamourerFieldSize = ImGui.GetItemRectSize();
+
+                        editCharDefaultDesign.GlamourerDesign = tempGlamourer;
+                    }
+                    else
+                    {
+                        // Still track position even when not changed
+                        plugin.WindowState.GlamourerFieldPos = ImGui.GetItemRectMin();
+                        plugin.WindowState.GlamourerFieldSize = ImGui.GetItemRectSize();
+                    }
+                }, "Select the Glamourer design for this character. Right-click to clear.\nYou can add additional designs later.", scale, null);
+            }
 
             ImGui.Separator();
 
@@ -270,12 +287,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             DrawMoodleField(labelWidth, inputWidth, inputOffset, scale);
             ImGui.Separator();
 
-            // Idle Pose
-            // DrawIdlePoseField(labelWidth, inputWidth, inputOffset, scale);
-            // ImGui.Separator();
-
-            // Assigned Gearset (only if enabled)
-            if (plugin.Configuration.EnableGearsetCharacterSwitching)
+            if (Plugin.Configuration.EnableDesignGearsetSwitching)
             {
                 DrawGearsetField(labelWidth, inputWidth, inputOffset, scale);
                 ImGui.Separator();
@@ -289,6 +301,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             DrawActionButtons(scale);
         }
 
+        private void DrawFormText(string text, float scale)
+        {
+            ImGui.SetCursorPosX(10 * scale);
+            ImGui.Text(text);
+        }
+
         private void DrawFormField(string label, float labelWidth, float inputWidth, float inputOffset,
                                  System.Action drawInput, string tooltip, float scale, System.Action? afterTooltip = null)
         {
@@ -300,23 +318,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             drawInput();
 
-            // Tooltip
-            ImGui.SameLine();
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.Text("\uf05a");
-            ImGui.PopFont();
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.BeginTooltip();
-                ImGui.PushTextWrapPos(300 * scale);
-                ImGui.TextUnformatted(tooltip);
-                ImGui.PopTextWrapPos();
-                ImGui.EndTooltip();
-            }
-
-            // Optional content after tooltip
-            afterTooltip?.Invoke();
+            CommonElements.DrawTooltip(tooltip, scale, afterTooltip);
         }
 
         private void DrawCustomizeField(float labelWidth, float inputWidth, float inputOffset, float scale)
@@ -338,7 +340,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         Plugin.Log.Debug($"Saving customize profile {editCharDefaultDesign.CustomizeProfileTuple.Item2}");
                     }
                 }
-            }, "Select the Customize+ profile for this character. Right-click to clear.", scale);
+            }, "Select the Customize+ profile for this character. Right-click to clear.", scale, null);
         }
 
         private void DrawHonorificSection(float labelWidth, float inputWidth, float inputOffset, float scale)
@@ -493,30 +495,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             return Vector3.Lerp(color1, color2, t);
         }
 
-        /// <summary>
-        /// Draws text with animated gradient for the picker preview
-        /// </summary>
-        private void DrawGradientTextForPicker(ImDrawListPtr drawList, Vector2 pos, string text, int gradientSet, string animStyle)
-        {
-            long animOffset = AnimationTimer.ElapsedMilliseconds;
-
-            float charX = pos.X;
-            for (int i = 0; i < text.Length; i++)
-            {
-                char c = text[i];
-                string charStr = c.ToString();
-
-                // For two-colour gradient, pass the current colours
-                Vector3 charColor = GetGradientColor(gradientSet, i, animOffset, 5, animStyle, text.Length,
-                    gradientSet == -1 ? tempHonorificGlow : null,
-                    gradientSet == -1 ? tempHonorificColor3 : null);
-                uint colorU32 = ImGui.ColorConvertFloat4ToU32(new Vector4(charColor, 1f));
-
-                drawList.AddText(new Vector2(charX, pos.Y), colorU32, charStr);
-                charX += ImGui.CalcTextSize(charStr).X;
-            }
-        }
-
         private void DrawMoodleField(float labelWidth, float inputWidth, float inputOffset, float scale)
         {
             DrawFormField("Moodle Preset", labelWidth, inputWidth, inputOffset, () =>
@@ -531,61 +509,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                         editCharDefaultDesign.MoodlePresetTuple = Array.Find<(Guid, string)>(presets.ToArray(), v => v.Item2 == presetName);
                     }
                 }
-            }, "Select the Moodle preset for this character. Right-click to clear.", scale);
-        }
-
-        private void DrawIdlePoseField(float labelWidth, float inputWidth, float inputOffset, float scale)
-        {
-            ImGui.SetCursorPosX(10 * scale);
-            ImGui.Text("Idle Pose");
-            ImGui.SameLine();
-            ImGui.SetCursorPosX(labelWidth + inputOffset);
-            ImGui.SetNextItemWidth(inputWidth);
-
-            string[] poseOptions = { "None", "0", "1", "2", "3", "4", "5", "6" };
-            byte storedIndex = IsEditWindowOpen
-                ? plugin.Characters[selectedCharacterIndex].Data.IdlePoseIndex
-                : plugin.NewCharacterIdlePoseIndex;
-
-            int dropdownIndex = storedIndex == 7 ? 0 : storedIndex + 1;
-
-            if (ImGui.BeginCombo("##IdlePose", poseOptions[dropdownIndex]))
-            {
-                for (int i = 0; i < poseOptions.Length; i++)
-                {
-                    bool selected = i == dropdownIndex;
-                    if (ImGui.Selectable(poseOptions[i], selected))
-                    {
-                        byte newIndex = (byte)(i == 0 ? 7 : i - 1);
-                        byte currentIndex = IsEditWindowOpen
-                            ? plugin.Characters[selectedCharacterIndex].Data.IdlePoseIndex
-                            : plugin.NewCharacterIdlePoseIndex;
-
-                        if (currentIndex != newIndex)
-                        {
-                            editCharacterData.IdlePoseIndex = newIndex;
-                        }
-                        
-                    }
-                    if (selected) ImGui.SetItemDefaultFocus();
-                }
-                ImGui.EndCombo();
-            }
-
-            // Tooltip
-            ImGui.SameLine();
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextUnformatted("\uf05a");
-            ImGui.PopFont();
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.BeginTooltip();
-                ImGui.PushTextWrapPos(300 * scale);
-                ImGui.TextUnformatted("Sets your character's idle pose (0–6).\nChoose 'None' if you don't want Simple Character Select to change your idle.");
-                ImGui.PopTextWrapPos();
-                ImGui.EndTooltip();
-            }
+            }, "Select the Moodle preset for this character. Right-click to clear.", scale, null);
         }
         
         private void DrawGearsetField(float labelWidth, float inputWidth, float inputOffset, float scale)
@@ -600,49 +524,37 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             //var gearsets = plugin.GetPlayerGearsets();
 
             // Get current value
-            int? currentGearset = editCharacterData.AssignedGearset;
+            Gearset? currentGearset = editCharDefaultDesign.AssignedGearset;
 
             // Build display text for current selection
             string currentDisplay = "None";
-            if (currentGearset.HasValue)
+            if (currentGearset != null)
             {
-                // var matchingGearset = gearsets.FirstOrDefault(g => g.Number == currentGearset.Value);
-                // if (matchingGearset.Number > 0)
-                // {
-                //     //currentDisplay = plugin.GetGearsetDisplayName(matchingGearset.Number, matchingGearset.JobId, matchingGearset.Name);
-                // }
-                // else
-                // {
-                //     currentDisplay = $"Gearset {currentGearset.Value}";
-                // }
+                currentDisplay = currentGearset.DisplayName();
             }
-
+            
             if (ImGui.BeginCombo("##AssignedGearset", currentDisplay))
             {
                 // "None" option
-                if (ImGui.Selectable("None", !currentGearset.HasValue))
+                if (ImGui.Selectable("None", currentGearset == null))
                 {
-                    editCharacterData.AssignedGearset = null;
+                    editCharDefaultDesign.AssignedGearset = null;
                 }
-                if (!currentGearset.HasValue)
+                if (currentGearset == null)
                     ImGui.SetItemDefaultFocus();
 
-                // Gearset options
-                // foreach (var gearset in gearsets)
-                // {
-                //     string displayName = plugin.GetGearsetDisplayName(gearset.Number, gearset.JobId, gearset.Name);
-                //     bool isSelected = currentGearset.HasValue && currentGearset.Value == gearset.Number;
-                //
-                //     if (ImGui.Selectable(displayName, isSelected))
-                //     {
-                //         if (IsEditWindowOpen)
-                //             editedCharacterGearset = gearset.Number;
-                //         else
-                //             plugin.NewCharacterGearset = gearset.Number;
-                //     }
-                //     if (isSelected)
-                //         ImGui.SetItemDefaultFocus();
-                // }
+                var options = GearsetManager.GetPlayerGearsets();
+                foreach (var gearset in options)
+                {
+                    bool isSelected = currentGearset?.Index == gearset.Index;
+                
+                    if (ImGui.Selectable(gearset.DisplayName(), isSelected))
+                    {
+                        editCharDefaultDesign.AssignedGearset = gearset;
+                    }
+                    if (isSelected)
+                        ImGui.SetItemDefaultFocus();
+                }
 
                 ImGui.EndCombo();
             }
@@ -763,7 +675,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             bool canSaveCharacter = !string.IsNullOrWhiteSpace(editCharacterData.Name) &&
                                    !string.IsNullOrWhiteSpace(editCharDefaultDesign.PenumbraCollection) &&
-                                   !string.IsNullOrWhiteSpace(editCharDefaultDesign.GlamourerDesign) &&
+                                   (editCharDefaultDesign.DeferToGlamourer || !string.IsNullOrWhiteSpace(editCharDefaultDesign.GlamourerDesign)) &&
                                    noErrors;
 
             uiStyles.PushDarkButtonStyle(scale);
@@ -786,7 +698,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     editCharacterData.SetTags();
                     editCharacterData.Designs[currentCharacter.Data.DefaultDesignIndex] = editCharDefaultDesign;
                 }
-                CharacterManager.SaveCharacter(selectedCharacterIndex, currentCharacter, editCharacterData, plugin.Configuration);
+                CharacterManager.SaveCharacter(selectedCharacterIndex, currentCharacter, editCharacterData, Plugin.Configuration);
                 CloseForm();
             }
 

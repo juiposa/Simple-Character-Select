@@ -59,9 +59,9 @@ namespace SimpleCharacterSelectPlugin
     //         var pronounSet = PronounParser.Parse(character.RPProfile?.Pronouns ?? "");
     //         bool isTheyThem = pronounSet.Subject.Equals("they", StringComparison.OrdinalIgnoreCase);
     //         
-    //         // log.Info($"[ProcessGenderFlags] Called for pronouns: {character.RPProfile?.Pronouns} | ReplacePronounsInDialogue: {plugin.Configuration.ReplacePronounsInDialogue}");
+    //         // log.Info($"[ProcessGenderFlags] Called for pronouns: {character.RPProfile?.Pronouns} | ReplacePronounsInDialogue: {Plugin.Configuration.ReplacePronounsInDialogue}");
     //         
-    //         if (!plugin.Configuration.ReplacePronounsInDialogue)
+    //         if (!Plugin.Configuration.ReplacePronounsInDialogue)
     //             return data;
     //         
     //         try
@@ -99,7 +99,7 @@ namespace SimpleCharacterSelectPlugin
     //                             LogFlagDiscovery(flagId, flagInfo, data, pos);
     //                         }
     //
-    //                         var neutralTitle = plugin.Configuration.GetGenderNeutralTitle();
+    //                         var neutralTitle = Plugin.Configuration.GetGenderNeutralTitle();
     //                         string replacement = GetCorrectPronounForFlag(flagInfo, pronounSet, neutralTitle);
     //
     //                         result.AddRange(System.Text.Encoding.UTF8.GetBytes(replacement));
@@ -216,7 +216,7 @@ namespace SimpleCharacterSelectPlugin
     //                 SuggestedNeutral = SuggestNeutralWord(flagInfo.FemaleWord, flagInfo.MaleWord),
     //                 Context = ExtractCleanContext(context),
     //                 Notes = GenerateAnalysisNotes(flagInfo.FemaleWord, flagInfo.MaleWord),
-    //                 IsKnown = GetReplacementForFlag(flagId, new PronounSet { Subject = "they", Object = "them", Possessive = "their", Reflexive = "themselves", PossessivePronoun = "theirs" }, plugin.Configuration) != null
+    //                 IsKnown = GetReplacementForFlag(flagId, new PronounSet { Subject = "they", Object = "them", Possessive = "their", Reflexive = "themselves", PossessivePronoun = "theirs" }, Plugin.Configuration) != null
     //             };
     //
     //             log.Info($"[FLAG DISCOVERY] ID: {discoveryEntry.FlagId} | {discoveryEntry.FemaleWord} / {discoveryEntry.MaleWord} | Category: {discoveryEntry.Category} | Suggested: {discoveryEntry.SuggestedNeutral} | Status: {(discoveryEntry.IsKnown ? "KNOWN" : "NEW")}");
@@ -431,7 +431,7 @@ namespace SimpleCharacterSelectPlugin
     //         if ((female == "herself" && male == "himself") || (female == "himself" && male == "herself"))
     //             return "themselves";
     //
-    //         var neutralTitle = plugin.Configuration.GetGenderNeutralTitle().ToLower();
+    //         var neutralTitle = Plugin.Configuration.GetGenderNeutralTitle().ToLower();
     //         if ((female == "woman" && male == "man") || (female == "man" && male == "woman"))
     //             return neutralTitle;
     //         if ((female == "lady" && male == "lord") || (female == "lord" && male == "lady"))
@@ -1226,7 +1226,7 @@ namespace SimpleCharacterSelectPlugin
     //     {
     //         try
     //         {
-    //             if (!plugin.Configuration.EnableDialogueIntegration)
+    //             if (!Plugin.Configuration.EnableDialogueIntegration)
     //                 return processTextHook!.Original(textPtr, length);
     //
     //             var activeCharacter = plugin.GetActiveCharacter();
@@ -1296,7 +1296,7 @@ namespace SimpleCharacterSelectPlugin
     //     {
     //         try
     //         {
-    //             if (!plugin.Configuration.EnableDialogueIntegration)
+    //             if (!Plugin.Configuration.EnableDialogueIntegration)
     //                 return getStringHook!.Original(textModule, text, decoder, stringStruct);
     //
     //             var activeCharacter = plugin.GetActiveCharacter();
@@ -1305,7 +1305,7 @@ namespace SimpleCharacterSelectPlugin
     //
     //             var pronounSet = PronounParser.Parse(activeCharacter.RPProfile.Pronouns);
     //
-    //             if (plugin.Configuration.ReplaceNameInDialogue && !string.IsNullOrEmpty(activeCharacter.Name))
+    //             if (Plugin.Configuration.ReplaceNameInDialogue && !string.IsNullOrEmpty(activeCharacter.Name))
     //             {
     //                 var textSpan = MemoryMarshal.CreateReadOnlySpanFromNullTerminated(text);
     //                 ProcessNameReplacementSeString(ref text, activeCharacter, textSpan.Length);
@@ -1392,7 +1392,7 @@ namespace SimpleCharacterSelectPlugin
     //                     processed = Regex.Replace(processed, @"\bThey's\b", "They're");
     //
     //                     // Neutral title
-    //                     var neutralTitle = plugin.Configuration.GetGenderNeutralTitle();
+    //                     var neutralTitle = Plugin.Configuration.GetGenderNeutralTitle();
     //                     processed = processed.Replace("ΞNEUTRALΞ", neutralTitle);
     //
     //                     // Bypassed flag patterns
@@ -1526,8 +1526,8 @@ namespace SimpleCharacterSelectPlugin
     //             return processed;
     //
     //         var neutralTitle = "adventurer";
-    //         if (plugin.Configuration.EnableAdvancedTitleReplacement)
-    //             neutralTitle = plugin.Configuration.GetGenderNeutralTitle().ToLower();
+    //         if (Plugin.Configuration.EnableAdvancedTitleReplacement)
+    //             neutralTitle = Plugin.Configuration.GetGenderNeutralTitle().ToLower();
     //         var capitalizedNeutralTitle = char.ToUpper(neutralTitle[0]) + neutralTitle.Substring(1);
     //
     //         // They/them handled separately for flag patterns
@@ -1543,7 +1543,7 @@ namespace SimpleCharacterSelectPlugin
     //             var reflexiveCapital = char.ToUpper(pronounSet.Reflexive[0]) + pronounSet.Reflexive.Substring(1).ToLower();
     //
     //             // Basic pronoun replacement
-    //             if (plugin.Configuration.ReplacePronounsInDialogue)
+    //             if (Plugin.Configuration.ReplacePronounsInDialogue)
     //             {
     //                 processed = HeRegex.Replace(processed, subjectLower);
     //                 processed = HeCapitalRegex.Replace(processed, subjectCapital);
@@ -1572,7 +1572,7 @@ namespace SimpleCharacterSelectPlugin
     //         }
     //
     //         // Title replacement
-    //         if (plugin.Configuration.ReplaceGenderedTerms)
+    //         if (Plugin.Configuration.ReplaceGenderedTerms)
     //         {
     //             // Gender selection patterns
     //             processed = Regex.Replace(processed, @"��woman�man", neutralTitle, RegexOptions.IgnoreCase);
@@ -1808,7 +1808,7 @@ namespace SimpleCharacterSelectPlugin
     //         try
     //         {
     //             var activeCharacter = plugin.GetActiveCharacter();
-    //             if (activeCharacter?.RPProfile?.Pronouns != null && plugin.Configuration.EnableDialogueIntegration)
+    //             if (activeCharacter?.RPProfile?.Pronouns != null && Plugin.Configuration.EnableDialogueIntegration)
     //             {
     //                 var pronounSet = PronounParser.Parse(activeCharacter.RPProfile.Pronouns);
     //                 var oldGender = GetLuaVarGender(poolBase);
@@ -1853,7 +1853,7 @@ namespace SimpleCharacterSelectPlugin
     //         {
     //             var originalRet = getCutVoGenderHook!.Original(a1, a2);
     //
-    //             if (!plugin.Configuration.ReplacePronounsInDialogue)
+    //             if (!Plugin.Configuration.ReplacePronounsInDialogue)
     //                 return originalRet;
     //
     //             var character = plugin.GetActiveCharacter();
@@ -2048,8 +2048,8 @@ namespace SimpleCharacterSelectPlugin
     //     {
     //         var processed = text;
     //         var neutralTitle = "adventurer";
-    //         if (plugin.Configuration.EnableAdvancedTitleReplacement)
-    //             neutralTitle = plugin.Configuration.GetGenderNeutralTitle().ToLower();
+    //         if (Plugin.Configuration.EnableAdvancedTitleReplacement)
+    //             neutralTitle = Plugin.Configuration.GetGenderNeutralTitle().ToLower();
     //         var capitalizedNeutralTitle = char.ToUpper(neutralTitle[0]) + neutralTitle.Substring(1);
     //
     //         bool hasGenderSelectionPatterns = 
@@ -2067,7 +2067,7 @@ namespace SimpleCharacterSelectPlugin
     //         if (hasGenderSelectionPatterns)
     //         {
     //             // Neutral terms for they/them
-    //             if (plugin.Configuration.ReplaceGenderedTerms || pronounSet.Subject.Equals("they", StringComparison.OrdinalIgnoreCase))
+    //             if (Plugin.Configuration.ReplaceGenderedTerms || pronounSet.Subject.Equals("they", StringComparison.OrdinalIgnoreCase))
     //             {
     //                 processed = Regex.Replace(processed, @"��woman�man|woman�man", neutralTitle, RegexOptions.IgnoreCase);
     //                 processed = Regex.Replace(processed, @"��man�woman|man�woman", neutralTitle, RegexOptions.IgnoreCase);
@@ -2369,7 +2369,7 @@ namespace SimpleCharacterSelectPlugin
     //                 _ => "Unknown"
     //             };
     //
-    //             bool isKnown = GetReplacementForFlag(flagId, PronounParser.Parse("they/them"), plugin.Configuration, data, flagPosition, flagInfo) != null;
+    //             bool isKnown = GetReplacementForFlag(flagId, PronounParser.Parse("they/them"), Plugin.Configuration, data, flagPosition, flagInfo) != null;
     //
     //             var logEntry = new
     //             {
@@ -2378,7 +2378,7 @@ namespace SimpleCharacterSelectPlugin
     //                 FemaleWord = flagInfo.FemaleWord,
     //                 MaleWord = flagInfo.MaleWord,
     //                 Category = category,
-    //                 SuggestedNeutral = isKnown ? GetReplacementForFlag(flagId, PronounParser.Parse("they/them"), plugin.Configuration, data, flagPosition, flagInfo) : "[needs manual review]",
+    //                 SuggestedNeutral = isKnown ? GetReplacementForFlag(flagId, PronounParser.Parse("they/them"), Plugin.Configuration, data, flagPosition, flagInfo) : "[needs manual review]",
     //                 Context = context,
     //                 Notes = flagInfo.FemaleWord.Length != flagInfo.MaleWord.Length ? $"Length mismatch: {flagInfo.FemaleWord.Length} vs {flagInfo.MaleWord.Length}" : "",
     //                 IsKnown = isKnown
