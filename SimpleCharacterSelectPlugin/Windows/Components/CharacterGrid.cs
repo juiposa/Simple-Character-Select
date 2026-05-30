@@ -105,17 +105,21 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     
                     InvalidateCache();
                 }
-                
-                ImGui.SameLine();
-                ImGui.Spacing();
-                ImGui.SameLine();
-                
-                if (ImGui.Button("Manage Gearset Assignments", new Vector2(0, buttonHeight)))
+
+                if (Plugin.Configuration.EnableGearsetDesignSwitching)
                 {
-                    plugin.MainWindow.GearsetPanel.OpenGearsetAssignment();
+                    ImGui.SameLine();
+                    ImGui.Spacing();
+                    ImGui.SameLine();
+                
+                    if (ImGui.Button("Manage Gearset Assignments", new Vector2(0, buttonHeight)))
+                    {
+                        plugin.MainWindow.GearsetPanel.OpenGearsetAssignment();
                     
-                    InvalidateCache();
+                        InvalidateCache();
+                    }
                 }
+
 
                 plugin.WindowState.AddCharacterButtonPos = ImGui.GetItemRectMin();
                 plugin.WindowState.AddCharacterButtonSize = ImGui.GetItemRectSize();
