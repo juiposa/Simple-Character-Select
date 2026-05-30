@@ -1,5 +1,7 @@
+using System;
 using System.Transactions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using SimpleCharacterSelectPlugin.Managers;
 
 namespace SimpleCharacterSelectPlugin.Models;
 
@@ -10,7 +12,9 @@ public class ActivePlayerCharacter
     public PlayerCharacter Pc { get; set; }
     
     private Character? queuedCharacter = null;
-    private int queuedDesignIndex = -1;
+    private Guid? queuedDesignId = null;
+
+    public Gearset? LastKnownGearset = null;
     
     public ActivePlayerCharacter(IPlayerCharacter ingamePc, PlayerCharacter playerCharacter)
     {
@@ -20,14 +24,30 @@ public class ActivePlayerCharacter
 
     public bool RequiresUpdate()
     {
-        return queuedCharacter != null ||  queuedDesignIndex != -1;
+        return queuedCharacter != null ||  queuedDesignId != null;
     }
 
-    public void QueueUpdate(Character character, int designIndex = -1)
+    public bool GearsetHasChanged()
     {
-        Plugin.Log.Debug($"Update queued: {character.Data.Name} {designIndex}");
+        var currentGearset = GearsetManager.GetCurrentGearset();
+        if (LastKnownGearset == null) //init
+        {
+            LastKnownGearset = currentGearset;
+            return false;
+        } 
+        if (LastKnownGearset.Index == currentGearset.Index) // no change
+        {
+            return false;
+        }
+        LastKnownGearset = currentGearset;
+        return true;
+    }
+
+    public void QueueUpdate(Character character, Guid? designId = null)
+    {
+        Plugin.Log.Debug($"Update queued: {character.Data.Name} {designId}");
         queuedCharacter = character;
-        queuedDesignIndex = designIndex >= 0 ? designIndex : character.Data.DefaultDesignIndex;
+        queuedDesignId = designId ?? character.Data.DefaultDesignId;
     }
     
     //apply queued updates
@@ -39,10 +59,10 @@ public class ActivePlayerCharacter
             queuedCharacter = null;
         }
 
-        if (queuedDesignIndex != -1)
+        if (queuedDesignId != null)
         {
-            Pc.ActiveDesign =  queuedDesignIndex;
-            queuedDesignIndex = -1;
+            Pc.ActiveDesignId = queuedDesignId.Value;
+            queuedDesignId = null;
         }
     }
 }

@@ -13,6 +13,7 @@ public class CharacterData
     public string? ImagePath { get; set; }
     public List<CharacterDesign> Designs { get; set; } = new List<CharacterDesign>();
     public int DefaultDesignIndex { get; set; } = 0;
+    public Guid DefaultDesignId { get; set; }
     public Vector3 NameplateColor { get; set; } = new Vector3(1.0f, 1.0f, 1.0f);
     public bool IsFavorite { get; set; } = false;
     public DateTime DateAdded { get; set; } = DateTime.Now;

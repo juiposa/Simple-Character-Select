@@ -8,6 +8,6 @@ public class Gearset
 
     public string DisplayName()
     {
-        return $"{Index + 1} - {XivConstants.GetJobCode(Job)} - {Name}";
+        return $"#{Index + 1} ({XivConstants.GetJobCode(Job)}) - {Name}";
     }
 }

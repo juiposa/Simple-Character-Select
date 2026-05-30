@@ -121,7 +121,7 @@ public class Commands
         
         if (string.IsNullOrWhiteSpace(designName))
         {
-            DesignManager.ApplyProfile(plugin.ActivePlayer.Pc, character, -1);
+            DesignManager.ApplyProfile(plugin.ActivePlayer.Pc, character, null);
         }
         else
         {
@@ -129,9 +129,8 @@ public class Commands
         
             if (design != null)
             {
-                var designIndex = character.Data.Designs.IndexOf(design);
                 Plugin.ChatGui.Print($"[Simple Character Select] Applied design '{designName}' to {character.Data.Name}.");
-                DesignManager.ApplyProfile(plugin.ActivePlayer.Pc, character, designIndex);
+                DesignManager.ApplyProfile(plugin.ActivePlayer.Pc, character, design.Id);
             }
             else
             {

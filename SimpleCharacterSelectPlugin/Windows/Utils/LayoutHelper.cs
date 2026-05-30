@@ -214,5 +214,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Utils
 
             return text + ellipsis;
         }
+        
+        public static string TruncateWithEllipsis(string text, float maxWidth)
+        {
+            while (ImGui.CalcTextSize(text + "...").X > maxWidth && text.Length > 0)
+                text = text[..^1];
+            return text + "...";
+        }
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using System.Numerics;
-using SimpleCharacterSelectPlugin.Managers;
 
 namespace SimpleCharacterSelectPlugin.Models
 {
@@ -41,14 +40,22 @@ namespace SimpleCharacterSelectPlugin.Models
             return design;
         }
 
-        public void SetDefaultDesign(CharacterDesign characterDesign)
+        public CharacterDesign? GetDesignById(Guid id)
         {
-            Data.Designs[Data.DefaultDesignIndex] = characterDesign;
+            return Data.Designs.Find(cd => cd.Id.Equals(id));
         }
 
-        public int GetDesignIndex(CharacterDesign characterDesign)
+        public CharacterDesign GetDesignByIdOrDefault(Guid? id)
         {
-            return Data.Designs.IndexOf(characterDesign);
+            if (id == null)
+                return GetDefaultDesign();
+            var design = GetDesignById(id.Value);
+            return design ?? GetDefaultDesign();
+        }
+
+        public int GetDesignOrDefaultIndexById(Guid id)
+        {
+            return Data.Designs.IndexOf(GetDesignByIdOrDefault(id));
         }
     }
     public class DesignFolder

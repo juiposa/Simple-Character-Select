@@ -7,7 +7,7 @@ using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin.Managers;
 
-public static class CharacterManager
+public static class PcManager
 {
     private static readonly string NameValidationError =
         "You already have a character with this name. Please choose a different name.";
@@ -79,7 +79,7 @@ public static class CharacterManager
     {
         if (pc.AssignedCharacter != null) //assignments take precedence
         {
-            DesignManager.ApplyProfile(pc, pc.AssignedCharacter, -1);
+            DesignManager.ApplyProfile(pc, pc.AssignedCharacter, null);
             return;
         }
 

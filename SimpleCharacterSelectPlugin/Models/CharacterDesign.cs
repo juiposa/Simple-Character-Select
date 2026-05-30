@@ -6,6 +6,7 @@ namespace SimpleCharacterSelectPlugin
 {
     public class CharacterDesign
     {
+        public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; } = "Default";
         public string PenumbraCollection { get; set; } = "";
         public string GlamourerDesign { get; set; } = "";
@@ -20,7 +21,6 @@ namespace SimpleCharacterSelectPlugin
         public List<string> KnownTags { get; set; } = new();
         public List<string> DesignTags { get; set; } = new List<string>();
         public Guid? FolderId { get; set; } = null; 
-        public Guid Id { get; set; } = Guid.NewGuid();
         public int SortOrder { get; set; } = 0;
         public Gearset? AssignedGearset { get; set; } = null;
 

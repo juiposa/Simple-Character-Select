@@ -28,16 +28,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         // Resizable panel
         public float PanelWidth { get; private set; } = 300f; // Default width
-        private const float MinPanelWidth = 250f;
-        private const float MaxPanelWidth = 600f;
-        private bool isResizing = false;
-        private float resizeHandleWidth = 8f;
 
         // Search functionality
         private bool showSearchBar = false;
         private string searchQuery = "";
-        private string selectedTag = "All";
-        private bool showTagFilter = false;
         
         // Search cache for performance
         private List<CharacterDesign> cachedFilteredDesigns = new();
@@ -80,16 +74,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             this.plugin = plugin;
             this.uiStyles = uiStyles;
-
-            // Load saved panel width or use default
-            PanelWidth = Plugin.Configuration.DesignPanelWidth;
         }
 
-        public void Dispose()
+        public new void Dispose()
         {
-            // Save panel width on dispose
-            Plugin.Configuration.DesignPanelWidth = PanelWidth;
-            Plugin.Configuration.Save();
         }
 
         public void Draw()
@@ -101,110 +89,10 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Scale the panel dimensions
             float scaledPanelWidth = PanelWidth * GetSafeScale(totalScale);
-            float scaledMinWidth = MinPanelWidth * totalScale;
-            float scaledMaxWidth = MaxPanelWidth * totalScale;
-            float scaledHandleWidth = resizeHandleWidth * totalScale;
 
             DrawDesignPanelContent(totalScale, scaledPanelWidth);
-            DrawResizeHandle(totalScale, scaledPanelWidth, scaledMinWidth, scaledMaxWidth, scaledHandleWidth);
         }
-
-        private void DrawResizeHandle(float totalScale, float scaledPanelWidth, float scaledMinWidth, float scaledMaxWidth, float scaledHandleWidth)
-        {
-            // Current window position and size
-            var windowPos = ImGui.GetWindowPos();
-            var windowSize = ImGui.GetWindowSize();
-
-            // Position handle at the very left edge of the design panel window
-            var handleMin = new Vector2(windowPos.X, windowPos.Y);
-            var handleMax = new Vector2(windowPos.X + scaledHandleWidth, windowPos.Y + windowSize.Y);
-
-            // Check if mouse is over the handle area
-            bool hovered = ImGui.IsMouseHoveringRect(handleMin, handleMax);
-
-            // Capture mouse input when over resize handle to prevent window dragging
-            if (hovered || isResizing)
-            {
-                ImGui.SetMouseCursor(ImGuiMouseCursor.ResizeEw);
-
-                if (hovered && (ImGui.IsMouseClicked(ImGuiMouseButton.Left) || ImGui.IsMouseDown(ImGuiMouseButton.Left)))
-                {
-                    ImGui.SetItemAllowOverlap();
-
-                    // Create an invisible button over the resize area to capture input
-                    ImGui.SetCursorScreenPos(handleMin);
-                    ImGui.InvisibleButton("##resize_handle", new Vector2(scaledHandleWidth, windowSize.Y));
-
-                    if (ImGui.IsItemActive() || isResizing)
-                    {
-                        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
-                        {
-                            isResizing = true;
-                        }
-                    }
-                }
-            }
-
-            // Handle resizing
-            if (isResizing)
-            {
-                if (ImGui.IsMouseDown(ImGuiMouseButton.Left))
-                {
-                    // Current mouse position
-                    float currentMouseX = ImGui.GetMousePos().X;
-                    // Calculate new width based on mouse position relative to the window's right edge
-                    float windowRightEdge = ImGui.GetWindowPos().X + ImGui.GetWindowSize().X;
-                    float newScaledWidth = windowRightEdge - currentMouseX;
-                    // Convert to base units and clamp
-                    float newWidth = newScaledWidth / totalScale;
-                    PanelWidth = Math.Clamp(newWidth, MinPanelWidth, MaxPanelWidth);
-                    // Save the new width immediately for responsiveness
-                    Plugin.Configuration.DesignPanelWidth = PanelWidth;
-                    // Force main window to recalculate layout
-                    if (plugin.MainWindow != null)
-                    {
-                        plugin.MainWindow.InvalidateLayout();
-                    }
-                }
-                if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
-                {
-                    isResizing = false;
-                    // Save configuration
-                    Plugin.Configuration.Save();
-                }
-            }
-
-            // Draw visual resize handle
-            var drawList = ImGui.GetWindowDrawList();
-            uint handleColor = hovered || isResizing
-                ? ImGui.GetColorU32(new Vector4(0.6f, 0.6f, 0.8f, 0.8f))
-                : ImGui.GetColorU32(new Vector4(0.4f, 0.4f, 0.6f, 0.3f));
-
-            // Subtle line at left edge
-            drawList.AddLine(
-                new Vector2(handleMin.X + 2 * totalScale, handleMin.Y + 10 * totalScale),
-                new Vector2(handleMin.X + 2 * totalScale, handleMax.Y - 10 * totalScale),
-                handleColor,
-                2f * totalScale
-            );
-
-            // Draw resize grip dots when hovered
-            if (hovered || isResizing)
-            {
-                float dotSize = 2f * totalScale;
-                float dotSpacing = 6f * totalScale;
-                var centerX = handleMin.X + scaledHandleWidth / 2;
-                var centerY = handleMin.Y + windowSize.Y / 2;
-                for (int i = -2; i <= 2; i++)
-                {
-                    drawList.AddCircleFilled(
-                        new Vector2(centerX, centerY + i * dotSpacing),
-                        dotSize,
-                        handleColor
-                    );
-                }
-            }
-        }
+        
         private float GetSafeScale(float baseScale)
         {
             return Math.Clamp(baseScale, 0.3f, 5.0f);
@@ -212,6 +100,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         public void Open(int characterIndex)
         {
+            plugin.MainWindow.GearsetPanel.CloseGearsetPanel();
             activeCharacterIndex = characterIndex;
             currentCharacter = Plugin.Configuration.Characters[characterIndex];
             IsOpen = true;
@@ -235,7 +124,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             var character = plugin.Characters[activeCharacterIndex];
 
-            ApplyScaledStyles(totalScale);
+            CommonElements.PushScaledStyles(totalScale);
 
             try
             {
@@ -254,33 +143,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
             finally
             {
-                PopScaledStyles();
+                CommonElements.PopScaledStyles();
             }
-        }
-
-        private void ApplyScaledStyles(float scale)
-        {
-            // Check for custom Design Panel background colour
-            var designPanelBg = new Vector4(0.08f, 0.08f, 0.1f, 0.98f);
-            var designPanelChildBg = new Vector4(0.1f, 0.1f, 0.12f, 0.95f);
-
-            ImGui.PushStyleColor(ImGuiCol.WindowBg, designPanelBg);
-            ImGui.PushStyleColor(ImGuiCol.ChildBg, designPanelChildBg);
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.95f, 0.95f, 0.95f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.16f, 0.16f, 0.2f, 0.9f));
-            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.22f, 0.22f, 0.28f, 1.0f));
-            ImGui.PushStyleColor(ImGuiCol.HeaderActive, new Vector4(0.28f, 0.28f, 0.35f, 1.0f));
-
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 5.0f * scale);
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8.0f * scale);
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(8 * scale, 5 * scale));
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(6 * scale, 3 * scale));
-        }
-
-        private void PopScaledStyles()
-        {
-            ImGui.PopStyleVar(4);
-            ImGui.PopStyleColor(6);
         }
 
         private void DrawHeader(Character character, float scale)
@@ -305,10 +169,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 
                 AddNewDesign();
             }
-
-            plugin.WindowState.DesignPanelAddButtonPos = ImGui.GetItemRectMin();
-            plugin.WindowState.DesignPanelAddButtonSize = ImGui.GetItemRectSize();
-
+            
             ImGui.PopStyleColor(4);
 
             if (ImGui.IsItemHovered())
@@ -844,6 +705,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X);
                 if (ImGui.InputTextWithHint("##SearchDesigns", "Search designs...", ref searchQuery, 100))
                 {
+                    // TODO readd a search cache
                     InvalidateFilterCache();
                 }
             }
@@ -1230,7 +1092,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             var name = design.Name;
             if (ImGui.CalcTextSize(name).X > availW)
-                name = TruncateWithEllipsis(name, availW);
+                name = LayoutHelper.TruncateWithEllipsis(name, availW);
 
             // Design name
             bool isActive = true; //TODO
@@ -1264,9 +1126,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.3f, 0.8f, 0.3f, 1f)); // Green
             if (ImGui.Button("\uf00c", new Vector2(btnSize, btnSize)))
             {
-                var index = character.Data.Designs.IndexOf(design);
                 Plugin.Log.Debug($"DesignWindow applying design {character.Data.Name}");
-                plugin.ActivePlayer.QueueUpdate(character, index);
+                plugin.ActivePlayer.QueueUpdate(character, design.Id);
             
                 plugin.QuickSwitchWindow.RefreshSelection();
             }
@@ -1295,7 +1156,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Edit button
             ImGui.SetCursorScreenPos(new Vector2(startX + btnSize + spacing, buttonY));
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.3f, 0.7f, 1f, 1f)); // Blue
+            ImGui.PushStyleColor(ImGuiCol.Text, Colors.Blue); // Blue
             if (ImGui.Button("\uf044", new Vector2(btnSize, btnSize)))
             {
                 // Open edit window first
@@ -1309,7 +1170,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Delete button
             ImGui.SetCursorScreenPos(new Vector2(startX + 2 * (btnSize + spacing), buttonY));
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.4f, 0.4f, 1f)); // Red
+            ImGui.PushStyleColor(ImGuiCol.Text, Colors.Red); // Red
             var io = ImGui.GetIO();
             if (ImGui.Button("\uf2ed", new Vector2(btnSize, btnSize)) && io.KeyCtrl && io.KeyShift)
             {
@@ -1709,13 +1570,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             }
 
             return renderItems;
-        }
-
-        private static string TruncateWithEllipsis(string text, float maxWidth)
-        {
-            while (ImGui.CalcTextSize(text + "...").X > maxWidth && text.Length > 0)
-                text = text[..^1];
-            return text + "...";
         }
         
         // Search helper methods

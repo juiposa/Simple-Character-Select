@@ -6,6 +6,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Styles
     {
         public static readonly Vector4 Grey1 = new Vector4(0.7f, 0.7f, 0.7f, 1.0f);
         public static readonly Vector4 Grey2 = new Vector4(0.6f, 0.6f, 0.6f, 1.0f);
+        public static readonly Vector4 Red = new Vector4(1f, 0.4f, 0.4f, 1f);
+        public static readonly Vector4 Blue = new Vector4(0.3f, 0.7f, 1f, 1f);
         public static class Dark
         {
             // Matte black theme colours

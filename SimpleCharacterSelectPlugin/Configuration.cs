@@ -21,6 +21,8 @@ namespace SimpleCharacterSelectPlugin
         public List<Character> Characters { get; set; } = new List<Character>();
         public Dictionary<string, PlayerCharacter> PlayerCharacters { get; set; } = new Dictionary<string, PlayerCharacter>();
 
+        public Dictionary<int, GearsetAssignment> GearsetAssignments { get; set; } = new Dictionary<int, GearsetAssignment>();
+
         // Profile Settings
         public float ProfileImageScale { get; set; } = 1.0f; // Image scaling
         public int ProfileColumns { get; set; } = 3;        // Number of profiles per row
@@ -28,7 +30,6 @@ namespace SimpleCharacterSelectPlugin
 
         private IDalamudPluginInterface pluginInterface;
         public int CurrentSortIndex { get; set; } = 0; // Default to Manual (SortType.Manual = 0)
-        public PersistentPoseSet DefaultPoses { get; set; } = new();
         public bool IsQuickSwitchWindowOpen { get; set; } = false;
         //public bool EnableAutomations { get; set; } = false; TODO I need to figure out wtf
         public List<string> KnownTags { get; set; } = new();
@@ -48,11 +49,9 @@ namespace SimpleCharacterSelectPlugin
             set => _uiScaleMultiplier = Math.Clamp(value, 0.5f, 2.0f);
         }
         [DefaultValue(true)]
-        public bool ApplyIdleOnLogin { get; set; } = true;
         public bool ReapplyDesignOnJobChange { get; set; } = false;
         
         // Pose Settings
-        public bool? UseCommandBasedPoses { get; set; } = true;
         
         // Design Sorting
         public int CurrentDesignSortIndex { get; set; } = 1;
@@ -114,13 +113,6 @@ namespace SimpleCharacterSelectPlugin
             return config;
         }
         [Serializable]
-        public class PersistentPoseSet
-        {
-            public byte Idle { get; set; } = 255;
-            public byte Sit { get; set; } = 255;
-            public byte GroundSit { get; set; } = 255;
-            public byte Doze { get; set; } = 255;
-        }
         public enum GenderNeutralStyle
         {
             Friend,

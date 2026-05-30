@@ -5,6 +5,7 @@ namespace SimpleCharacterSelectPlugin.Models;
 public class WindowState
 {
         public bool IsAddCharacterWindowOpen { get; set; } = false;
+        public bool IsGearsetAssignmentWindowOpen { get; set; } = false;
         // Settings Variables
         public bool IsSettingsOpen { get; set; } = false;  // Tracks if settings panel is open
         public float ProfileImageScale { get; set; } = 1.0f;  // Image scaling (1.0 = normal size)
@@ -25,8 +26,6 @@ public class WindowState
         public Vector2? SaveButtonSize { get; set; }
         public Vector2? FirstCharacterDesignsButtonPos { get; set; }
         public Vector2? FirstCharacterDesignsButtonSize { get; set; }
-        public Vector2? DesignPanelAddButtonPos { get; set; }
-        public Vector2? DesignPanelAddButtonSize { get; set; }
         public Vector2? DesignNameFieldPos { get; set; }
         public Vector2? DesignNameFieldSize { get; set; }
         public Vector2? DesignGlamourerFieldPos { get; set; }

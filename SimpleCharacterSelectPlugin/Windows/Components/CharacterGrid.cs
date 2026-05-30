@@ -105,6 +105,17 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     
                     InvalidateCache();
                 }
+                
+                ImGui.SameLine();
+                ImGui.Spacing();
+                ImGui.SameLine();
+                
+                if (ImGui.Button("Manage Gearset Assignments", new Vector2(0, buttonHeight)))
+                {
+                    plugin.MainWindow.GearsetPanel.OpenGearsetAssignment();
+                    
+                    InvalidateCache();
+                }
 
                 plugin.WindowState.AddCharacterButtonPos = ImGui.GetItemRectMin();
                 plugin.WindowState.AddCharacterButtonSize = ImGui.GetItemRectSize();
@@ -1088,12 +1099,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             if (plugin.WindowState.IsDesignPanelOpen)
             {
                 plugin.WindowState.IsDesignPanelOpen = false;
-            }
-            
-            // Switch gearset if assigned at character level
-            if (Plugin.Configuration.EnableGearsetDesignSwitching && character.GetDefaultDesign().AssignedGearset != null)
-            {
-                //plugin.SwitchToGearset(character.Data.AssignedGearset.Value); TODO
             }
             
             plugin.ActivePlayer.QueueUpdate(character);

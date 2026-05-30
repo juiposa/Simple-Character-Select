@@ -1,4 +1,3 @@
-using Dalamud.Game.Command;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using System.IO;
@@ -7,34 +6,12 @@ using Dalamud.Plugin.Services;
 using SimpleCharacterSelectPlugin.Windows;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Linq;
 using System;
 using SimpleCharacterSelectPlugin.Managers;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
-using System.Text.RegularExpressions;
-using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using System.Threading.Tasks;
-using Dalamud.Plugin.Ipc;
-using System.Net.Http;
-using System.Text;
-using Newtonsoft.Json;
-using Dalamud.Game.ClientState.Objects;
 using Dalamud.Game.ClientState.Objects.Types;
-using static FFXIVClientStructs.FFXIV.Client.Game.Control.EmoteController;
-using FFXIVClientStructs.FFXIV.Client.UI.Misc;
-using FFXIVClientStructs.FFXIV.Client.UI.Shell;
-using Dalamud.Game.ClientState.Objects.SubKinds;
-using Dalamud.Game;
 using System.Threading;
-using System.Drawing.Imaging;
-using Dalamud.Game.Text.SeStringHandling;
-using SimpleCharacterSelectPlugin.Windows.Styles;
-using SimpleCharacterSelectPlugin.Windows.Components;
-using Dalamud.Interface.ManagedFontAtlas;
-using Dalamud.Interface;
-using Dalamud.Game.Gui.NamePlate;
-using Dalamud.Game.ClientState.Party;
-using SimpleCharacterSelectPlugin;
 using SimpleCharacterSelectPlugin.Integration;
 using SimpleCharacterSelectPlugin.Models;
 
@@ -52,7 +29,6 @@ namespace SimpleCharacterSelectPlugin
         [PluginService] internal static IPluginLog Log { get; private set; } = null!;
         [PluginService] internal static IChatGui ChatGui { get; set; } = null!;
         [PluginService] internal static IFramework Framework { get; private set; } = null!;
-        [PluginService] internal static IContextMenu ContextMenu { get; private set; } = null!;
         [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
         [PluginService] internal static ITargetManager TargetManager { get; private set; } = null!;
         [PluginService] internal static IGameInteropProvider GameInteropProvider { get; private set; } = null!;
@@ -81,6 +57,7 @@ namespace SimpleCharacterSelectPlugin
         
         public static Configuration Configuration { get; set; }
         public List<Character> Characters => Configuration.Characters;
+        public Dictionary<int, GearsetAssignment> GearsetAssignments => Configuration.GearsetAssignments;
         public byte NewCharacterIdlePoseIndex { get; set; } = 0;
         private DateTime loginTime;
         
@@ -89,10 +66,6 @@ namespace SimpleCharacterSelectPlugin
 
         // IPC Providers
         private IPCProvider? ipcProvider;
-        
-        // Target application safety tracking
-        private readonly Dictionary<int, DateTime> lastTargetApplicationTime = new();
-        private readonly TimeSpan minimumTargetApplicationInterval = TimeSpan.FromSeconds(2);
         
         public bool StartupComplete = false;
         
@@ -134,6 +107,8 @@ namespace SimpleCharacterSelectPlugin
             commands.AddCommands();
 
             Logger = Log;
+            
+            MigrationManager.RunMigrations(this);
 
             // Load Forms assembly in background to avoid ~750ms main thread stall
             Task.Run(() =>
@@ -201,8 +176,6 @@ namespace SimpleCharacterSelectPlugin
             
             var player = ObjectTable.LocalPlayer!;
             
-            // TODO get or create PlayerCharacter
-            
             // start up
             if (!StartupComplete && player.HomeWorld.IsValid && ClientState.IsLoggedIn && ClientState.TerritoryType != 0)
             {
@@ -211,7 +184,7 @@ namespace SimpleCharacterSelectPlugin
 
                 if (!Configuration.PlayerCharacters.ContainsKey(fullKey)) //new PC, create an entry for it
                 {
-                    var newPc = CharacterManager.MustNewPlayerCharacter(player, fullKey);
+                    var newPc = PcManager.MustNewPlayerCharacter(player, fullKey);
                     Configuration.PlayerCharacters[fullKey] = newPc;
                     ActivePlayer = new ActivePlayerCharacter(player, newPc);
                     Configuration.Save();
@@ -230,10 +203,29 @@ namespace SimpleCharacterSelectPlugin
                     return;
                 
                 Log.Debug($"Loading last used character: {ActivePlayer.Pc.ActiveCharacter?.Data.Name}");
-                CharacterManager.ApplyLastUsedOrAssignedCharacter(ActivePlayer.Pc);
+                PcManager.ApplyLastUsedOrAssignedCharacter(ActivePlayer.Pc);
                 QuickSwitchWindow.RefreshSelection();
                 Configuration.Save();
                 return;
+            }
+            //end start up
+
+            if (Configuration.EnableGearsetDesignSwitching && ActivePlayer.GearsetHasChanged() && GearsetAssignments.ContainsKey((int)ActivePlayer.LastKnownGearset!.Index))
+            {
+                
+                var assignment = GearsetAssignments[(int)GearsetManager.GetCurrentGearset().Index];
+                var character = Characters.Find(c => c.Data.Name == assignment.CharacterName);
+                Plugin.Log.Debug($"SWITCH DESIGN GEARSET {character?.Data.Name} {assignment.DisplayName()} {assignment.DesignId}");
+                if (character == null || character.GetDesignById(assignment.DesignId.Value) == null)
+                {
+                    Log.Info($"Outdated gearset assignment {assignment.DisplayName()} found, deleting");
+                    GearsetAssignments.Remove(assignment.GearsetIndex);
+                }
+                else
+                {
+                    Log.Info($"Apply gearset assignment {assignment.DisplayName()}");
+                    ActivePlayer.QueueUpdate(character, assignment.DesignId);
+                }
             }
 
             if (ActivePlayer.RequiresUpdate()) // trigger an update
@@ -242,10 +234,7 @@ namespace SimpleCharacterSelectPlugin
                 DesignManager.ApplyUpdate(ActivePlayer);
                 QuickSwitchWindow.RefreshSelection();
                 Configuration.Save();
-                return;
             }
-            
-            // TODO scan for gearset changes if setting is on
         }
         
         public void OpenFilePicker(string title, string filter, Action<string> onFileSelected, string? startDirectory = null)

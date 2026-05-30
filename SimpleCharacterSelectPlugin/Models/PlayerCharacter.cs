@@ -1,3 +1,4 @@
+using System;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 
 namespace SimpleCharacterSelectPlugin.Models;
@@ -11,11 +12,8 @@ public class PlayerCharacter
     public string FullName => $"{Name}@{World}";
     public Character? AssignedCharacter { get; set; } = null;
     public Character? ActiveCharacter = null!;
-    public int ActiveDesign { get; set; } = 0;
-    // internal byte lastSeenIdlePose = 255;
-    // internal byte lastSeenSitPose = 255;
-    // internal byte lastSeenGroundSitPose = 255;
-    // internal byte lastSeenDozePose = 255;
+    public Guid ActiveDesignId { get; set; }
+    public int ActiveDesign = -1;
     
     public PlayerCharacter(IPlayerCharacter? ingame, string name, string world)
     {

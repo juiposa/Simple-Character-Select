@@ -19,6 +19,7 @@ namespace SimpleCharacterSelectPlugin.Windows
         private readonly Plugin plugin;
         private int selectedCharacterIndex = -1;
         private int selectedDesignIndex = -1;
+        private Guid selectedDesignId;
         private bool hasInitializedSelection = false;
         private string lastTrackedDesignName = "";
 
@@ -136,6 +137,7 @@ namespace SimpleCharacterSelectPlugin.Windows
                 var selectedCharacter = plugin.Characters[selectedCharacterIndex];
 
                 int tempDesignIndex = selectedDesignIndex;
+                Guid tempDesignId = selectedDesignId;
 
                 ImGui.SetNextItemWidth(dropdownWidth);
                 if (ImGui.BeginCombo("##DesignDropdown", GetSelectedDesignName(selectedCharacter), ImGuiComboFlags.HeightRegular))
@@ -152,6 +154,7 @@ namespace SimpleCharacterSelectPlugin.Windows
 
                         if (ImGui.Selectable(entry.Design.Name, isSelected))
                         {
+                            tempDesignId = entry.Design.Id;
                             tempDesignIndex = entry.OriginalIndex;
                             lastTrackedDesignName = entry.Design.Name;
                         }
@@ -198,6 +201,7 @@ namespace SimpleCharacterSelectPlugin.Windows
                 }
 
                 selectedDesignIndex = tempDesignIndex;
+                selectedDesignId = tempDesignId;
             }
             else
             {
@@ -252,7 +256,8 @@ namespace SimpleCharacterSelectPlugin.Windows
                 selectedCharacterIndex = plugin.Characters.IndexOf(character);
 
                 selectedDesignIndex = plugin.ActivePlayer.Pc.ActiveDesign;
-                lastTrackedDesignName = character.Data.Designs[plugin.ActivePlayer.Pc.ActiveDesign].Name;
+                selectedDesignId = plugin.ActivePlayer.Pc.ActiveDesignId;
+                lastTrackedDesignName = character.Data.Designs[selectedDesignIndex].Name;
             }
         }
 
@@ -337,7 +342,7 @@ namespace SimpleCharacterSelectPlugin.Windows
                 return;
 
             var character = plugin.Characters[selectedCharacterIndex];
-            DesignManager.ApplyProfile(plugin.ActivePlayer.Pc, character, selectedDesignIndex);
+            DesignManager.ApplyProfile(plugin.ActivePlayer.Pc, character, selectedDesignId);
         }
 
         private (float width, float height) CalculateImageDimensions(Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap texture, float maxSize)

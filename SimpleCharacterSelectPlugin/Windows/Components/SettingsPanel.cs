@@ -908,7 +908,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             
             // Display current assignments
             List<PlayerCharacter> assignedCharacters =
-                CharacterManager.GetPlayerCharactersWithAssignments(Plugin.Configuration.PlayerCharacters);
+                PcManager.GetPlayerCharactersWithAssignments(Plugin.Configuration.PlayerCharacters);
             if (assignedCharacters.Any())
             {
                 ImGui.Text("Current Assignments:");
@@ -1043,7 +1043,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SetNextItemWidth(300f);
                 if (ImGui.InputTextWithHint("##RealCharManual", "First Last@WorldName", ref newCharacterName, 100))
                 {
-                    newCharacter = CharacterManager.NewPlayerCharacter(newCharacterName);
+                    newCharacter = PcManager.NewPlayerCharacter(newCharacterName);
                     // TODO if name matches existing
                 }
                 DrawTooltip("Enter the exact character name and world as it appears in-game.\nExample: James Stone@Hyperion");

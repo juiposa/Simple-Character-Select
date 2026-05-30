@@ -164,7 +164,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 plugin.WindowState.CharacterNameFieldSize = ImGui.GetItemRectSize();
 
                 // Validate name on change
-                string? errMessage = CharacterManager.ValidateName(tempName, currentCharacter.Data.Name, plugin.Characters);
+                string? errMessage = PcManager.ValidateName(tempName, currentCharacter.Data.Name, plugin.Characters);
                 if (errMessage != null)
                 {
                     noErrors = false;
@@ -698,7 +698,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     editCharacterData.SetTags();
                     editCharacterData.Designs[currentCharacter.Data.DefaultDesignIndex] = editCharDefaultDesign;
                 }
-                CharacterManager.SaveCharacter(selectedCharacterIndex, currentCharacter, editCharacterData, Plugin.Configuration);
+                PcManager.SaveCharacter(selectedCharacterIndex, currentCharacter, editCharacterData, Plugin.Configuration);
                 CloseForm();
             }
 

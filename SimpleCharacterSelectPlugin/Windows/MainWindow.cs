@@ -17,22 +17,17 @@ namespace SimpleCharacterSelectPlugin.Windows
     public class MainWindow : Window, IDisposable
     {
         private Plugin plugin;
-        private CharacterGrid characterGrid;
-        private CharacterForm characterForm;
-        private DesignPanel designPanel;
-        private SettingsPanel settingsPanel;
-        private ReorderWindow reorderWindow;
+        public CharacterGrid CharacterGrid;
+        public CharacterForm CharacterForm;
+        public DesignPanel DesignPanel;
+        public GearsetPanel GearsetPanel;
+        public SettingsPanel SettingsPanel;
+        public ReorderWindow ReorderWindow;
         private UIStyles uiStyles;
-        private float giftBoxShakeTimer = 0f;
-        private const float GIFT_BOX_SHAKE_DURATION = 0.3f;
 
         // Custom theme background image path (texture fetched fresh each frame)
         private string? _lastLoggedBackgroundPath;
-        public bool IsDesignPanelOpen => designPanel?.IsOpen ?? false;
-        public bool IsEditCharacterWindowOpen => characterForm?.IsEditWindowOpen ?? false;
-        public bool IsReorderWindowOpen => reorderWindow?.IsOpen ?? false;
-        
-        public DesignPanel? GetDesignPanel() => designPanel;
+        public DesignPanel? GetDesignPanel() => DesignPanel;
 
         public MainWindow(Plugin plugin)
             : base("Simple Character Select", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoDocking)
@@ -46,11 +41,12 @@ namespace SimpleCharacterSelectPlugin.Windows
             this.plugin = plugin;
             this.uiStyles = new UIStyles(plugin);
 
-            this.characterGrid = new CharacterGrid(plugin, uiStyles);
-            this.characterForm = new CharacterForm(plugin, uiStyles);
-            this.designPanel = new DesignPanel(plugin, uiStyles);
-            this.settingsPanel = new SettingsPanel(plugin, uiStyles, this);
-            this.reorderWindow = new ReorderWindow(plugin, uiStyles);
+            this.CharacterGrid = new CharacterGrid(plugin, uiStyles);
+            this.CharacterForm = new CharacterForm(plugin, uiStyles);
+            this.DesignPanel = new DesignPanel(plugin, uiStyles);
+            this.GearsetPanel = new GearsetPanel(plugin, uiStyles);
+            this.SettingsPanel = new SettingsPanel(plugin, uiStyles, this);
+            this.ReorderWindow = new ReorderWindow(plugin, uiStyles);
         }
 
         public override void PostDraw()
@@ -60,16 +56,16 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         public void InvalidateLayout()
         {
-            characterGrid?.InvalidateCache();
+            CharacterGrid?.InvalidateCache();
         }
 
         public void Dispose()
         {
-            characterGrid?.Dispose();
-            characterForm?.Dispose();
-            designPanel?.Dispose();
-            settingsPanel?.Dispose();
-            reorderWindow?.Dispose();
+            CharacterGrid?.Dispose();
+            CharacterForm?.Dispose();
+            DesignPanel?.Dispose();
+            SettingsPanel?.Dispose();
+            ReorderWindow?.Dispose();
         }
 
         public override void Draw()
@@ -79,12 +75,6 @@ namespace SimpleCharacterSelectPlugin.Windows
 
             float deltaTime = ImGui.GetIO().DeltaTime;
 
-            if (giftBoxShakeTimer > 0f)
-            {
-                giftBoxShakeTimer -= deltaTime;
-                if (giftBoxShakeTimer < 0f) giftBoxShakeTimer = 0f;
-            }
-
             uiStyles.PushMainWindowStyle();
 
             try
@@ -93,8 +83,8 @@ namespace SimpleCharacterSelectPlugin.Windows
                 DrawMainContent(deltaTime);
                 DrawBottomBar();
 
-                settingsPanel.Draw();
-                reorderWindow.Draw();
+                SettingsPanel.Draw();
+                ReorderWindow.Draw();
             }
 
             finally
@@ -110,20 +100,14 @@ namespace SimpleCharacterSelectPlugin.Windows
             ImGui.Text(headerText);
 
             ImGui.SameLine();
-            CommonElements.ColoredButton($"({totalCharacters} total)", Colors.Grey1);
+            CommonElements.ColoredText($"({totalCharacters} total)", Colors.Grey1);
 
             // Current character data
             if (Plugin.ObjectTable.LocalPlayer != null)
             {
-                unsafe
                 {
-                    var charPtr = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)Plugin.ObjectTable.LocalPlayer.Address;
-                    var currentIdle = charPtr->EmoteController.CPoseState;
-                    
-                    var scale = ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier;
-                    
                     ImGui.SameLine();
-                    CommonElements.ColoredButton($"Current gearset: {GearsetManager.GetCurrentGearset().DisplayName()}", Colors.Grey2);
+                    CommonElements.ColoredText($"Current gearset: {GearsetManager.GetCurrentGearset().DisplayName()}", Colors.Grey2);
                 }
             }
 
@@ -156,22 +140,23 @@ namespace SimpleCharacterSelectPlugin.Windows
 
         public void UpdateSortType()
         {
-            characterGrid.SetSortType((Plugin.SortType)Plugin.Configuration.CurrentSortIndex);
+            CharacterGrid.SetSortType((Plugin.SortType)Plugin.Configuration.CurrentSortIndex);
         }
 
         private void DrawMainContent(float deltaTime)
         {
             var totalScale = ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier;
 
-            if (plugin.WindowState.IsAddCharacterWindowOpen || characterForm.IsEditWindowOpen)
+            if (plugin.WindowState.IsAddCharacterWindowOpen || CharacterForm.IsEditWindowOpen)
             {
-                characterForm.Draw();
+                CharacterForm.Draw();
             }
 
             float characterGridWidth = 0;
-            if (designPanel.IsOpen)
+            float scaledPanelWidth = 0;
+            if (DesignPanel.IsOpen || GearsetPanel.IsOpen)
             {
-                float scaledPanelWidth = designPanel.PanelWidth * totalScale;
+                scaledPanelWidth = DesignPanel.PanelWidth * totalScale;
                 characterGridWidth = -(scaledPanelWidth + 10);
             }
 
@@ -179,17 +164,26 @@ namespace SimpleCharacterSelectPlugin.Windows
             float bottomBarHeight = ImGui.GetFrameHeight() + (10 * totalScale);
             ImGui.BeginChild("CharacterGrid", new Vector2(characterGridWidth, -bottomBarHeight), true);
 
-            characterGrid.Draw();
+            CharacterGrid.Draw();
             ImGui.EndChild();
 
-            if (designPanel.IsOpen)
+            if (DesignPanel.IsOpen || GearsetPanel.IsOpen)
             {
                 ImGui.SameLine();
+            
                 float characterGridHeight = ImGui.GetItemRectSize().Y;
-                float scaledPanelWidth = designPanel.PanelWidth * totalScale;
+                ImGui.BeginChild("SidePanel", new Vector2(scaledPanelWidth, characterGridHeight), true);
+            
+                if (DesignPanel.IsOpen)
+                {
+                    DesignPanel.Draw();
+                }
 
-                ImGui.BeginChild("DesignPanel", new Vector2(scaledPanelWidth, characterGridHeight), true);
-                designPanel.Draw();
+                if (GearsetPanel.IsOpen)
+                {
+                    GearsetPanel.Draw();
+                }
+            
                 ImGui.EndChild();
             }
         }
@@ -219,7 +213,7 @@ namespace SimpleCharacterSelectPlugin.Windows
             ImGui.SameLine();
 
             if (ImGui.Button("Reorder Characters"))
-                reorderWindow.Open();
+                ReorderWindow.Open();
 
             ImGui.SameLine();
 
@@ -234,32 +228,15 @@ namespace SimpleCharacterSelectPlugin.Windows
                 ImGui.Text("Opens a more compact UI to swap between Characters & Designs.");
                 ImGui.EndTooltip();
             }
-            
-            // ImGui.SameLine(); //TODO Readd if someone asks for it
-            //
-            // string randomIcon;
-            // Vector4? iconColor = null;
-            // randomIcon = "\uf522"; // Dice
-            //
-            // string randomTooltip = Plugin.Configuration.RandomSelectionFavoritesOnly
-            //     ? "Randomly selects from favourited characters and designs only"
-            //     : "Randomly selects from all characters and designs";
-            //
-            // if (uiStyles.IconButtonWithColor(randomIcon, randomTooltip, null, 1.0f, iconColor))
-            // {
-            //     Vector2 effectPos = ImGui.GetItemRectMin() + ImGui.GetItemRectSize() / 2;
-            //     plugin.SelectRandomCharacterAndDesign();
-            // }
-
         }
 
-        public void OpenEditCharacterWindow(int index) => characterForm.OpenEditCharacterWindow(index);
+        public void OpenEditCharacterWindow(int index) => CharacterForm.OpenEditCharacterWindow(index);
         public void OpenAddCharacterWindow()
         {
-            characterForm.InitCreateCharacterWindow();
+            CharacterForm.InitCreateCharacterWindow();
             plugin.WindowState.IsAddCharacterWindowOpen = true;
         }
-        public void OpenDesignPanel(int characterIndex) => designPanel.Open(characterIndex);
-        public void SortCharacters() => characterGrid.SortCharacters();
+        public void OpenDesignPanel(int characterIndex) => DesignPanel.Open(characterIndex);
+        public void SortCharacters() => CharacterGrid.SortCharacters();
     }
 }
