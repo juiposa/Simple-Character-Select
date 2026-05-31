@@ -1,14 +1,9 @@
-using SimpleCharacterSelectPlugin.Windows;
 using Dalamud.Configuration;
 using Dalamud.Plugin;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Numerics;
-using System.Text.Json.Serialization;
 using SimpleCharacterSelectPlugin.Managers;
 using SimpleCharacterSelectPlugin.Models;
 

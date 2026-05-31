@@ -45,8 +45,8 @@ namespace SimpleCharacterSelectPlugin.Integration
 
             try
             {
-                var collections = PenumbraIpc.GetCollections.InvokeFunc();
-                if (collections != null)
+                var collections = PenumbraIpc.GetCollections!.InvokeFunc();
+                if (collections.Count > 0)
                 {
                     CachedPenumbraCollections = collections.Values
                         .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
@@ -130,7 +130,7 @@ namespace SimpleCharacterSelectPlugin.Integration
 
             try
             {
-                var presets = MoodlesIpc.GetPresets?.InvokeFunc();
+                var presets = MoodlesIpc.GetPresets!.InvokeFunc();
                 Plugin.Log.Debug($"Fetched moodle presets {string.Join(",", presets)}");
                 if (presets.Count > 0)
                 {
@@ -240,7 +240,7 @@ namespace SimpleCharacterSelectPlugin.Integration
                 if (localPlayer == null) return null;
 
                 // Get active profile GUID
-                var activeResult = CustomizeIpc.GetActiveProfile.InvokeFunc((ushort)localPlayer.ObjectIndex);
+                var activeResult = CustomizeIpc.GetActiveProfile!.InvokeFunc((ushort)localPlayer.ObjectIndex);
 
                 if (activeResult.Item1 != 0 || !activeResult.Item2.HasValue || activeResult.Item2.Value == Guid.Empty)
                     return null;
@@ -248,7 +248,7 @@ namespace SimpleCharacterSelectPlugin.Integration
                 var activeProfileId = activeResult.Item2.Value;
 
                 // Get profile list and find the matching profile
-                var profileList = CustomizeIpc.GetProfileList.InvokeFunc();
+                var profileList = CustomizeIpc.GetProfileList!.InvokeFunc();
 
                 if (profileList.Count == 0) return null;
 

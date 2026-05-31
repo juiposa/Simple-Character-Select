@@ -1,8 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
-using Dalamud.Game.ClientState.Objects.SubKinds;
 
 namespace SimpleCharacterSelectPlugin.Integration;
 

@@ -101,12 +101,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
         // Animation timer for preview
         private static readonly System.Diagnostics.Stopwatch AnimationTimer = System.Diagnostics.Stopwatch.StartNew();
-        private string advancedCharacterMacroText = "";
 
         public CharacterForm(Plugin plugin, UIStyles uiStyles)
         {
             this.plugin = plugin;
             this.uiStyles = uiStyles;
+            currentCharacter = new Character();
         }
 
         public void CloseAddCharacterWindow()
@@ -718,9 +718,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             uiStyles.PopDarkButtonStyle();
         }
 
-        private CharacterDesign UpdateHonorificData(CharacterDesign design)
+        private void UpdateHonorificData(CharacterDesign design)
         {   
-            design.Honorific.Title = tempHonorificTitle;
+            design.Honorific!.Title = tempHonorificTitle;
             design.Honorific.Prefix = tempHonorificPrefix;
             design.Honorific.Suffix = tempHonorificSuffix;
             design.Honorific.Color = tempHonorificColor;
@@ -728,7 +728,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             design.Honorific.Color3 = tempHonorificGradientSet == -1 ? tempHonorificColor3 : null;;
             design.Honorific.GradientSet = tempHonorificGradientSet;
             design.Honorific.AnimationStyle = tempHonorificAnimationStyle;
-            return design;
         }
 
         /// <summary>

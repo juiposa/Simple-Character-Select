@@ -40,7 +40,6 @@ namespace SimpleCharacterSelectPlugin
         private static readonly string Version = typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "(Unknown Version)";
         public static readonly string CurrentPluginVersion = Version; // Match repo.json and .csproj version
         
-        public IPluginLog Logger;
         public readonly WindowSystem WindowSystem = new("SimpleCharacterSelectPlugin");
         public MainWindow MainWindow { get; init; }
         public QuickSwitchWindow QuickSwitchWindow { get; set; } // Quick Switch Window
@@ -55,7 +54,7 @@ namespace SimpleCharacterSelectPlugin
         public string PluginPath => PluginInterface.GetPluginConfigDirectory();
         public string PluginDirectory => PluginInterface.AssemblyLocation.DirectoryName ?? "";
         
-        public static Configuration Configuration { get; set; }
+        public static Configuration Configuration { get; set; } 
         public List<Character> Characters => Configuration.Characters;
         public Dictionary<int, GearsetAssignment> GearsetAssignments => Configuration.GearsetAssignments;
         public byte NewCharacterIdlePoseIndex { get; set; } = 0;
@@ -65,7 +64,7 @@ namespace SimpleCharacterSelectPlugin
         public IntegrationListProvider? IntegrationListProvider { get; private set; }
 
         // IPC Providers
-        private IPCProvider? ipcProvider;
+        //private IPCProvider? ipcProvider;
         
         public bool StartupComplete = false;
         
@@ -83,6 +82,8 @@ namespace SimpleCharacterSelectPlugin
             GameInteropProvider = gameInteropProvider;
 
             Configuration = Configuration.LoadConfigurationSafely(PluginInterface);
+
+            //ActivePlayer = new ActivePlayerCharacter();
             
             // Run backup on background thread to prevent UI freeze
             var existingConfig = PluginInterface.GetPluginConfig() as Configuration;
@@ -105,8 +106,6 @@ namespace SimpleCharacterSelectPlugin
                 
             commands = new Commands(this, CommandManager, ChatGui, Log, Configuration);
             commands.AddCommands();
-
-            Logger = Log;
             
             MigrationManager.RunMigrations(this);
 
@@ -160,11 +159,6 @@ namespace SimpleCharacterSelectPlugin
                Log.Debug($"[Simple Character Select] Local character name: {ObjectTable.LocalPlayer?.Name.TextValue}");
             };
             
-            // Only initialize dialogue processor if the feature is enabled (sig scanning can be slow)
-            if (Configuration.EnableDialogueIntegration)
-            {
-                //TODO
-            }
         }
         
         private void FrameworkUpdate(IFramework framework)
@@ -216,7 +210,7 @@ namespace SimpleCharacterSelectPlugin
                 var assignment = GearsetAssignments[(int)GearsetManager.GetCurrentGearset().Index];
                 var character = Characters.Find(c => c.Data.Name == assignment.CharacterName);
                 Plugin.Log.Debug($"SWITCH DESIGN GEARSET {character?.Data.Name} {assignment.DisplayName()} {assignment.DesignId}");
-                if (character == null || character.GetDesignById(assignment.DesignId.Value) == null)
+                if (character == null || character.GetDesignById(assignment.DesignId!.Value) == null)
                 {
                     Log.Info($"Outdated gearset assignment {assignment.DisplayName()} found, deleting");
                     GearsetAssignments.Remove(assignment.GearsetIndex);
@@ -257,7 +251,7 @@ namespace SimpleCharacterSelectPlugin
             IntegrationListProvider?.Dispose();
 
             // Dispose IPC provider
-            ipcProvider?.Dispose();
+            //ipcProvider?.Dispose();
 
             try
             {

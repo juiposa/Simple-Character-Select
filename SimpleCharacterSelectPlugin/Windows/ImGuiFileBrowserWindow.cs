@@ -6,8 +6,6 @@ using System.Collections.Generic;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
-using Dalamud.Interface.Textures;
-using Dalamud.Interface.Textures.TextureWraps;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 
 namespace SimpleCharacterSelectPlugin.Windows
@@ -65,7 +63,7 @@ namespace SimpleCharacterSelectPlugin.Windows
             configuration = config;
         }
 
-        private bool IsPinned(string path)
+        private new bool IsPinned(string path)
         {
             return configuration?.PinnedFileBrowserPaths.Contains(path) == true;
         }
@@ -765,11 +763,6 @@ namespace SimpleCharacterSelectPlugin.Windows
 
             RefreshDirectory();
             IsOpen = true;
-        }
-
-        public override void OnClose()
-        {
-            base.OnClose();
         }
     }
 }

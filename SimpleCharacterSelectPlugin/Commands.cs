@@ -2,13 +2,8 @@ using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Dalamud.Game.Command;
-using Dalamud.IoC;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs;
-using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using SimpleCharacterSelectPlugin.Managers;
-using SimpleCharacterSelectPlugin.Models;
-using SimpleCharacterSelectPlugin.Windows;
 
 namespace SimpleCharacterSelectPlugin;
 

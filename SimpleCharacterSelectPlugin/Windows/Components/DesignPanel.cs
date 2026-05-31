@@ -33,13 +33,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private bool showSearchBar = false;
         private string searchQuery = "";
         
-        // Search cache for performance
-        private List<CharacterDesign> cachedFilteredDesigns = new();
-        private bool filterCacheDirty = true;
-        private string lastSearchQuery = "";
-        private string lastSelectedTag = "All";
-        private int lastDesignCount = -1;
-        
         // Design editing state
         private bool isEditDesignWindowOpen = false;
         private bool isNewDesign = false;
@@ -76,7 +69,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             this.uiStyles = uiStyles;
         }
 
-        public new void Dispose()
+        public void Dispose()
         {
         }
 
@@ -189,7 +182,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 if (!showSearchBar)
                 {
                     searchQuery = "";
-                    InvalidateFilterCache();
                 }
             }
             if (ImGui.IsItemHovered())
@@ -705,15 +697,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X);
                 if (ImGui.InputTextWithHint("##SearchDesigns", "Search designs...", ref searchQuery, 100))
                 {
-                    // TODO readd a search cache
-                    InvalidateFilterCache();
                 }
             }
-        }
-        
-        private void InvalidateFilterCache()
-        {
-            filterCacheDirty = true;
         }
 
         private void DrawDesignList(Character character, float scale)

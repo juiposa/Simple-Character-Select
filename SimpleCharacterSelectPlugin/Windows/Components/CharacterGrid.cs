@@ -30,7 +30,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private int currentPage = 0;
         private int charactersPerPage = 40;
         private List<(int characterIndex, Vector2 min, Vector2 max)> cardRects = new();
-        private int? currentDropTargetIndex = null;
         private bool cardRectsDirty = true;
 
         // Performance optimizations
@@ -52,17 +51,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         // Cache expensive string operations
         private readonly Dictionary<string, bool> fileExistsCache = new();
         private readonly Dictionary<string, Vector2> textSizeCache = new();
-        private volatile bool isCacheWarming = false;
-
-        // Frame limiting for animations
-        private float lastAnimationUpdate = 0f;
-        private const float AnimationUpdateInterval = 1f / 60f; // 60 FPS max
-
-        // Ghost image state
-        private Character? draggedCharacter = null;
-        private Vector2 ghostImageSize = new Vector2(120f, 120f);
-        private float ghostImageAlpha = 0.8f;
-
+        
         public Plugin.SortType CurrentSort { get; private set; }
 
         public CharacterGrid(Plugin plugin, UIStyles uiStyles)
@@ -84,8 +73,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             // Calculate responsive scaling using Dalamud's GlobalScale
             var totalScale = GetSafeScale(ImGuiHelpers.GlobalScale * Plugin.Configuration.UIScaleMultiplier);
-
-            ImGuiWindowFlags windowFlags = ImGuiWindowFlags.None;
             
             DrawToolbar(totalScale);
             DrawCharacterGridContent(totalScale);

@@ -2,13 +2,11 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility;
 using System.Collections.Generic;
 using SimpleCharacterSelectPlugin.Windows.Styles;
-using SimpleCharacterSelectPlugin;
 using SimpleCharacterSelectPlugin.Managers;
 using SimpleCharacterSelectPlugin.Models;
 

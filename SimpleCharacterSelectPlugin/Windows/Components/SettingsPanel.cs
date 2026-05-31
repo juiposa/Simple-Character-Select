@@ -25,7 +25,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private bool visualSettingsOpen = true;  // Default
         private bool automationSettingsOpen = false;
         private bool behaviorSettingsOpen = false;
-        private bool randomGroupsSettingsOpen = false;
         private bool mainCharacterSettingsOpen = false;
         private bool dialogueSettingsOpen = false;
         private bool characterAssignmentSettingsOpen = false;
@@ -33,18 +32,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private bool conflictResolutionSettingsOpen = false;
         private bool backupSettingsOpen = false;
         private string? pendingExpandSection = null; // Section to force-expand on next draw
-        private int selectedBlockedUserIndex = -1;
-        private bool editingAssignmentUseDesign = false;
-        private string editingAssignmentDesignBuffer = "";
         private string backupNameBuffer = "";
         private List<BackupFileInfo> availableBackups = new();
         private string lastBackupStatusMessage = "";
 
-        // Random Groups
-        private string newRandomGroupName = "";
         private DateTime lastBackupStatusTime = DateTime.MinValue;
         private string? pendingImportPath = null;
-        private bool isCapturingRevealKey = false;
 
         public SettingsPanel(Plugin plugin, UIStyles uiStyles, MainWindow mainWindow)
         {
@@ -183,26 +176,12 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     DrawVisualSettings(labelWidth, inputWidth);
                 }
 
-                // Glamourer Automations Section TODO readd if needed
-                // automationSettingsOpen = DrawModernCollapsingHeader("Glamourer Automations", new Vector4(1.0f, 0.6f, 0.2f, 1.0f), automationSettingsOpen);
-                // if (automationSettingsOpen)
-                // {
-                //     DrawAutomationSettings();
-                // }
-
                 // Behavior Settings Section
                 behaviorSettingsOpen = DrawModernCollapsingHeader("Behavior Settings", new Vector4(1.0f, 0.9f, 0.3f, 1.0f), behaviorSettingsOpen);
                 if (behaviorSettingsOpen)
                 {
                     DrawBehaviorSettings();
                 }
-
-                // Random Groups Section TODO readd if anyone asks for it
-                // randomGroupsSettingsOpen = DrawModernCollapsingHeader("Random Groups", new Vector4(0.85f, 0.95f, 0.3f, 1.0f), randomGroupsSettingsOpen);
-                // if (randomGroupsSettingsOpen)
-                // {
-                //     DrawRandomGroupsSettings();
-                // }
 
                 // Main Character Section
                 mainCharacterSettingsOpen = DrawModernCollapsingHeader("Main Character", new Vector4(0.3f, 0.9f, 0.4f, 1.0f), mainCharacterSettingsOpen);
@@ -218,14 +197,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     DrawGearsetAssignmentSettings();
                 }
 
-                // Immersive Dialogue (Blue)
-                dialogueSettingsOpen = DrawModernCollapsingHeader("Immersive Dialogue", new Vector4(0.4f, 0.6f, 1.0f, 1.0f), dialogueSettingsOpen);
-                if (dialogueSettingsOpen)
-                {
-                    DrawSoonge();
-                }
-
-                // Backup & Restore (Pink/Magenta)
+                // Backup & Restore
                 backupSettingsOpen = DrawModernCollapsingHeader("Backup & Restore", new Vector4(1.0f, 0.45f, 0.7f, 1.0f), backupSettingsOpen);
                 if (backupSettingsOpen)
                 {
@@ -494,145 +466,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         {
             ImGui.TextWrapped("This feature will be returning in the near future.");
         }
-        private void DrawDialogueSettings()
-        {   
-            //TODO readd
-            // Warning
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.8f, 0.4f, 1f));
-            ImGui.TextWrapped("Uses your SCS Character's name and pronouns in NPC dialogue");
-            ImGui.PopStyleColor();
-
-            // They/Them pronoun chat display warning
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.7f, 0.5f, 1f));
-            ImGui.TextWrapped("Note: Users with They/Them pronouns may occasionally see garbled text in chat. Simply switch between chat tabs to refresh the display if this occurs.");
-            ImGui.PopStyleColor();
-
-            ImGui.Spacing();
-
-            bool enableDialogue = Plugin.Configuration.EnableDialogueIntegration;
-            if (ImGui.Checkbox("Enable Immersive Dialogue", ref enableDialogue))
-            {
-                Plugin.Configuration.EnableDialogueIntegration = enableDialogue;
-
-                // Reset all dialogue sub-settings when disabled
-                if (!enableDialogue)
-                {
-                    Plugin.Configuration.EnableLuaHookDialogue = false;
-                    Plugin.Configuration.ReplaceNameInDialogue = false;
-                    Plugin.Configuration.ReplacePronounsInDialogue = false;
-                    Plugin.Configuration.ReplaceGenderedTerms = false;
-                    Plugin.Configuration.EnableAdvancedTitleReplacement = false;
-                    Plugin.Configuration.EnableSmartGrammarInDialogue = false;
-                    //Plugin.Configuration.EnableRaceReplacement = false;
-                    Plugin.Configuration.ShowDialogueReplacementPreview = false; // Off by default
-                }
-                else
-                {
-                    // Set good defaults when enabling
-                    Plugin.Configuration.EnableLuaHookDialogue = true;
-                    Plugin.Configuration.ReplaceNameInDialogue = true;
-                    Plugin.Configuration.ReplacePronounsInDialogue = true;
-                    Plugin.Configuration.ReplaceGenderedTerms = true;
-                    Plugin.Configuration.EnableAdvancedTitleReplacement = true;
-                    //Plugin.Configuration.EnableSmartGrammarInDialogue = true; TODO
-                    Plugin.Configuration.ShowDialogueReplacementPreview = false; // Keep off by default
-                }
-
-                Plugin.Configuration.Save();
-            }
-            DrawTooltip("Replaces NPC dialogue text to use your SCS Character's name and pronouns instead of your game character.Data.\nRequires an active SCS character with RP Profile data.");
-
-            if (Plugin.Configuration.EnableDialogueIntegration)
-            {
-                ImGui.Indent();
-
-                // Simplified user-facing options
-                bool replaceName = Plugin.Configuration.ReplaceNameInDialogue;
-                if (ImGui.Checkbox("Use SCS Character Name", ref replaceName))
-                {
-                    Plugin.Configuration.ReplaceNameInDialogue = replaceName;
-                    Plugin.Configuration.Save();
-                }
-                DrawTooltip("Replace your real character name with your SCS character name in dialogue.");
-
-                bool replacePronouns = Plugin.Configuration.ReplacePronounsInDialogue;
-                if (ImGui.Checkbox("Use SCS Character Pronouns", ref replacePronouns))
-                {
-                    Plugin.Configuration.ReplacePronounsInDialogue = replacePronouns;
-                    Plugin.Configuration.Save();
-                }
-                DrawTooltip("Replace pronouns in dialogue with your character's pronouns from their RP Profile.");
-
-                bool replaceGenderedTerms = Plugin.Configuration.ReplaceGenderedTerms;
-                if (ImGui.Checkbox("Use Gender-Neutral Terms", ref replaceGenderedTerms))
-                {
-                    Plugin.Configuration.ReplaceGenderedTerms = replaceGenderedTerms;
-                    Plugin.Configuration.Save();
-                }
-                DrawTooltip("Replace gendered terms like 'sir/lady', 'man/woman' with appropriate alternatives based on your character's pronouns.");
-
-                //bool replaceRace = Plugin.Configuration.EnableRaceReplacement; TODO
-                //if (ImGui.Checkbox("Use SCS Character Race", ref replaceRace))
-                //{
-                //    Plugin.Configuration.EnableRaceReplacement = replaceRace;
-                //    Plugin.Configuration.Save();
-                //}
-                //DrawTooltip("Replace your race with your SCS character's race from their RP Profile.");
-
-                // They/Them settings section
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.Spacing();
-
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.9f, 1.0f));
-                ImGui.Text("They/Them Pronoun Settings");
-                ImGui.PopStyleColor();
-                ImGui.Spacing();
-
-                // Use proper fixed layout like other settings
-                var contentWidth = ImGui.GetContentRegionAvail().X;
-                var labelWidth = 140f;
-                var inputWidth = contentWidth - labelWidth - 20f;
-
-                DrawFixedSetting("Neutral Title Style:", labelWidth, inputWidth, () =>
-                {
-                    var currentStyle = (int)Plugin.Configuration.TheyThemStyle;
-                    string[] styleOptions = { "Friend", "Mx.", "Traveler", "Adventurer", "Custom" };
-
-                    if (ImGui.Combo("##TheyThemStyle", ref currentStyle, styleOptions, styleOptions.Length))
-                    {
-                        Plugin.Configuration.TheyThemStyle = (Configuration.GenderNeutralStyle)currentStyle;
-                        Plugin.Configuration.Save();
-                    }
-                    DrawTooltip("Friend: \"honored sir\" → \"honored friend\"\nMx.: \"honored sir\" → \"honored Mx.\"\nTraveler: \"honored sir\" → \"honored traveler\"\nAdventurer: \"honored sir\" → \"honored adventurer\"");
-                });
-
-                if (Plugin.Configuration.TheyThemStyle == Configuration.GenderNeutralStyle.Custom)
-                {
-                    DrawFixedSetting("Custom Title:", labelWidth, inputWidth, () =>
-                    {
-                        var customTitle = Plugin.Configuration.CustomGenderNeutralTitle;
-                        if (ImGui.InputText("##CustomGenderNeutral", ref customTitle, 50))
-                        {
-                            Plugin.Configuration.CustomGenderNeutralTitle = customTitle;
-                            Plugin.Configuration.Save();
-                        }
-                        DrawTooltip("Enter your preferred gender-neutral title (e.g., \"Warrior\", \"Champion\", \"Canadian\")");
-                    });
-                }
-
-                // Preview with proper styling
-                ImGui.Spacing();
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f));
-                var characterName = plugin.Characters.FirstOrDefault()?.Data.Name ?? "Warrior of Light";
-                ImGui.Text($"Preview: \"Sir {characterName}\" -> \"{GenderManager.GetGenderNeutralTitle()} {characterName}\"");
-                ImGui.PopStyleColor();
-
-                ImGui.Unindent();
-            }
-
-            ImGui.Spacing();
-        }
 
         // Job data for UI
         private void DrawGearsetAssignmentSettings()
@@ -664,27 +497,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SetNextItemWidth(inputWidth);
             drawControl();
             ImGui.Spacing();
-        }
-
-        private void UpdateAutomationSettings(bool enableAutomations)
-        {
-            // bool changed = false;
-            //
-            // // Character-level Automation Handling
-            // foreach (var character in plugin.Characters)
-            // {
-            //     if (!enableAutomations)
-            //     {
-            //         character.Data.CharacterAutomation = string.Empty;
-            //     }
-            //     else if (string.IsNullOrWhiteSpace(character.Data.CharacterAutomation))
-            //     {
-            //         character.Data.CharacterAutomation = "None";
-            //     }
-            // }
-            //
-            // if (changed)
-            //     plugin.SaveConfiguration();
         }
 
         private float GetSafeScale(float baseScale)

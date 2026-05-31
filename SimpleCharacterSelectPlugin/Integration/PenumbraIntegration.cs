@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Penumbra.Api.Api;
 using SimpleCharacterSelectPlugin.Managers;
 
 namespace SimpleCharacterSelectPlugin.Integration
@@ -39,7 +38,7 @@ namespace SimpleCharacterSelectPlugin.Integration
             try
             {
                 // Check if Penumbra is available
-                var version = PenumbraIpc.ApiVersion.InvokeFunc();
+                var version = PenumbraIpc.ApiVersion!.InvokeFunc();
 
                 if (version < 5)
                 {
@@ -87,7 +86,7 @@ namespace SimpleCharacterSelectPlugin.Integration
                 Plugin.Log.Debug(
                     $"Setting Penumbra UI current collection - Name: {collectionName}, GUID: {targetCollection.Key}");
 
-                var (resultInt, _) = PenumbraIpc.SetCollectionForObject.InvokeFunc(
+                var (resultInt, _) = PenumbraIpc.SetCollectionForObject!.InvokeFunc(
                     local.ObjectIndex,
                     targetCollection.Key,
                     false,
@@ -102,7 +101,7 @@ namespace SimpleCharacterSelectPlugin.Integration
 
                 if (targetCollection.Key != Guid.Empty)
                 {
-                    (resultInt, _) = PenumbraIpc.SetCollection.InvokeFunc(
+                    (resultInt, _) = PenumbraIpc.SetCollection!.InvokeFunc(
                         (byte)ApiCollectionType.Current,
                         targetCollection.Key,
                         false,
@@ -144,7 +143,7 @@ namespace SimpleCharacterSelectPlugin.Integration
             try
             {
                 // Step 1: Get the collection assigned to "Your Character" type
-                var fallbackCollection = PenumbraIpc.GetCollection.InvokeFunc((byte)ApiCollectionType.Yourself);
+                var fallbackCollection = PenumbraIpc.GetCollection!.InvokeFunc((byte)ApiCollectionType.Yourself);
 
                 if (fallbackCollection == null)
                 {
@@ -153,10 +152,10 @@ namespace SimpleCharacterSelectPlugin.Integration
                 }
 
                 Plugin.Log.Debug(
-                    $"Found fallback collection: {fallbackCollection.Value.Name} ({fallbackCollection.Value.Id})");
+                    $"Found fallback collection: {fallbackCollection!.Value.Name} ({fallbackCollection.Value.Id})");
 
                 // Step 2: Apply that collection to the player object
-                var (resultInt, oldCollection) = PenumbraIpc.SetCollectionForObject.InvokeFunc(
+                var (resultInt, oldCollection) = PenumbraIpc.SetCollectionForObject!.InvokeFunc(
                     objectIndex, // The player's object index
                     fallbackCollection.Value.Id, // The GUID of "Your Character" collection
                     false, // Don't allow creation
@@ -174,7 +173,7 @@ namespace SimpleCharacterSelectPlugin.Integration
                         $"Successfully switched to 'Your Character' collection: {fallbackCollection.Value.Name}");
 
                     // Also update the Penumbra UI to display this collection
-                    var (uiResultInt, _) = PenumbraIpc.SetCollection.InvokeFunc(
+                    var (uiResultInt, _) = PenumbraIpc.SetCollection!.InvokeFunc(
                         (byte)ApiCollectionType.Current, // Set as current collection (UI display)
                         fallbackCollection.Value.Id, // Collection GUID
                         false, // Don't allow creation
@@ -204,7 +203,7 @@ namespace SimpleCharacterSelectPlugin.Integration
 
             try
             {
-                return PenumbraIpc.GetCollections.InvokeFunc();
+                return PenumbraIpc.GetCollections!.InvokeFunc();
             }
             catch (Exception ex)
             {
@@ -225,7 +224,7 @@ namespace SimpleCharacterSelectPlugin.Integration
             {
                 // Use GetCollectionForObject with object ID 0 (player) - most accurate method
                 var (objectValid, individualSet, (id, name)) =
-                    PenumbraIpc.GetCollectionsForObject.InvokeFunc(0); // 0 = player object
+                    PenumbraIpc.GetCollectionsForObject!.InvokeFunc(0); // 0 = player object
 
                 if (objectValid)
                 {
@@ -253,7 +252,7 @@ namespace SimpleCharacterSelectPlugin.Integration
             {
                 // Try the GetCollection method
                 var result =
-                    PenumbraIpc.GetCollection
+                    PenumbraIpc.GetCollection!
                         .InvokeFunc(0); // 0 = current character/yourself (ApiCollectionType.Current)
 
                 if (result?.Item1 != null && result?.Item2 != null)

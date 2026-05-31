@@ -190,7 +190,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             {
                 designName = selectedCharacter?.GetDesignByIdOrDefault(dIndex).Name;
             }
-            if (CommonElements.DrawInputField("DesignField", "Design", inputWidth, scale, designOptions, ref designName, "Select design to switch to when switching to chosen gearset"))
+            if (CommonElements.DrawInputField("DesignField", "Design", inputWidth, scale, designOptions, ref designName!, "Select design to switch to when switching to chosen gearset"))
             {
                 if (designName != "")
                 {

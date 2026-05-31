@@ -24,11 +24,7 @@ namespace SimpleCharacterSelectPlugin.Windows
         public SettingsPanel SettingsPanel;
         public ReorderWindow ReorderWindow;
         private UIStyles uiStyles;
-
-        // Custom theme background image path (texture fetched fresh each frame)
-        private string? _lastLoggedBackgroundPath;
-        public DesignPanel? GetDesignPanel() => DesignPanel;
-
+        
         public MainWindow(Plugin plugin)
             : base("Simple Character Select", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoDocking)
         {

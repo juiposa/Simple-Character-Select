@@ -1,5 +1,4 @@
 using System;
-using Lumina.Excel.Sheets;
 using SimpleCharacterSelectPlugin.Integration;
 using SimpleCharacterSelectPlugin.Models;
 

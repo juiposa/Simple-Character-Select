@@ -1,7 +1,5 @@
 using System;
 using System.Numerics;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using SimpleCharacterSelectPlugin.Managers;
 using SimpleCharacterSelectPlugin.Models;
 
