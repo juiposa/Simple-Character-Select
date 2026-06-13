@@ -430,7 +430,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             var customizeOptions = customizeProfiles?.Select(v => v.Item2).ToArray() ?? Array.Empty<string>();
             var currentCustomize = plugin.IntegrationListProvider?.GetCurrentCustomizePlusProfile();
             var tempCustomize = editedCustomizeProfile.Item2;
-            if (AutocompleteCombo.Draw("##CustomizeProfile", ref tempCustomize, customizeOptions, inputWidth, "Use character C+", currentActive: currentCustomize))
+            if (AutocompleteCombo.Draw("##CustomizeProfile", ref tempCustomize, customizeOptions, inputWidth, "None", currentActive: currentCustomize))
             {
                 if (customizeProfiles != null && customizeProfiles.Length > 0)
                 {
@@ -1330,7 +1330,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             editedPenumbraCollection = currentCharacter?.GetDefaultDesign().PenumbraCollection ?? "";
             editedGlamourerDesign = "";
             editDeferToGlamourer = false;
-            editedCustomizeProfile = (Guid.Empty, "");
+            editedCustomizeProfile = currentCharacter?.GetDefaultDesign().CustomizeProfileTuple ?? (Guid.Empty, "");
             editedGearset = null;
             editedDesignPreviewPath = "";
         }
