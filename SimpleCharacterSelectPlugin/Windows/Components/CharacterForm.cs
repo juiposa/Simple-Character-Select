@@ -698,7 +698,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                     editCharacterData.SetTags();
                     editCharacterData.Designs[currentCharacter.Data.DefaultDesignIndex] = editCharDefaultDesign;
                 }
-                PcManager.SaveCharacter(selectedCharacterIndex, currentCharacter, editCharacterData, Plugin.Configuration);
+                PcManager.SaveCharacter(selectedCharacterIndex, currentCharacter, editCharacterData);
                 CloseForm();
             }
 

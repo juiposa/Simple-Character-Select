@@ -6,7 +6,6 @@ namespace SimpleCharacterSelectPlugin.Models;
 // tracking the state of a player character
 public class PlayerCharacter
 {
-    public IPlayerCharacter? InGameCharacter { get; set; }
     public string Name { get; set; } = "";
     public string World { get; set; } = "";
     public string FullName => $"{Name}@{World}";
@@ -15,9 +14,8 @@ public class PlayerCharacter
     public Guid ActiveDesignId { get; set; }
     public int ActiveDesign = -1;
     
-    public PlayerCharacter(IPlayerCharacter? ingame, string name, string world)
+    public PlayerCharacter(string name, string world)
     {
-        InGameCharacter = ingame;
         Name = name;
         World = world; 
     }

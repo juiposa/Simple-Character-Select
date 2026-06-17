@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using Microsoft.VisualBasic.Logging;
 using SimpleCharacterSelectPlugin.Models;
 
 namespace SimpleCharacterSelectPlugin.Managers;
@@ -35,29 +36,30 @@ public static class PcManager
             return null;
         }
 
-        return new PlayerCharacter(null, parts[0], parts[1]);
+        return new PlayerCharacter(parts[0], parts[1]);
     }
 
-    public static PlayerCharacter MustNewPlayerCharacter(IPlayerCharacter ingame, string fullname)
+    public static PlayerCharacter MustNewPlayerCharacter(string fullname)
     {
         string[] parts = fullname.Split('@');
-        return new PlayerCharacter(ingame, parts[0], parts[1]);
+        return new PlayerCharacter(parts[0], parts[1]);
     }
 
-    public static void SaveCharacter(int index, Character character, CharacterData? newData, Configuration config)
+    public static void SaveCharacter(int index, Character character, CharacterData? newData)
     {
+        Plugin.Log.Debug($"Saving Character {character.Data.Name}");
         character.Save(newData);
 
         if (index >= 0)
         {
-            config.Characters[index] = character;
+            Plugin.Configuration.Characters[index] = character;
         }
         else
         {
-            config.Characters.Add(character);
+            Plugin.Configuration.Characters.Add(character);
         }
 
-        config.Save();
+        Plugin.Configuration.Save();
     }
 
     public static List<PlayerCharacter> GetPlayerCharactersWithAssignments(Dictionary<string, PlayerCharacter> pcs)

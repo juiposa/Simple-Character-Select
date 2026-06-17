@@ -3,7 +3,7 @@
     <PropertyGroup>
         <TargetFramework>net10.0-windows</TargetFramework>
         <!-- Windows-specific target framework -->
-        <Version>0.1.0</Version>
+        <Version>0.1.1</Version>
         <Description></Description>
         <PackageProjectUrl></PackageProjectUrl>
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>

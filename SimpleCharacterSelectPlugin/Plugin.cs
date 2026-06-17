@@ -178,7 +178,7 @@ namespace SimpleCharacterSelectPlugin
 
                 if (!Configuration.PlayerCharacters.ContainsKey(fullKey)) //new PC, create an entry for it
                 {
-                    var newPc = PcManager.MustNewPlayerCharacter(player, fullKey);
+                    var newPc = PcManager.MustNewPlayerCharacter(fullKey);
                     Configuration.PlayerCharacters[fullKey] = newPc;
                     ActivePlayer = new ActivePlayerCharacter(player, newPc);
                     Configuration.Save();
