@@ -40,8 +40,7 @@ public static class GearsetManager
         var returnList = new List<Gearset>();
         foreach (var gearset in gearsets)
         {
-            if (TrimEndBytes(gearset.Name.ToArray()).Length != 0)
-                returnList.Add(MakeGearset(gearset));
+            returnList.Add(MakeGearset(gearset));
         }
         return returnList;
     }
