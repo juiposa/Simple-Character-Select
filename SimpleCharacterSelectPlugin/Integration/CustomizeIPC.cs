@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Dalamud.Plugin.Ipc;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace SimpleCharacterSelectPlugin.Integration;
 
@@ -10,7 +11,9 @@ public static class CustomizeIpc
     public static readonly ICallGateSubscriber<Guid, (int, string?)>? GetByUniqueId;
     public static readonly ICallGateSubscriber<ushort, string, (int, Guid?)>? SetTempProfile;
     public static readonly ICallGateSubscriber<ushort, (int, Guid?)>? GetActiveProfile;
+    public static readonly ICallGateSubscriber<Guid, int>? EnableProfile;
     public static readonly ICallGateSubscriber<Guid, int>? DisableProfile;
+    public static readonly ICallGateSubscriber<Guid, int, int>? SetPriority;
     public static readonly ICallGateSubscriber<ushort, int>? DeleteTemporaryProfileOnCharacter;
 
     static CustomizeIpc()
@@ -20,6 +23,8 @@ public static class CustomizeIpc
         SetTempProfile = Plugin.PluginInterface.GetIpcSubscriber<ushort, string, (int, Guid?)>("CustomizePlus.Profile.SetTemporaryProfileOnCharacter");
         GetActiveProfile = Plugin.PluginInterface.GetIpcSubscriber<ushort, (int, Guid?)>("CustomizePlus.Profile.GetActiveProfileIdOnCharacter");
         DisableProfile = Plugin.PluginInterface.GetIpcSubscriber<Guid, int>("CustomizePlus.Profile.DisableByUniqueId");
+        EnableProfile = Plugin.PluginInterface.GetIpcSubscriber<Guid, int>("CustomizePlus.Profile.EnableByUniqueId");
+        SetPriority = Plugin.PluginInterface.GetIpcSubscriber<Guid, int, int>("CustomizePlus.Profile.SetPriorityByUniqueId");
         DeleteTemporaryProfileOnCharacter = Plugin.PluginInterface.GetIpcSubscriber<ushort, int>("CustomizePlus.Profile.DeleteTemporaryProfileOnCharacter");
     }
 }

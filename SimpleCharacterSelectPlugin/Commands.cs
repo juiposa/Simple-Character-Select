@@ -53,41 +53,10 @@ public class Commands
     
     private void OnSelectCommand(string command, string args)
     {
-        // Handle random selection //TODO readd if someone asks for it
-        // if (args.Trim().StartsWith("random", StringComparison.OrdinalIgnoreCase))
-        // {
-        //     var randomArgs = args.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        //     if (randomArgs.Length == 1)
-        //     {
-        //         // /select random - random character and design
-        //         //SelectRandomCharacterAndDesign();
-        //     }
-        //     else if (randomArgs.Length >= 2)
-        //     {
-        //         // Could be /select random GROUPNAME or /select random CHARACTER
-        //         var targetName = string.Join(" ", randomArgs.Skip(1));
-        //
-        //         // Check if it's a group name first
-        //         //var group = Configuration.RandomGroups.FirstOrDefault(g =>
-        //         //    g.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase));
-        //
-        //         // if (group != null)
-        //         // {
-        //         //     // /select random GROUPNAME - random from group
-        //         //     //SelectRandomFromGroup(group);
-        //         // }
-        //         // else
-        //         // {
-        //         //     // /select random CHARACTER - random design only from specific character
-        //         //     //SelectRandomDesignOnly(targetName);
-        //         // }
-        //     }
-        //     return;
-        // }
 
         if (args.Trim().StartsWith("revert", StringComparison.OrdinalIgnoreCase))
         {
-            DesignManager.RevertAllChanges();
+            DesignManager.RevertAllChanges(plugin.ActivePlayer.Pc);
         }
         
         // Rest of the existing method remains the same...

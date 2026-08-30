@@ -16,12 +16,8 @@ namespace SimpleCharacterSelectPlugin
         public List<Character> Characters { get; set; } = new List<Character>();
         public Dictionary<string, PlayerCharacter> PlayerCharacters { get; set; } = new Dictionary<string, PlayerCharacter>();
 
-        public Dictionary<int, GearsetAssignment> GearsetAssignments { get; set; } = new Dictionary<int, GearsetAssignment>();
-
-        // Profile Settings
-        public float ProfileImageScale { get; set; } = 1.0f; // Image scaling
-        public int ProfileColumns { get; set; } = 3;        // Number of profiles per row
-        public float ProfileSpacing { get; set; } = 10.0f;  // Default spacing between profiles
+        public Dictionary<int, GearsetAssignment> GearsetAssignments { get; set; } =
+            new Dictionary<int, GearsetAssignment>();
 
         private IDalamudPluginInterface pluginInterface;
         public int CurrentSortIndex { get; set; } = 0; // Default to Manual (SortType.Manual = 0)
@@ -31,7 +27,8 @@ namespace SimpleCharacterSelectPlugin
         public bool EnableGearsetDesignSwitching { get; set; } = false;
         public bool EnableDesignGearsetSwitching { get; set; } = false;
         public bool EnableLastUsedCharacterAutoload { get; set; } = false;
-        public List<uint> FavoriteIconIds { get; set; } = new();
+        
+        public List<CustomizePlusProfile>? LastKnownCustomizePlus { get; set; }
         [JsonProperty]
         private float _uiScaleMultiplier = 1.0f;
         
@@ -56,40 +53,11 @@ namespace SimpleCharacterSelectPlugin
         public bool QuickSwitchIgnoreEscape { get; set; } = true;
         public List<string> PinnedFileBrowserPaths { get; set; } = new();
         public string? LastBrowserDirectory { get; set; }
-        
-        [DefaultValue(false)]
-        public bool RandomSelectionFavoritesOnly { get; set; } = false;
-
-        // Random Groups - custom groups of characters for /scs random <groupname>
-        public List<RandomGroup> RandomGroups { get; set; } = new();
 
         public string? MainCharacterName { get; set; } = null; 
         public bool EnableMainCharacterOnly { get; set; } = false;
         public bool ShowMainCharacterCrown { get; set; } = true;
         public float DesignPanelWidth { get; set; } = 300f;
-        
-        public bool EnableDialogueIntegration { get; set; } = false;
-
-        public bool ReplaceNameInDialogue { get; set; } = true;
-
-        public bool ReplacePronounsInDialogue { get; set; } = true;
-
-        public bool EnableSmartGrammarInDialogue { get; set; } = true;
-
-        public bool ShowDialogueReplacementPreview { get; set; } = false;
-        
-        // Enhanced dialogue
-        public bool EnableLuaHookDialogue { get; set; } = true;
-
-        public bool ReplaceGenderedTerms { get; set; } = true;
-
-        public bool EnableAdvancedTitleReplacement { get; set; } = true;
-
-        public GenderNeutralStyle TheyThemStyle { get; set; } = GenderNeutralStyle.Friend;
-
-        public string CustomGenderNeutralTitle { get; set; } = "friend";
-        
-        public bool UseFlagBasedDialogueOnly { get; set; } = true;
         
         public Configuration(IDalamudPluginInterface pluginInterface)
         {

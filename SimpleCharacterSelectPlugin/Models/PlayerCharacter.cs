@@ -13,6 +13,11 @@ public class PlayerCharacter
     public Character? ActiveCharacter = null!;
     public Guid ActiveDesignId { get; set; }
     public int ActiveDesign = -1;
+
+    public CharacterDesign? GetActiveDesign()
+    {
+        return ActiveCharacter?.GetDesignById(ActiveDesignId);
+    }
     
     public PlayerCharacter(string name, string world)
     {

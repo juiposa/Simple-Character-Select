@@ -23,10 +23,9 @@ public static class HonorificIntegration
             //var jsonString = title.ToJson(); TODO IPC method is awol
             //Plugin.Log.Debug($"Honorific Apply Title {jsonString}");
             //HonorificIpc.SetCharacterTitle?.InvokeFunc(local.ObjectIndex, jsonString);
-
-            var tType = title.IsPrefix ? "prefix" : "suffix";
+            
             var setCommand =
-                $"/honorific force set {title.Title} | {tType} | {GetHexCode(title.Color)} | {GetHexCode(title.Glow)}";
+                $"/honorific force set {title.Title} | {title.Location} | {GetHexCode(title.Color)} | {GetHexCode(title.Glow)}";
 
             GameCommandManager.ExecuteCommand(setCommand);
             Plugin.Log.Debug($"Honorific Applied Title '{title.Title}'");

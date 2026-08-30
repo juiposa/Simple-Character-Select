@@ -246,27 +246,9 @@ namespace SimpleCharacterSelectPlugin
             WindowSystem.RemoveAllWindows();
             MainWindow.Dispose();
             commands.RemoveHandlers();
-            Framework.Update -= FrameworkUpdate; // Fixed: should be -= not +=
-            //dialogueProcessor?.Dispose();
+            Framework.Update -= FrameworkUpdate;
             IntegrationListProvider?.Dispose();
-
-            // Dispose IPC provider
-            //ipcProvider?.Dispose();
-
-            try
-            {
-                string sessionFilePath = Path.Combine(PluginInterface.GetPluginConfigDirectory(), "boot_session.txt");
-                if (File.Exists(sessionFilePath))
-                {
-                    File.Delete(sessionFilePath);
-                    Plugin.Log.Debug("[Dispose] Deleted boot_session.txt for next launch.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log.Warning($"[Dispose] Failed to delete boot_session.txt: {ex.Message}");
-            }
-            
+            DesignManager.RevertAllChanges(ActivePlayer.Pc);
             Instance = null;
         }
 

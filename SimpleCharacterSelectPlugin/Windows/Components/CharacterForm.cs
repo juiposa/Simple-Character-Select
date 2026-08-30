@@ -34,14 +34,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         private CharacterDesign editCharDefaultDesign = new CharacterDesign();
 
         // Temp fields for live updates
-        private string tempHonorificTitle = "";
-        private string tempHonorificPrefix = "Prefix";
-        private string tempHonorificSuffix = "Suffix";
-        private Vector3 tempHonorificColor = new Vector3(1.0f, 1.0f, 1.0f);
-        private Vector3 tempHonorificGlow = new Vector3(1.0f, 1.0f, 1.0f);
-        private Vector3 tempHonorificColor3 = new Vector3(0.5f, 0.5f, 1.0f);  // Default light blue for contrast
-        private int? tempHonorificGradientSet = null;
-        private string? tempHonorificAnimationStyle = null;
+
         private (Guid, string) tempMoodlePreset;
 
         // Gradient preset names and data from Honorific (exact base64 encoded color arrays)
@@ -154,7 +147,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             bool tempDefer = editCharDefaultDesign.DeferToGlamourer;
             Vector3 tempColor = editCharacterData.NameplateColor;
             string tempTag = editCharacterData.Tag;
-            Honorific tempHonorific = editCharDefaultDesign.Honorific != null ? editCharDefaultDesign.Honorific.Clone() : new Honorific();
             
             // Character Name
             DrawFormField("Character Name*", labelWidth, inputWidth, inputOffset, () =>
@@ -243,7 +235,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             ImGui.SameLine(labelWidth);
             ImGui.SetCursorPosX(labelWidth + inputOffset);
             
-            if(ImGui.Checkbox("", ref tempDefer))
+            if(ImGui.Checkbox("GlamourerDefer", ref tempDefer))
             {
                 editCharDefaultDesign.DeferToGlamourer = tempDefer;
             }
@@ -344,30 +336,34 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         }
 
         private void DrawHonorificSection(float labelWidth, float inputWidth, float inputOffset, float scale)
-        {
+        {   
             ImGui.SetCursorPosX(10 * scale);
             ImGui.Text("Honorific Title");
             ImGui.SameLine();
             ImGui.SetCursorPosX(labelWidth + inputOffset);
             ImGui.SetNextItemWidth(inputWidth);
-
-            bool changed = false;
+            Honorific tempHonorific = editCharDefaultDesign.Honorific!;
+            string tempHonorificTitle = tempHonorific.Title;
+            string tempHonorificIsPrefix = tempHonorific.Location;
+            Vector3 tempHonorificColor = tempHonorific.Color;
 
             // Title input
-            changed |= ImGui.InputText("##HonorificTitle", ref tempHonorificTitle, 50);
+            if (ImGui.InputText("##HonorificTitle", ref tempHonorificTitle, 50))
+            {
+                editCharDefaultDesign.Honorific!.Title = tempHonorificTitle;
+            }
 
             ImGui.SameLine();
             ImGui.SetNextItemWidth(80 * scale);
-            if (ImGui.BeginCombo("##HonorificPlacement", tempHonorificPrefix))
+            if (ImGui.BeginCombo("##HonorificPlacement", tempHonorificIsPrefix))
             {
-                foreach (var opt in new[] { "Prefix", "Suffix" })
-                {
-                    if (ImGui.Selectable(opt, tempHonorificPrefix == opt))
-                    {
-                        tempHonorificPrefix = opt;
-                        tempHonorificSuffix = opt;
-                        changed = true;
-                    }
+                if (ImGui.Selectable("Prefix", tempHonorificIsPrefix == "prefix"))
+                {   
+                    editCharDefaultDesign.Honorific!.Location = "prefix";
+                }
+                if (ImGui.Selectable("Suffix", tempHonorificIsPrefix == "suffix"))
+                {   
+                    editCharDefaultDesign.Honorific!.Location = "suffix";
                 }
                 ImGui.EndCombo();
             }
@@ -375,11 +371,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             // Text colour picker
             ImGui.SameLine();
             ImGui.SetNextItemWidth(40 * scale);
-            changed |= ImGui.ColorEdit3("##HonorificColor", ref tempHonorificColor, ImGuiColorEditFlags.NoInputs);
+            if (ImGui.ColorEdit3("##HonorificColor", ref tempHonorificColor, ImGuiColorEditFlags.NoInputs))
+            {
+                editCharDefaultDesign.Honorific!.Color = tempHonorificColor;
+            }
 
             // Glow picker with gradient options (Honorific-style)
             ImGui.SameLine();
-            changed |= DrawGlowPicker(scale);
+            DrawGlowPicker(scale);
 
             // Tooltip
             ImGui.SameLine();
@@ -402,11 +401,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SameLine(0, 4 * scale);
                 DrawHonorificPreview(scale);
             }
-
-            if (changed)
-            {
-                UpdateHonorificData(editCharDefaultDesign);
-            }
         }
 
         /// <summary>
@@ -414,27 +408,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
         /// </summary>
         private bool DrawGlowPicker(float scale)
         {
+            Vector3 tempHonorificGlow = editCharDefaultDesign.Honorific!.Glow;
+            int? tempHonorificGradientSet = null;
+            string? tempHonorificAnimationStyle = null;
             bool modified = false;
             long animOffset = AnimationTimer.ElapsedMilliseconds;
 
             // When a gradient is selected, show animated color; otherwise show solid glow
             Vector3 displayColor;
-            if (tempHonorificGradientSet.HasValue)
-            {
-                if (tempHonorificGradientSet.Value == -1)
-                {
-                    // Two-colour gradient: alternate between the two colours
-                    displayColor = GetTwoColourPreviewColor(tempHonorificGlow, tempHonorificColor3, animOffset);
-                }
-                else
-                {
-                    displayColor = GetGradientPreviewColor(tempHonorificGradientSet.Value, animOffset);
-                }
-            }
-            else
-            {
-                displayColor = tempHonorificGlow;
-            }
+            displayColor = tempHonorificGlow;
 
             // Use ColorButton to match the text color picker size exactly
             if (ImGui.ColorButton("##GlowPickerBtn", new Vector4(displayColor, 1f), ImGuiColorEditFlags.NoTooltip))
@@ -466,17 +448,8 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 ImGui.SameLine();
                 if (ImGui.ColorEdit3("##GlowColorPicker", ref tempHonorificGlow, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoLabel))
                 {
-                    tempHonorificGradientSet = null;
-                    tempHonorificAnimationStyle = null;
+                    editCharDefaultDesign.Honorific!.Glow = tempHonorificGlow;
                     modified = true;
-                }
-                ImGui.SameLine();
-                if (ImGui.SmallButton("Use##UseGlow"))
-                {
-                    tempHonorificGradientSet = null;
-                    tempHonorificAnimationStyle = null;
-                    modified = true;
-                    ImGui.CloseCurrentPopup();
                 }
 
                 ImGui.EndPopup();
@@ -695,6 +668,7 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 else
                 {
                     Plugin.Log.Debug($"Saving existing default design {editCharacterData.Name} {editCharDefaultDesign.Name}");
+                    Plugin.Log.Debug($"TITLE {editCharDefaultDesign.Honorific?.Location}");
                     editCharacterData.SetTags();
                     editCharacterData.Designs[currentCharacter.Data.DefaultDesignIndex] = editCharDefaultDesign;
                 }
@@ -718,27 +692,15 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             uiStyles.PopDarkButtonStyle();
         }
 
-        private void UpdateHonorificData(CharacterDesign design)
-        {   
-            design.Honorific!.Title = tempHonorificTitle;
-            design.Honorific.Prefix = tempHonorificPrefix;
-            design.Honorific.Suffix = tempHonorificSuffix;
-            design.Honorific.Color = tempHonorificColor;
-            design.Honorific.Glow = tempHonorificGlow;
-            design.Honorific.Color3 = tempHonorificGradientSet == -1 ? tempHonorificColor3 : null;;
-            design.Honorific.GradientSet = tempHonorificGradientSet;
-            design.Honorific.AnimationStyle = tempHonorificAnimationStyle;
-        }
-
         /// <summary>
         /// Draws an animated preview of the Honorific title with the current settings in a dark container
         /// </summary>
         private void DrawHonorificPreview(float scale)
         {
-            if (string.IsNullOrWhiteSpace(tempHonorificTitle))
+            if (string.IsNullOrWhiteSpace(editCharDefaultDesign.Honorific?.Title))
                 return;
-
-            var textSize = ImGui.CalcTextSize(tempHonorificTitle);
+            var hfn = editCharDefaultDesign.Honorific!;
+            var textSize = ImGui.CalcTextSize(hfn.Title);
             var padding = new Vector2(8 * scale, 4 * scale);
             var boxSize = textSize + padding * 2;
 
@@ -756,20 +718,9 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
 
             // Build SeString with proper color and glow
             SeString seString;
-            if (tempHonorificGradientSet.HasValue)
-            {
-                // For gradients, build per-character SeString with animated colors
-                // For two-colour gradient (-1), pass both colours
-                seString = BuildGradientSeString(tempHonorificTitle, tempHonorificGradientSet.Value,
-                    tempHonorificAnimationStyle ?? "Wave", tempHonorificColor,
-                    tempHonorificGradientSet.Value == -1 ? tempHonorificGlow : null,
-                    tempHonorificGradientSet.Value == -1 ? tempHonorificColor3 : null);
-            }
-            else
-            {
-                // Build SeString with solid color and glow
-                seString = BuildColoredSeString(tempHonorificTitle, tempHonorificColor, tempHonorificGlow);
-            }
+
+            // Build SeString with solid color and glow
+            seString = BuildColoredSeString(hfn.Title, hfn.Color, hfn.Glow);
 
             // Render using Dalamud's SeString renderer for smooth text
             ImGuiHelpers.SeStringWrapped(seString.Encode(), new SeStringDrawParams
@@ -1045,20 +996,6 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
             string pluginDirectory = plugin.PluginDirectory;
             string defaultImagePath = Path.Combine(pluginDirectory, "Assets", "Default.png");
             
-            
-            
-            // Copy to temp fields
-            if (design.Honorific == null)
-                return;
-            
-            tempHonorificTitle = design.Honorific.Title;
-            tempHonorificPrefix = design.Honorific.Prefix;
-            tempHonorificSuffix = design.Honorific.Suffix;
-            tempHonorificColor = design.Honorific.Color;
-            tempHonorificGlow = design.Honorific.Glow;
-            tempHonorificColor3 = design.Honorific.Color3 ?? new Vector3(0.5f, 0.5f, 1.0f);
-            tempHonorificGradientSet = design.Honorific.GradientSet;
-            tempHonorificAnimationStyle = design.Honorific.AnimationStyle;
             tempMoodlePreset = design.MoodlePresetTuple;
         }
     }

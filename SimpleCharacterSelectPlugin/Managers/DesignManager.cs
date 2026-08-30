@@ -23,7 +23,7 @@ public static class DesignManager
      public static void ApplyProfile(PlayerCharacter pc, Character character, Guid? designId)
      {
          CharacterDesign design = character.GetDesignByIdOrDefault(designId);
-         
+         Plugin.Log.Debug($"{design.Honorific?.Location} {design.Honorific?.Title}");
          Plugin.Log.Debug($"Applying profile {character.Data.Name} {design.Name}");
          pc.ActiveCharacter = character;
          pc.ActiveDesignId = design.Id;
@@ -45,14 +45,16 @@ public static class DesignManager
          }
      }
      
-     public static void RevertAllChanges()
+     public static void RevertAllChanges(PlayerCharacter pc)
      {
         var local = Plugin.ObjectTable.LocalPlayer;
         if (local == null) return;
 
+        var profile = pc.GetActiveDesign();
+
         PenumbraIntegration.ResetCollectionToDefault(local.ObjectIndex);
         GlamourerIntegration.RevertGlamourerState(local.ObjectIndex);
-        CustomizeIntegration.RevertCustomizePlusProfile(local.ObjectIndex);
+        CustomizeIntegration.RevertCustomizePlusProfile(profile?.CustomizeProfileTuple.Item1);
         MoodlesIntegration.RevertMoodles();
         HonorificIntegration.RevertHonorific();
      }
