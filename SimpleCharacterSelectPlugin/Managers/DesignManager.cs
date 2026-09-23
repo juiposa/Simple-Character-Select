@@ -23,6 +23,7 @@ public static class DesignManager
      public static void ApplyProfile(PlayerCharacter pc, Character character, Guid? designId)
      {
          CharacterDesign design = character.GetDesignByIdOrDefault(designId);
+         CharacterDesign defaultDesign = character.GetDefaultDesign();
          Plugin.Log.Debug($"{design.Honorific?.Location} {design.Honorific?.Title}");
          Plugin.Log.Debug($"Applying profile {character.Data.Name} {design.Name}");
          pc.ActiveCharacter = character;
@@ -33,8 +34,8 @@ public static class DesignManager
          
          PenumbraIntegration.SwitchCollection(design.PenumbraCollection);
          CustomizeIntegration.ApplyCustomizePlusProfile(design.CustomizeProfileTuple);
-         MoodlesIntegration.ApplyMoodlesProfile(design.MoodlePresetTuple);
-         HonorificIntegration.ApplyTitle(design.Honorific);
+         MoodlesIntegration.ApplyMoodlesProfile(defaultDesign.MoodlePresetTuple);
+         HonorificIntegration.ApplyTitle(defaultDesign.Honorific);
          if (!design.DeferToGlamourer)
          { 
              GlamourerIntegration.ApplyGlamourerDesign(design.GlamourerDesign);

@@ -157,6 +157,7 @@ namespace SimpleCharacterSelectPlugin
             ClientState.Login += () =>
             {
                Log.Debug($"[Simple Character Select] Local character name: {ObjectTable.LocalPlayer?.Name.TextValue}");
+               StartupComplete = false;
             };
             
         }
@@ -173,6 +174,7 @@ namespace SimpleCharacterSelectPlugin
             // start up
             if (!StartupComplete && player.HomeWorld.IsValid && ClientState.IsLoggedIn && ClientState.TerritoryType != 0)
             {
+                
                 string world = player.HomeWorld.Value.Name.ToString();
                 string fullKey = $"{player.Name.TextValue}@{world}";
 

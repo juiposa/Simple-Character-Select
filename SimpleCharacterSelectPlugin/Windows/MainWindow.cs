@@ -8,6 +8,7 @@ using SimpleCharacterSelectPlugin.Windows.Components;
 using SimpleCharacterSelectPlugin.Windows.Styles;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
+using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using SimpleCharacterSelectPlugin.Managers;
 using SimpleCharacterSelectPlugin.Windows.Utils;
@@ -222,6 +223,18 @@ namespace SimpleCharacterSelectPlugin.Windows
             {
                 ImGui.BeginTooltip();
                 ImGui.Text("Opens a more compact UI to swap between Characters & Designs.");
+                ImGui.EndTooltip();
+            }
+            
+            ImGui.SameLine();
+            
+            if(ImGui.Button("Patch Notes"))
+                Util.OpenLink("https://github.com/juiposa/Simple-Character-Select/releases");
+            
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup))
+            {
+                ImGui.BeginTooltip();
+                ImGui.Text("Opens a webpage to the patch notes on the Github releases page.");
                 ImGui.EndTooltip();
             }
         }
