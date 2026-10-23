@@ -126,7 +126,6 @@ namespace SimpleCharacterSelectPlugin.Windows
             if (uiStyles.IconButton("\uf0e2", "Revert All SCS Changes", new Vector2(iconButtonSize, iconButtonSize)))
             {
                 DesignManager.RevertAllChanges(plugin.ActivePlayer.Pc);
-                plugin.ActivePlayer.Pc.ActiveCharacter = null;
             }
 
             ImGui.SameLine();

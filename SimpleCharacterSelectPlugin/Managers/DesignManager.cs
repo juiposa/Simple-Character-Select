@@ -8,8 +8,23 @@ public static class DesignManager
 {
     public static void ApplyUpdate(ActivePlayerCharacter activePlayer)
     {
-        activePlayer.ApplyUpdate();
+        if (activePlayer.RequiresRevertBeforeUpdate())
+        {
+            
+
+            RevertAllChanges(activePlayer.Pc);
+            activePlayer.ApplicationBuffer = 10; //defer update until 10 frames from now
+            return;
+        }
+
+        if (activePlayer.ApplicationBuffer > 0)
+        {
+            activePlayer.ApplicationBuffer--;
+            return;
+        }
         
+        Plugin.Log.Debug("Updating player character");
+        activePlayer.ApplyUpdate();
         ApplyActiveProfile(activePlayer.Pc);
     }
     
@@ -24,7 +39,6 @@ public static class DesignManager
      {
          CharacterDesign design = character.GetDesignByIdOrDefault(designId);
          CharacterDesign defaultDesign = character.GetDefaultDesign();
-         Plugin.Log.Debug($"{design.Honorific?.Location} {design.Honorific?.Title}");
          Plugin.Log.Debug($"Applying profile {character.Data.Name} {design.Name}");
          pc.ActiveCharacter = character;
          pc.ActiveDesignId = design.Id;
@@ -52,12 +66,15 @@ public static class DesignManager
         if (local == null) return;
 
         var profile = pc.GetActiveDesign();
+        
+        Plugin.Log.Debug("Reverting all changes");
 
         PenumbraIntegration.ResetCollectionToDefault(local.ObjectIndex);
         GlamourerIntegration.RevertGlamourerState(local.ObjectIndex);
         CustomizeIntegration.RevertCustomizePlusProfile(profile?.CustomizeProfileTuple.Item1);
         MoodlesIntegration.RevertMoodles();
         HonorificIntegration.RevertHonorific();
+        pc.ActiveCharacter = null;
      }
     
 }

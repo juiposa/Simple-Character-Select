@@ -15,6 +15,8 @@ public class ActivePlayerCharacter
     private Guid? queuedDesignId = null;
 
     public Gearset? LastKnownGearset = null;
+
+    public int ApplicationBuffer = 0;
     
     public ActivePlayerCharacter(IPlayerCharacter ingamePc, PlayerCharacter playerCharacter)
     {
@@ -25,6 +27,13 @@ public class ActivePlayerCharacter
     public bool RequiresUpdate()
     {
         return queuedCharacter != null ||  queuedDesignId != null;
+    }
+
+    public bool RequiresRevertBeforeUpdate()
+    {
+        return Plugin.Configuration.RevertOnCharacterChange &&
+               Pc.ActiveCharacter != null && 
+               Pc.ActiveCharacter.Data.Name != queuedCharacter?.Data.Name;
     }
 
     public bool GearsetHasChanged()

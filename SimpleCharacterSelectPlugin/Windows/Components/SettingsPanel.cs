@@ -375,14 +375,14 @@ namespace SimpleCharacterSelectPlugin.Windows.Components
                 Plugin.Configuration.Save();
             }
             DrawTooltip("If checked, Simple Character Select will reapply the last used design when you switch jobs.");
-
-            // bool randomFavoritesOnly = Plugin.Configuration.RandomSelectionFavoritesOnly;
-            // if (ImGui.Checkbox("Random Selection: Favourites Only", ref randomFavoritesOnly))
-            // {
-            //     Plugin.Configuration.RandomSelectionFavoritesOnly = randomFavoritesOnly;
-            //     Plugin.Configuration.Save();
-            // }
-            // DrawTooltip("When enabled, random selection will only choose from favourited characters and designs.\nRequires at least one favourited character to work.");
+            
+            bool revertOnCharacterChange = Plugin.Configuration.RevertOnCharacterChange;
+            if (ImGui.Checkbox("Revert changes before changing characters", ref revertOnCharacterChange))
+            {
+                Plugin.Configuration.RevertOnCharacterChange = revertOnCharacterChange;
+                Plugin.Configuration.Save();
+            }
+            DrawTooltip("When changing between characters, SCS will first explicitly revert all of the changes it's made before applying the next character's design. Use this to avoid needing to fiddle with your characters' Glamourer designs if they conflict.");
             
             ImGui.Spacing();
         }

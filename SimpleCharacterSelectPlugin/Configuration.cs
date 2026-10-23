@@ -42,8 +42,8 @@ namespace SimpleCharacterSelectPlugin
         }
         [DefaultValue(true)]
         public bool ReapplyDesignOnJobChange { get; set; } = false;
-        
-        // Pose Settings
+
+        public bool RevertOnCharacterChange { get; set; } = false;
         
         // Design Sorting
         public int CurrentDesignSortIndex { get; set; } = 1;

@@ -226,7 +226,6 @@ namespace SimpleCharacterSelectPlugin
 
             if (ActivePlayer.RequiresUpdate()) // trigger an update
             {
-                Log.Debug("Updating player character");
                 DesignManager.ApplyUpdate(ActivePlayer);
                 QuickSwitchWindow.RefreshSelection();
                 Configuration.Save();
